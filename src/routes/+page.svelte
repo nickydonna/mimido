@@ -5,7 +5,6 @@
 		format,
 		getHours,
 		isWithinInterval,
-		parse,
 		setHours,
 		setMinutes,
 		setSeconds,
@@ -13,9 +12,16 @@
 	} from 'date-fns/fp';
 	import Event from '$lib/components/event/index.js';
 	import TaskBox from '$lib/components/task-box/task-box.svelte';
-	import Card from 'flowbite-svelte/Card.svelte'
+	import Card from 'flowbite-svelte/Card.svelte';
 	import { EType } from '$lib/components/task-box/parser';
 
+	/** @enum {string} */
+	const EEventStyle = {
+		[EType.BLOCK]: 'bg-amber-400 bg-opacity-75',
+		[EType.EVENT]: 'bg-green-400 bg-opacity-75',
+		[EType.TASK]: 'bg-pink-400 bg-opacity-75',
+		[EType.REMINDER]: 'bg-red-400 bg-opacity-75',
+	}
 
 	/** @typedef {import('$lib/server/schemas/event.js').TEventSchema} TEventSchema */
 
@@ -25,79 +31,118 @@
 	let now = setSeconds(0, new Date());
 	let setZeroMin = setMinutes(0);
 	let setStartHour = setHours(8);
-	let setEndHour = setHours(24);
+	let setEndHour = setHours(23);
 	let start = setZeroMin(setStartHour(now));
 	let end = setZeroMin(setEndHour(now));
-	let dates = eachHourOfInterval({start, end})
+	let dates = eachHourOfInterval({ start, end }).map(d => [d, addMinutes(30, d)]).flat();
 
 	/**
-	 * @param {number} startHour
-	 * @param {number} minOffset
+	 * @param {Date} startHour
 	 * @param {TEventSchema} event
 	 * @returns {boolean}
 	 */
-	let timeCheck = (startHour, minOffset, event) => {
+	let timeCheck = (startHour, event) => {
 		if (!event.date || !event.hasStartTime) {
 			return false;
 		}
-		const low = subSeconds(1, setMinutes(minOffset, setHours(startHour, now)));
-		const high = subSeconds(1, setMinutes(minOffset + 30, setHours(startHour, now)))
-		return isWithinInterval({
-			start: low,
-			end: high
-		}, event.date);
-	}
+		return isWithinInterval(
+			{
+				start: subSeconds(1, startHour),
+				end: subSeconds(1, addMinutes(30, startHour))
+			},
+			event.date
+		);
+	};
 
-	/** @type {Array<TEventSchema>}*/
-	let events;
 	/** @type {Array<[EType, TEventSchema[]]>} */
-	let sortedEvents
+	let sortedEvents;
 
 	$: {
-		events = data.events;
-		sortedEvents = /** @type {Array<[EType, TEventSchema[]]>} */ ([
-			[EType.BLOCK, data.events.filter(e => e.type === EType.BLOCK)],
-			[EType.EVENT, data.events.filter(e => e.type === EType.EVENT)],
-			[EType.TASK, data.events.filter(e => e.type === EType.TASK)],
-			[EType.REMINDER, data.events.filter(e => e.type === EType.REMINDER)],
-		].filter(([, e]) => e.length !== 0))
+		sortedEvents = 
+			[
+				[EType.BLOCK, data.events.filter((e) => e.type === EType.BLOCK)],
+				[EType.EVENT, data.events.filter((e) => e.type === EType.EVENT)],
+				[EType.TASK, data.events.filter((e) => e.type === EType.TASK)],
+				[EType.REMINDER, data.events.filter((e) => e.type === EType.REMINDER)]
+			]
+	}
+
+	/** @param {TEventSchema} e */
+	function getScheduleSlot(e) {
+		if (!e.date) return '';
+		const endTime = e.endDate ?? addMinutes(30, e.date);
+		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`
 	}
 </script>
+
 <div>
-	<Card size='lg'>
+	<Card size="lg">
 		<TaskBox />
 	</Card>
 
-	<table class="w-full my-5">
-		<colgroup>
-			<col class="w-16 text-right border-r" >
-		</colgroup>
-		<caption class="caption-top">{format('do LLL yyyy', now)}</caption>
-		<tbody>
+	<div class="schedule">
 		{#each dates as time}
-			<tr class="border-b h-8 p-0">
-				<td>{format('HH:mm', time)}</td>
-				{#each sortedEvents as [type, events]}
-				<td class="p-0">
-					{#each events.filter(e => timeCheck(getHours(time), 0, e)) as e}
-						<Event event={e} type={type} />
-					{/each}
-				</td>
+			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>{format('HH:mm', time)}</h2>
+			{#each sortedEvents as [type, events]}
+				{#each events.filter(e => timeCheck(time, e)) as e}
+					<div
+						class={`${EEventStyle[type]} p-1`} 
+						style:grid-column={type}
+						style:grid-row={getScheduleSlot(e)}>
+						{e.title}
+					</div>	
 				{/each}
-			</tr>
-			<tr class="border-b border-gray-400 h-8">
-				<td class="text-white">{format('HH:mm', addMinutes(30, time))}</td>
-				{#each sortedEvents as [type, events]}
-				<td class="p-0">
-					{#each events.filter(e => timeCheck(getHours(time), 30, e)) as e}
-						<Event event={e} type={type} />
-					{/each}
-				</td>
-				{/each}
-			</tr>
+			{/each}
 		{/each}
-		</tbody>
-	</table>
-
+	</div>
 </div>
 
+<style>
+	.time-slot {
+		grid-column: times;
+	}
+	.schedule {
+		display: grid;
+		grid-template-columns:
+			[times] 4em
+			[block-start] 1fr
+			[block-end event-start] 1fr
+			[event-end task-start] 1fr
+			[task-end reminder-start] 1fr
+			[reminder-end];
+		grid-template-rows:
+			[time-0800] 1fr
+			[time-0830] 1fr
+			[time-0900] 1fr
+			[time-0930] 1fr
+			[time-1000] 1fr
+			[time-1030] 1fr
+			[time-1100] 1fr
+			[time-1130] 1fr
+			[time-1200] 1fr
+			[time-1230] 1fr
+			[time-1300] 1fr
+			[time-1330] 1fr
+			[time-1400] 1fr
+			[time-1430] 1fr
+			[time-1500] 1fr
+			[time-1530] 1fr
+			[time-1600] 1fr
+			[time-1630] 1fr
+			[time-1700] 1fr
+			[time-1730] 1fr
+			[time-1800] 1fr
+			[time-1830] 1fr
+			[time-1900] 1fr
+			[time-1930] 1fr
+			[time-2000] 1fr
+			[time-2030] 1fr
+			[time-2100] 1fr
+			[time-2130] 1fr
+			[time-2200] 1fr
+			[time-2230] 1fr
+			[time-2300] 1fr
+			[time-2330] 1fr
+			[time-0000] 1fr;
+	}
+</style>
