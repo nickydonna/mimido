@@ -14,6 +14,7 @@
 	import Event from '$lib/components/event/index.js';
 	import TaskBox from '$lib/components/task-box/task-box.svelte';
 	import Card from 'flowbite-svelte/Card.svelte'
+	import { EType } from '$lib/components/task-box/parser';
 
 
 	/** @typedef {import('$lib/server/schemas/event.js').TEventSchema} TEventSchema */
@@ -47,7 +48,20 @@
 		}, event.date);
 	}
 
-	let events = data.events
+	/** @type {Array<TEventSchema>}*/
+	let events;
+	/** @type {Array<[EType, TEventSchema[]]>} */
+	let sortedEvents
+
+	$: {
+		events = data.events;
+		sortedEvents = /** @type {Array<[EType, TEventSchema[]]>} */ ([
+			[EType.BLOCK, data.events.filter(e => e.type === EType.BLOCK)],
+			[EType.EVENT, data.events.filter(e => e.type === EType.EVENT)],
+			[EType.TASK, data.events.filter(e => e.type === EType.TASK)],
+			[EType.REMINDER, data.events.filter(e => e.type === EType.REMINDER)],
+		].filter(([, e]) => e.length !== 0))
+	}
 </script>
 <div>
 	<Card size='lg'>
@@ -58,30 +72,28 @@
 		<colgroup>
 			<col class="w-16 text-right border-r" >
 		</colgroup>
-		<caption class="caption-top">{format('LLL yyyy', now)}</caption>
+		<caption class="caption-top">{format('do LLL yyyy', now)}</caption>
 		<tbody>
-		<tr>
-			<td></td>
-			<td>
-					{format('do', now)}
-			</td>
-		</tr>
 		{#each dates as time}
 			<tr class="border-b h-8 p-0">
 				<td>{format('HH:mm', time)}</td>
+				{#each sortedEvents as [type, events]}
 				<td class="p-0">
 					{#each events.filter(e => timeCheck(getHours(time), 0, e)) as e}
-						<Event event={e} />
+						<Event event={e} type={type} />
 					{/each}
 				</td>
+				{/each}
 			</tr>
 			<tr class="border-b border-gray-400 h-8">
 				<td class="text-white">{format('HH:mm', addMinutes(30, time))}</td>
+				{#each sortedEvents as [type, events]}
 				<td class="p-0">
 					{#each events.filter(e => timeCheck(getHours(time), 30, e)) as e}
-						<Event event={e} />
+						<Event event={e} type={type} />
 					{/each}
 				</td>
+				{/each}
 			</tr>
 		{/each}
 		</tbody>

@@ -61,7 +61,7 @@
 
 		showSuccessToast(taskInfo.title);
 		// rerun all `load` functions, following the successful update
-		await invalidateAll();
+		await invalidateAll().catch(console.log);
 	}
 </script>
 

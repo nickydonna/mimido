@@ -1,4 +1,3 @@
-import dynamoose from '$lib/server/schemas';
 import { Event } from '$lib/server/schemas/event';
 import { endOfDay, parseISO, startOfDay } from 'date-fns';
 
@@ -8,7 +7,6 @@ import { endOfDay, parseISO, startOfDay } from 'date-fns';
 
 /** @type {import('./$types').PageServerLoad<{ events: TEventSchema[] }>} */
 export const load = async ({ url }) => {
-	(await dynamoose.logger()).providers.set(console);
   const queryDate = url.searchParams.get('date');
 	const date = queryDate ? parseISO(queryDate) : new Date();
 	const start = startOfDay(date);
