@@ -12,14 +12,11 @@
 		subSeconds
 	} from 'date-fns/fp';
 	import Event from '$lib/components/event/index.js';
-
+	import TaskBox from '$lib/components/task-box/task-box.svelte';
 	import Card from 'flowbite-svelte/Card.svelte'
-  import Label from 'flowbite-svelte/Label.svelte';
-  import Input from 'flowbite-svelte/Input.svelte';
 
-	import { enhance } from '$app/forms';
 
-	/** @typedef {import('$lib/server/db/event.entity.js').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/schemas/event.js').TEventSchema} TEventSchema */
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -39,7 +36,7 @@
 	 * @returns {boolean}
 	 */
 	let timeCheck = (startHour, minOffset, event) => {
-		if (!event.date || !event.time) {
+		if (!event.date || !event.hasStartTime) {
 			return false;
 		}
 		const low = subSeconds(1, setMinutes(minOffset, setHours(startHour, now)));
@@ -47,22 +44,14 @@
 		return isWithinInterval({
 			start: low,
 			end: high
-		}, parse(event.date, 'HH:mm', event.time));
+		}, event.date);
 	}
 
-	let event = data.event
+	let events = data.events
 </script>
 <div>
-	<Card>
-		<h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-			New Event
-		</h5>
-			<form method="POST" use:enhance>
-				<Label for="event-title">Title</Label>
-				<Input id="event-title" type="text" name="title"/>
-			</form>
-
-
+	<Card size='lg'>
+		<TaskBox />
 	</Card>
 
 	<table class="w-full my-5">
@@ -81,17 +70,17 @@
 			<tr class="border-b h-8 p-0">
 				<td>{format('HH:mm', time)}</td>
 				<td class="p-0">
-					{#if timeCheck(getHours(time), 0, event)}
-						<Event event={event} />
-					{/if}
+					{#each events.filter(e => timeCheck(getHours(time), 0, e)) as e}
+						<Event event={e} />
+					{/each}
 				</td>
 			</tr>
 			<tr class="border-b border-gray-400 h-8">
 				<td class="text-white">{format('HH:mm', addMinutes(30, time))}</td>
 				<td class="p-0">
-					{#if timeCheck(getHours(time), 30, event)}
-						<Event event={event} />
-					{/if}
+					{#each events.filter(e => timeCheck(getHours(time), 30, e)) as e}
+						<Event event={e} />
+					{/each}
 				</td>
 			</tr>
 		{/each}

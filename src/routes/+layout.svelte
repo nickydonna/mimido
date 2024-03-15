@@ -5,27 +5,26 @@
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
 	import Navbar from 'flowbite-svelte/Navbar.svelte';
-	import NavBrand from 'flowbite-svelte/Navbar.svelte';
+	import NavBrand from 'flowbite-svelte/NavBrand.svelte';
 	import NavLi from 'flowbite-svelte/NavLi.svelte';
 	import NavUl from 'flowbite-svelte/NavUl.svelte';
 	import NavHamburger from 'flowbite-svelte/NavHamburger.svelte';
 </script>
 
 <div class="container mx-auto">
-	<Navbar  >
-  <NavBrand href="/">
-    <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">MimiDo</span>
-  </NavBrand>
-  <NavHamburger  />
-  <NavUl >
-    <NavLi href="/">Home</NavLi>
-    <NavLi href="/about">About</NavLi>
-    <NavLi href="/docs/components/navbar">Navbar</NavLi>
-    <NavLi href="/pricing">Pricing</NavLi>
-    <NavLi href="/contact">Contact</NavLi>
-  </NavUl>
-</Navbar>
-
+	<Navbar>
+		<NavBrand href="/">
+			<span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">MimiDo</span>
+		</NavBrand>
+  	<NavHamburger  />
+  	<NavUl >
+  	  <NavLi href="/">Home</NavLi>
+   	 <NavLi href="/about">About</NavLi>
+    	<NavLi href="/docs/components/navbar">Navbar</NavLi>
+    	<NavLi href="/pricing">Pricing</NavLi>
+    	<NavLi href="/contact">Contact</NavLi>
+  	</NavUl>
+	</Navbar>
 	<slot />	
 	<BottomNav position="fixed" classInner="grid-cols-3">
 		<BottomNavItem btnName="ListTask">

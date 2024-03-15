@@ -1,19 +1,18 @@
 <script>
 	import { addMinutes, differenceInMinutes, parse } from 'date-fns/fp';
-	/** @typedef {import('$lib/server/db/event.entity.js').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/schemas/event.js').TEventSchema} TEventSchema */
 
 	/** @type {TEventSchema} */
 	export let event;
 
 	const height = (() => {
-		if (!event.date || !event.time) return;
+		if (!event.date || !event.hasStartTime) return;
 
-		const start = parse(event.date, 'HH:mm', event.time)
-
-		const end = event.endDate && event.endTime
-			? parse(event.endDate, 'HH:mm', event.endTime)
-			: addMinutes(30, start);
-		let size = differenceInMinutes(start, end) / 30;
+		const end = event.endDate && event.hasEndTime
+			? event.endDate
+			: addMinutes(30, event.date);
+		let size = differenceInMinutes(event.date, end) / 30;
+		
 		return (2 * size).toString() + "rem";
 	})()
 </script>
