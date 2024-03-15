@@ -17,10 +17,10 @@
 
 	/** @enum {string} */
 	const EEventStyle = {
-		[EType.BLOCK]: 'bg-amber-400 bg-opacity-75',
-		[EType.EVENT]: 'bg-green-400 bg-opacity-75',
-		[EType.TASK]: 'bg-pink-400 bg-opacity-75',
-		[EType.REMINDER]: 'bg-red-400 bg-opacity-75',
+		[EType.BLOCK]: 'bg-amber-400 border-amber-600',
+		[EType.EVENT]: 'bg-green-400 border-green-600',
+		[EType.TASK]: 'bg-pink-400 border-pink-600',
+		[EType.REMINDER]: 'bg-red-400 border-red-600',
 	}
 
 	/** @typedef {import('$lib/server/schemas/event.js').TEventSchema} TEventSchema */
@@ -81,12 +81,16 @@
 	</Card>
 
 	<div class="schedule">
+		<span class="track-slot" aria-hidden="true" style="grid-column: block; grid-row: tracks;">Block</span>
+		<span class="track-slot" aria-hidden="true" style="grid-column: event; grid-row: tracks;">Events</span>
+		<span class="track-slot" aria-hidden="true" style="grid-column: task; grid-row: tracks;">Tasks</span>
+		<span class="track-slot" aria-hidden="true" style="grid-column: reminder; grid-row: tracks;">Reminder</span>
 		{#each dates as time}
 			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>{format('HH:mm', time)}</h2>
 			{#each sortedEvents as [type, events]}
 				{#each events.filter(e => timeCheck(time, e)) as e}
 					<div
-						class={`${EEventStyle[type]} p-1`} 
+						class={`${EEventStyle[type]} p-1 rounded-md shadow-2xl border bg-opacity-75`} 
 						style:grid-column={type}
 						style:grid-row={getScheduleSlot(e)}>
 						{e.title}
@@ -98,11 +102,21 @@
 </div>
 
 <style>
+	.track-slot {
+			display: block;
+			padding: 10px 5px 5px;
+			position: sticky;
+			top: 0;
+			z-index: 1000;
+			background-color: rgba(255,255,255,.9);
+		}
 	.time-slot {
 		grid-column: times;
 	}
 	.schedule {
+		margin: 20px 0;
 		display: grid;
+		grid-gap: 1em;
 		grid-template-columns:
 			[times] 4em
 			[block-start] 1fr
@@ -111,6 +125,7 @@
 			[task-end reminder-start] 1fr
 			[reminder-end];
 		grid-template-rows:
+			[tracks] auto
 			[time-0800] 1fr
 			[time-0830] 1fr
 			[time-0900] 1fr
