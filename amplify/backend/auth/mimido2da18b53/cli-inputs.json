@@ -1,10 +1,10 @@
 {
   "version": "1",
   "cognitoConfig": {
-    "identityPoolName": "mimido3032df03_identitypool_3032df03",
+    "identityPoolName": "mimido2da18b53_identitypool_2da18b53",
     "allowUnauthenticatedIdentities": false,
-    "resourceNameTruncated": "mimido3032df03",
-    "userPoolName": "mimido3032df03_userpool_3032df03",
+    "resourceNameTruncated": "mimido2da18b53",
+    "userPoolName": "mimido2da18b53_userpool_2da18b53",
     "autoVerifiedAttributes": [
       "email"
     ],
@@ -20,7 +20,8 @@
     "passwordPolicyMinLength": 8,
     "passwordPolicyCharacters": [],
     "requiredAttributes": [
-      "email"
+      "email",
+      "nickname"
     ],
     "aliasAttributes": [],
     "userpoolClientGenerateSecret": false,
@@ -31,42 +32,19 @@
     "userpoolClientReadAttributes": [
       "email"
     ],
-    "userpoolClientLambdaRole": "mimido3032df03_userpoolclient_lambda_role",
+    "userpoolClientLambdaRole": "mimido2da18b53_userpoolclient_lambda_role",
     "userpoolClientSetAttributes": false,
-    "sharedId": "3032df03",
-    "resourceName": "mimido3032df03",
+    "sharedId": "2da18b53",
+    "resourceName": "mimido2da18b53",
     "authSelections": "identityPoolAndUserPool",
-    "useDefault": "manual",
+    "useDefault": "default",
     "usernameAttributes": [
       "email"
     ],
+    "triggers": {},
     "userPoolGroupList": [],
     "serviceName": "Cognito",
     "usernameCaseSensitive": false,
-    "useEnabledMfas": true,
-    "authRoleArn": {
-      "Fn::GetAtt": [
-        "AuthRole",
-        "Arn"
-      ]
-    },
-    "unauthRoleArn": {
-      "Fn::GetAtt": [
-        "UnauthRole",
-        "Arn"
-      ]
-    },
-    "breakCircularDependency": true,
-    "dependsOn": [],
-    "thirdPartyAuth": false,
-    "userPoolGroups": false,
-    "adminQueries": false,
-    "triggers": {},
-    "hostedUI": false,
-    "authProviders": [],
-    "parentStack": {
-      "Ref": "AWS::StackId"
-    },
-    "permissions": []
+    "useEnabledMfas": true
   }
 }
