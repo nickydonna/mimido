@@ -24,6 +24,13 @@ export const EStatus = {
   DONE: 'done',
 };
 
+/** 
+ * @typedef {Object} TAlarm
+ * @prop {import("date-fns").Duration} duration - The time before the related date
+ * @prop {'START'} related - The date to use for the duraction, for now just related to start date
+ * @prop {boolean} [isNegative=true] - if the duration is before or after related 
+ */
+
 /**
  * @typedef {Object} TEventSchema
  * @prop {string} eventId
@@ -38,6 +45,7 @@ export const EStatus = {
  * @prop {number} importance
  * @prop {number} urgency
  * @prop {number} load
+ * @prop {TAlarm} [alarm]
  */
 
 export class Backend {
@@ -153,16 +161,18 @@ export class Backend {
 
     return objects.map(e => {
       const comp = ICAL.Component.fromString(e.data)
-      var vevent = comp.getFirstSubcomponent('vevent');
-      return this.fromComponent(vevent); 
+      const vevent = comp.getFirstSubcomponent('vevent');
+      const valarm = vevent.getFirstSubcomponent('valarm');
+      return this.fromComponent(vevent, valarm); 
     })
   }
 
   /**
    * @param {Record<string, any>} vevent - vevent component from calendar
+   * @param {Record<string, any>} [valarm] - valarm component from calendar
    * @return {TEventSchema}
    */
-  fromComponent(vevent) {
+  fromComponent(vevent, valarm) {
     const icalEvent = new ICAL.Event(vevent);
     const date = /** @type {Date | undefined} */ (icalEvent.startDate?.toJSDate());
     /** @type {Date | undefined} */
@@ -180,6 +190,23 @@ export class Backend {
     let importance = parseInt(vevent.getFirstPropertyValue(CustomPropName.IMPORTANCE), 10)
     importance = Number.isFinite(importance) ? importance : 0;
 
+    /** @type {TAlarm | undefined} */
+    let alarm;
+
+    if (valarm && valarm.getFirstPropertyValue('action') === 'DISPLAY') {
+      // The ICAL duraction is not good for formating
+      const dur = valarm.getFirstPropertyValue('trigger')      
+      alarm = {
+        related: 'START', // TODO check actual related
+        duration: {
+          hours: Math.abs(dur.hours),
+          minutes: Math.abs(dur.minutes),
+          days: Math.abs(dur.days),
+          weeks: Math.abs(dur.weeks),
+        },
+        isNegative: dur?.isNegative,
+      }
+    }
 
     return {
       eventId: /** @type {string} */ (icalEvent.uid),
@@ -193,6 +220,7 @@ export class Backend {
       urgency,
       importance,
       load,
+      alarm,
     }
   }  
 

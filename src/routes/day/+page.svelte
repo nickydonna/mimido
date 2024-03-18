@@ -3,17 +3,16 @@
 		addMinutes,
 		eachHourOfInterval,
 		format,
-		getHours,
 		isWithinInterval,
 		setHours,
 		setMinutes,
 		setSeconds,
 		subSeconds
 	} from 'date-fns/fp';
-	import Event from '$lib/components/event/index.js';
 	import TaskBox from '$lib/components/task-box/task-box.svelte';
 	import Card from 'flowbite-svelte/Card.svelte';
 	import { EType } from '$lib/components/task-box/parser';
+	import { formatDuration } from 'date-fns';
 
 	/** @enum {string} */
 	const EEventStyle = {
@@ -93,7 +92,16 @@
 						class={`${EEventStyle[type]} p-1 rounded-md shadow-2xl border bg-opacity-75`} 
 						style:grid-column={type}
 						style:grid-row={getScheduleSlot(e)}>
-						{e.title}
+						<div>
+							{e.title}
+						</div>
+						{#if e.alarm}
+							<div>
+								Alarm:
+								{formatDuration({...e.alarm.duration}, { format: ['days', 'hours', 'minutes']})}
+								{e.alarm.isNegative ? 'before' : 'after'}
+							</div>
+						{/if}
 					</div>	
 				{/each}
 			{/each}
