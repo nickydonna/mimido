@@ -23,7 +23,7 @@
 		[EType.REMINDER]: 'bg-red-400 border-red-600',
 	}
 
-	/** @typedef {import('$lib/server/schemas/event.js').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -42,7 +42,7 @@
 	 * @returns {boolean}
 	 */
 	let timeCheck = (startHour, event) => {
-		if (!event.date || !event.hasStartTime) {
+		if (!event.date) {
 			return false;
 		}
 		return isWithinInterval(

@@ -50,6 +50,9 @@
 		"dynamoose": "^4.0.0",
 		"dynamoose-logger": "^4.0.0",
 		"flowbite-svelte-icons": "^1.4.3",
+		"ical.js": "^1.5.0",
+		"jsonwebtoken": "^9.0.2",
+		"tsdav": "^2.0.9",
 		"uuid": "^9.0.1",
 		"yup": "^1.4.0"
 	}

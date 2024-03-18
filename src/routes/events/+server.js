@@ -3,9 +3,8 @@ import { Event } from '$lib/server/schemas/event';
 import { parseISO } from 'date-fns';
 
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
   const data = await request.json();
-  console.log(data);
 
   const eventData = {
     ...data,
@@ -13,6 +12,7 @@ export async function POST({ request }) {
     endDate: data.endDate ? parseISO(data.endDate) : undefined,
   }
 
-  const event = await Event.create(eventData);
+  const event = await locals.backend.createEvent(eventData);
+
   return json(event, { status: 201 });
 }
