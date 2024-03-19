@@ -1,5 +1,5 @@
 import * as chrono from 'chrono-node';
-/** @typedef {import('$lib/server/schemas/event').TEventSchema} TEventSchema */
+/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
 /** @enum {string} */
 export const EType = {
@@ -38,8 +38,6 @@ export function parseTaskText(str, ref) {
   let type = 'task';
   let date;
   let endDate;
-  let hasStartTime = false;
-  let hasEndTime = false;
   /** @type {string[]} */
   let tag = [];
   let status = EStatus.BACK;
@@ -100,11 +98,6 @@ export function parseTaskText(str, ref) {
   if (parsedDate) {
     title = title.replace(parsedDate.text, ' ');
     date = parsedDate.start.date();
-    hasStartTime = parsedDate.start.isCertain('hour')
-    if (parsedDate.end) {
-      endDate = parsedDate.end.date();
-      hasEndTime = parsedDate.end.isCertain('hour');
-    }
   }
 
   return {
@@ -113,8 +106,6 @@ export function parseTaskText(str, ref) {
     type,
     date,
     endDate,
-    hasStartTime,
-    hasEndTime,
     tag,
     load,
     status,

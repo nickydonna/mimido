@@ -1,9 +1,18 @@
 import jwt from 'jsonwebtoken';
 import { Backend } from '$lib/server/calendar';
 import { dev } from '$app/environment';
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 
-const key = process.env.SESSION_KEY ?? 'test';
+
+import { SESSION_KEY } from '$env/static/private';
+
+/** @type {import('./$types').PageServerLoad} */
+export const load = async ({ cookies }) => {
+  if (cookies.get('session')) {
+    throw redirect(303, '/day');
+  }
+  return;
+}
 
 /** @type {import('./$types').Actions} */
 export const actions = {
@@ -18,16 +27,16 @@ export const actions = {
     const back = new Backend(user);
     try {
       await back.test();
-      const token = jwt.sign(user, key);
+      const token = jwt.sign(user, SESSION_KEY);
       cookies.set('session', token, {
         path: '/',
         httpOnly: true,
         sameSite: 'strict',
         secure: !dev 
       })
-      throw redirect(303, '/day');
     } catch (e) {
-      return {error: e }
+      return error(500, e instanceof Error ? e.message : "")
     }
+    throw redirect(303, '/day');
 	}
 };

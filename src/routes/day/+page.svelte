@@ -9,20 +9,19 @@
 		addDays,
 		subSeconds
 	} from 'date-fns/fp';
-	import TaskBox from '$lib/components/task-box/task-box.svelte';
 	import Card from 'flowbite-svelte/Card.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
 	import { AngleLeftOutline, AngleRightOutline } from 'flowbite-svelte-icons';
-	import { EType } from '$lib/components/task-box/parser';
+	import { EType } from '$lib/parser/index';
 	import { formatDuration, formatISO, startOfDay } from 'date-fns';
 
 	/** @enum {string} */
 	const EEventStyle = {
-		[EType.BLOCK]: 'bg-amber-400 border-amber-600',
-		[EType.EVENT]: 'bg-green-400 border-green-600',
-		[EType.TASK]: 'bg-pink-400 border-pink-600',
-		[EType.REMINDER]: 'bg-red-400 border-red-600',
+		[EType.BLOCK]: 'bg-amber-400 border-amber-600 bg-opacity-50',
+		[EType.EVENT]: 'bg-green-400 border-green-600 bg-opacity-75',
+		[EType.TASK]: 'bg-pink-400 border-pink-600 bg-opacity-75',
+		[EType.REMINDER]: 'bg-red-400 border-red-600 bg-opacity-75',
 	}
 
 	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
@@ -76,46 +75,51 @@
 </script>
 
 <div>
-	<Card size="lg">
-		<TaskBox />
-	</Card>
-
-	<ButtonGroup>
-  	<Button href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
-			<AngleLeftOutline />
-		</Button>
-  	<Button href="/day">
-			Today
-		</Button>
- 		<Button href="/day?date={formatISO(addDays(1, startOfDay(data.date)))}">
-			<AngleRightOutline />
-		</Button>
-	</ButtonGroup>
-
+	<div class="flex">
+		<div class="flex-1"></div>
+		<ButtonGroup>
+			<Button href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
+				<AngleLeftOutline />
+			</Button>
+			<Button href="/day">
+				Today
+			</Button>
+			<Button href="/day?date={formatISO(addDays(1, startOfDay(data.date)))}">
+				<AngleRightOutline />
+			</Button>
+		</ButtonGroup>
+	</div>
 
 
 	<div class="schedule">
-		<span class="track-slot" aria-hidden="true" style="grid-column: block; grid-row: tracks;">Block</span>
-		<span class="track-slot" aria-hidden="true" style="grid-column: event; grid-row: tracks;">Events</span>
-		<span class="track-slot" aria-hidden="true" style="grid-column: task; grid-row: tracks;">Tasks</span>
-		<span class="track-slot" aria-hidden="true" style="grid-column: reminder; grid-row: tracks;">Reminder</span>
+		<span class="track-slot text-center" aria-hidden="true" style="grid-column: event; grid-row: tracks;">Events</span>
+		<span class="track-slot text-center" aria-hidden="true" style="grid-column: task; grid-row: tracks;">Tasks</span>
+		<span class="track-slot text-center" aria-hidden="true" style="grid-column: reminder; grid-row: tracks;">Reminder</span>
 		{#each dates as time}
 			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>{format('HH:mm', time)}</h2>
 			{#each sortedEvents as [type, events]}
 				{#each events.filter(e => timeCheck(time, e)) as e}
 					<div
-						class={`${EEventStyle[type]} p-1 rounded-md shadow-2xl border bg-opacity-75`} 
-						style:grid-column={type}
+						class="{EEventStyle[type]} p-2 rounded-md shadow-2xl border " 
+						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
 						style:grid-row={getScheduleSlot(e)}>
-						<div>
-							{e.title}
-						</div>
-						{#if e.alarm}
-							<div>
-								Alarm:
-								{formatDuration({...e.alarm.duration}, { format: ['days', 'hours', 'minutes']})}
-								{e.alarm.isNegative ? 'before' : 'after'}
+						{#if e.type === EType.BLOCK}
+							<div class="h-full flex flex-col justify-center items-center">
+								<p class="inline-block text-amber-900 font-medium text-2xl opacity-65">
+								{e.title.toUpperCase()}
+								</p>
 							</div>
+						{:else}
+							<div>
+								{e.title}
+							</div>
+							{#if e.alarm}
+								<div>
+									Alarm:
+									{formatDuration({...e.alarm.duration}, { format: ['days', 'hours', 'minutes']})}
+									{e.alarm.isNegative ? 'before' : 'after'}
+								</div>
+							{/if}
 						{/if}
 					</div>	
 				{/each}
@@ -144,9 +148,8 @@
 		display: grid;
 		grid-gap: 1em;
 		grid-template-columns:
-			[times] 4em
-			[block-start] 1fr
-			[block-end event-start] 1fr
+			[times] 3em
+			[event-start] 1fr
 			[event-end task-start] 1fr
 			[task-end reminder-start] 1fr
 			[reminder-end];

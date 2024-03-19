@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseTaskText } from './parser';
+import { parseTaskText } from '.';
 
 import { startOfDay, addWeeks, subWeeks, setSeconds, setHours, setMinutes, startOfHour } from "date-fns/fp";
 import { startOfWeek, startOfTomorrow  } from "date-fns";
@@ -14,8 +14,6 @@ const testCases = [
       type: 'event',
       date: setHours(12, setMinutes(30, startOfTomorrow())),
       endDate: setHours(14, setMinutes(30, startOfTomorrow())),
-      hasStartTime: true,
-      hasEndTime: true,
       tag: ['work'],
       load: 0,
       status: 'back',
@@ -30,8 +28,6 @@ const testCases = [
       type: 'block',
       date: startOfHour(setHours(9, (addWeeks(1, new Date())))),
       endDate: undefined,
-      hasStartTime: true,
-      hasEndTime: false,
       tag: ['personal'],
       load: 0,
       status: 'back',
@@ -46,8 +42,6 @@ const testCases = [
       type: 'reminder',
       date: startOfHour(setHours(10, startOfWeek(new Date(), { weekStartsOn: 1 }))),
       endDate: setSeconds(0, setMinutes(30, setHours(12, startOfDay(startOfWeek(new Date(), { weekStartsOn: 1 }))))),
-      hasStartTime: true,
-      hasEndTime: true,
       tag: ['mimi'],
       load: 0,
       status: 'back',
@@ -80,8 +74,6 @@ const testCases = [
       // When no time, chrone set the middle of the day as date
       date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
       endDate: undefined, 
-      hasStartTime: false,
-      hasEndTime: false,
       tag: ['mimi2'],
       load: 3,
       status: 'done',

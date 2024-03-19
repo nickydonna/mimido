@@ -7,9 +7,9 @@
 	import { invalidateAll } from '$app/navigation';
 	import { CheckCircleSolid } from 'flowbite-svelte-icons';
 
-	import { parseTaskText } from './parser';
 	import { format, isSameDay } from 'date-fns/fp';
 	import { formatRelative } from 'date-fns';
+	import { parseTaskText } from '$lib/parser';
 
 	/** @type {string} */
 	export let content = 'something today at 10 until 13 @event #mine #project !! ^^^';
@@ -100,18 +100,11 @@
 						{/if}
 						{#if taskInfo.date}
 							<Badge color="indigo" large>
-								{#if taskInfo.hasStartTime}
-									{formatRelative(taskInfo.date, new Date(), { weekStartsOn: 1 })}
-								{:else}
-									{format('dd MMM yy', taskInfo.date)}
-								{/if}
+								{formatRelative(taskInfo.date, new Date(), { weekStartsOn: 1 })}
 								{#if taskInfo.endDate}
 									until
 									{#if !isSameDay(taskInfo.endDate, taskInfo.date)}
-										{format('dd MMM yy', taskInfo.endDate)}
-									{/if}
-									{#if taskInfo.hasEndTime}
-										at {format('HH:mm', taskInfo.endDate)}
+										{format('dd MMM yy HH:mm', taskInfo.endDate)}
 									{/if}
 								{/if}
 							</Badge>
