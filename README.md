@@ -1,38 +1,24 @@
-# create-svelte
+# MimiDo
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+This project is a personal organizer, using CalDAV as a backend. The main objective is to organize myself in a better way.
 
-## Creating a project
+My main issue with current task manager is that everything is an event or a task, which it annoying to organize around, so the approach used is to provide more tools, the ones provided now are:
 
-If you're seeing this, you've probably already done this step. Congrats!
+* Block: A block of time dedicated to something. For example, work, dinner, family time, etc. This will allow for quickly viewing what you are doing in that time. For now is not blocking, but it can change in the future for free/busy queries.
+* Event: A typical event, usually time blocking and fixed in time. A future version will include "transport time" and "preparation time". Example: I need to go to the doctor at 13 pm, it takes me 15 min to go, and I need 30 min to take a bath or look for previous studies to share.
+* Task: Something that needs to be done, can have time or not. Example: Fix Bug 15, Go grocery shopping
+* Reminder: An small thing that you not forget, should not take more that 15 min. Some of this Reminder may be "Create X Task". Example: Take the chicken out of the freezer, make doctors appoiment
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+# Backend
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+We are using CalDAV as a backend. CalDAV is a common standard for Calendar used by most platforms, Google, Apple, Fastmail, etc.
 
-## Developing
+Using this we can leverage calendar notification from cellphones, no scaling needed, and the user owns the data.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+To access it there are different mechanisms, but for now we support only Basic Auth.
 
-```bash
-npm run dev
+## Authentication
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+Since we don't have any backend, right now the credentials are store in a secure cookie in a jwt format, so only use this on trusted devices. This will eventually help with creating a PWA.
 
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+A minor upgrade would be encrypting the cookie.
