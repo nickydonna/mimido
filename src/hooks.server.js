@@ -8,6 +8,7 @@ const unProtectedRoutes = ['/', '/sign-in', '/sign-up'];
 /** @type {import('@sveltejs/kit').Handle} */
 export const handle = async ({ event, resolve }) => {
   const session = event.cookies.get('session');
+
   if (!session) {
     if (!unProtectedRoutes.includes(event.url.pathname)) {
       throw redirect(303, '/');

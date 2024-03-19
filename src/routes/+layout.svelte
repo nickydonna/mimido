@@ -9,6 +9,13 @@
 	import NavLi from 'flowbite-svelte/NavLi.svelte';
 	import NavUl from 'flowbite-svelte/NavUl.svelte';
 	import NavHamburger from 'flowbite-svelte/NavHamburger.svelte';
+	import { formatISO } from 'date-fns/fp';
+	import { page } from '$app/stores';
+
+	/** @type {string} */
+	let date;
+	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date())
+
 </script>
 
 <div class="container mx-auto">
@@ -30,10 +37,10 @@
 		<BottomNavItem btnName="ListTask">
 			<RectangleListOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
 		</BottomNavItem>
-		<BottomNavItem btnName="CalenderView" href="/day">
+		<BottomNavItem btnName="CalenderView" href="/day?date={date}">
 			<CalendarEditOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
 		</BottomNavItem>
-		<BottomNavItem btnName="Add" href="/form">
+		<BottomNavItem btnName="Add" href="/form?date={date}">
 			<PlusOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
 		</BottomNavItem>
 	</BottomNav>

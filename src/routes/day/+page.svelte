@@ -9,12 +9,11 @@
 		addDays,
 		subSeconds
 	} from 'date-fns/fp';
-	import Card from 'flowbite-svelte/Card.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
 	import { AngleLeftOutline, AngleRightOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
-	import { formatDuration, formatISO, startOfDay } from 'date-fns';
+	import { formatDuration, formatISO, roundToNearestMinutes, startOfDay } from 'date-fns';
 
 	/** @enum {string} */
 	const EEventStyle = {
@@ -29,10 +28,16 @@
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	let current = startOfDay(data.date);
-	let start = setHours(8, current);
-	let end = setHours(23, current);
-	let dates = eachHourOfInterval({ start, end }).map(d => [d, addMinutes(30, d)]).flat();
+	/** @type {Date} */
+	let current;
+	/** @type {Date[]} */
+	let dates;
+	$: {
+		current = startOfDay(data.date);
+		let start = setHours(8, current);
+		let end = setHours(23, current);
+		dates = eachHourOfInterval({ start, end }).map(d => [d, addMinutes(30, d)]).flat();
+	}
 
 	/**
 	 * @param {Date} startHour
@@ -68,7 +73,9 @@
 	/** @param {TEventSchema} e */
 	function getScheduleSlot(e) {
 		if (!e.date) return '';
-		const endTime = e.endDate ?? addMinutes(30, e.date);
+		let endTime = e.endDate ?? addMinutes(30, e.date);
+		// 
+		endTime = roundToNearestMinutes(endTime, { nearestTo: 30 })
 		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`
 	}
 

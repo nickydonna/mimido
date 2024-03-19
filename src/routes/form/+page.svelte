@@ -1,14 +1,10 @@
 <script>
 	import Badge from 'flowbite-svelte/Badge.svelte';
-	import Toast from 'flowbite-svelte/Toast.svelte';
 	import FloatingLabelInput from 'flowbite-svelte/FloatingLabelInput.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
-	import { slide } from 'svelte/transition';
-	import { invalidateAll } from '$app/navigation';
-	import { CheckCircleSolid } from 'flowbite-svelte-icons';
 
 	import { format, isSameDay } from 'date-fns/fp';
-	import { formatRelative } from 'date-fns';
+	import { formatISO, formatRelative } from 'date-fns';
 	import { parseTaskText } from '$lib/parser';
 
 	/** @type {string} */
@@ -16,69 +12,37 @@
 
 	let taskText = content + ''; // Duplicate to avoid chainging the prop
 	const today = new Date();
-	/** @type {string | undefined}*/
-	let str;
-	let loading = false;
-	/** @type {string | undefined} */
-	let successToast;
-	let showingToast = false;
-	/** @type {number | undefined} */
-	let clearSuccessToast;
 	/** @type {ReturnType<parseTaskText>}*/
 	let taskInfo;
 	$: {
-		showingToast = !!successToast;
 		taskInfo = parseTaskText(taskText, today);
-		str = JSON.stringify(taskInfo, null, 2);
 	}
 
-	/** @param {string} text */
-	function showSuccessToast(text) {
-		if (clearSuccessToast) clearTimeout(clearSuccessToast);
-		console.log(text);
-		successToast = text
-		clearSuccessToast = setTimeout(() => {
-			successToast = undefined;
-			clearSuccessToast = undefined;
-		}, 3000);
-	}
+	/** @type {import('./$types').Snapshot<string>} */
+	export const snapshot = {
+		capture: () => taskText,
+		restore: (value) => taskText = value
+	};
 
-	/** @param {{ currentTarget: EventTarget & HTMLFormElement}} event */
-	async function handleSubmit(event) {
-		loading = true;
-
-		const response = await fetch('/events', {
-			method: 'POST',
-			body: JSON.stringify(taskInfo),
-			headers: {
-				'Content-Type': 'application/json'
-			},
-		});
-
-		const result = await response.json();
-		loading = false;
-		taskText = '';
-
-		showSuccessToast(taskInfo.title);
-		// rerun all `load` functions, following the successful update
-		await invalidateAll().catch(console.log);
-	}
+	// TODO use current date?
+	let dateStr = formatISO(today);
 </script>
 
 <div>
 	<h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">New Event</h5>
 	<div>
-		<form method="POST" class="flex-1" on:submit|preventDefault={handleSubmit}>
+		<form method="POST" class="flex-1" >
 			<FloatingLabelInput
-				id="floating_standard"
-				name="floating_standard"
+				id="original_text"
+				name="originalText"
 				type="text"
 				label="Type your event"
-				disabled={loading}
+				required
 				bind:value={taskText}
 			>
 				Type your task
 			</FloatingLabelInput>
+			<input type="text" bind:value={dateStr} readonly class="hidden">
 			<div class="mt-3 flex">
 				<div class="flex-1">
 					<div>
@@ -119,10 +83,5 @@
 				</div>
 			</div>
 		</form>
-		<Toast dismissable={false} transition={slide} bind:open={showingToast} position="top-right">
-    	<CheckCircleSolid slot="icon" class="w-4 h-4" />
-			Created event: {successToast}
-  	</Toast>
-
 	</div>
 </div>
