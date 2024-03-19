@@ -5,14 +5,17 @@
 		format,
 		isWithinInterval,
 		setHours,
-		setMinutes,
-		setSeconds,
+		subDays,
+		addDays,
 		subSeconds
 	} from 'date-fns/fp';
 	import TaskBox from '$lib/components/task-box/task-box.svelte';
 	import Card from 'flowbite-svelte/Card.svelte';
+	import Button from 'flowbite-svelte/Button.svelte';
+	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
+	import { AngleLeftOutline, AngleRightOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/components/task-box/parser';
-	import { formatDuration } from 'date-fns';
+	import { formatDuration, formatISO, startOfDay } from 'date-fns';
 
 	/** @enum {string} */
 	const EEventStyle = {
@@ -27,12 +30,9 @@
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	let now = setSeconds(0, new Date());
-	let setZeroMin = setMinutes(0);
-	let setStartHour = setHours(8);
-	let setEndHour = setHours(23);
-	let start = setZeroMin(setStartHour(now));
-	let end = setZeroMin(setEndHour(now));
+	let current = startOfDay(data.date);
+	let start = setHours(8, current);
+	let end = setHours(23, current);
 	let dates = eachHourOfInterval({ start, end }).map(d => [d, addMinutes(30, d)]).flat();
 
 	/**
@@ -72,12 +72,27 @@
 		const endTime = e.endDate ?? addMinutes(30, e.date);
 		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`
 	}
+
 </script>
 
 <div>
 	<Card size="lg">
 		<TaskBox />
 	</Card>
+
+	<ButtonGroup>
+  	<Button href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
+			<AngleLeftOutline />
+		</Button>
+  	<Button href="/day">
+			Today
+		</Button>
+ 		<Button href="/day?date={formatISO(addDays(1, startOfDay(data.date)))}">
+			<AngleRightOutline />
+		</Button>
+	</ButtonGroup>
+
+
 
 	<div class="schedule">
 		<span class="track-slot" aria-hidden="true" style="grid-column: block; grid-row: tracks;">Block</span>

@@ -1,9 +1,9 @@
-import { DAVClient, createCalendarObject, fetchCalendarObjects } from "tsdav";
-// const ICAL = require('ical.js');
+import { DAVClient } from "tsdav";
+import { createHash } from 'node:crypto';
 // @ts-ignore
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
-import { add, addHours, formatISO, startOfDay } from "date-fns/fp";
+import { add, formatISO, startOfDay } from "date-fns/fp";
 import { endOfDay } from "date-fns";
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
@@ -88,8 +88,12 @@ export class Backend {
     return this.calendar;
   }
 
-  async test() {
+  async init() {
     await this.logged;
+  }
+
+  async test() {
+    await this.init();
     await this.getCalendar();
   }
 
@@ -234,6 +238,32 @@ const CustomPropName = {
   IMPORTANCE: 'x-importance',
   ORIGINAL_TEXT: 'x-original-text',
   STATUS: 'x-status',
+}
+
+/** @type {Record<string, Backend>} */
+const backends = {};
+
+/** @param {App.Locals['user']} user */
+function hashUser(user) {
+  const hash = createHash('sha256');
+  hash.update(user.email);
+  hash.update(user.calendar);
+  hash.update(user.server);
+  return hash.digest('hex');
+
+}
+
+/** @param {App.Locals['user']} user */
+export async function getBackend(user) {
+  const key = hashUser(user);
+
+  if (!backends[key]) {
+    const back = new Backend(user);
+    await back.init();
+    backends[key] = back;
+  }
+  return backends[key]
+
 }
 
 

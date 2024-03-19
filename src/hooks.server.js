@@ -1,4 +1,4 @@
-import { Backend } from "$lib/server/calendar";
+import { getBackend } from "$lib/server/calendar";
 import { redirect } from "@sveltejs/kit";
 import jwt from 'jsonwebtoken';
 
@@ -16,8 +16,7 @@ export const handle = async ({ event, resolve }) => {
   }
 
   const user = /** @type {App.Locals['user']} */ (jwt.verify(session, key))
-  const back = new Backend(user);
   event.locals.user = user;
-  event.locals.backend = back;
+  event.locals.backend = await getBackend(user);
   return resolve(event);
 }

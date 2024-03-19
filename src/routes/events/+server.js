@@ -1,5 +1,4 @@
 import { json } from '@sveltejs/kit';
-import { Event } from '$lib/server/schemas/event';
 import { parseISO } from 'date-fns';
 
 /** @type {import('./$types').RequestHandler} */
