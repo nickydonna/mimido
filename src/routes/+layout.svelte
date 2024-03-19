@@ -18,7 +18,7 @@
 
 </script>
 
-<div class="container mx-auto">
+<div class="container mx-auto h-full">
 	<Navbar>
 		<NavBrand href="/">
 			<span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">MimiDo</span>

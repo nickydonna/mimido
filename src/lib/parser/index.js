@@ -98,6 +98,10 @@ export function parseTaskText(str, ref) {
   if (parsedDate) {
     title = title.replace(parsedDate.text, ' ');
     date = parsedDate.start.date();
+
+    if (parsedDate.end) {
+      endDate = parsedDate.end.date();
+    }
   }
 
   return {
