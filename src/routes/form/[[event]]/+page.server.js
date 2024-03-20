@@ -2,7 +2,7 @@ import { parseTaskText } from '$lib/parser';
 import { redirect } from '@sveltejs/kit';
 import { formatISO } from 'date-fns';
 
-/** @typedef {import('$lib/parser').TEventSchema} TEventSchema */
+/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
 /** @type {import('./$types').PageServerLoad<{event?: TEventSchema }>} */
 export const load = async ({ locals, params }) => {
