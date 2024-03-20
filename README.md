@@ -22,3 +22,26 @@ To access it there are different mechanisms, but for now we support only Basic A
 Since we don't have any backend, right now the credentials are store in a secure cookie in a jwt format, so only use this on trusted devices. This will eventually help with creating a PWA.
 
 A minor upgrade would be encrypting the cookie.
+
+## Note on Fastmail
+
+Fastmail support both VEVENT and VTODO but because of a weird functionality on iOS they split it into two collections.
+
+To make a single calendar support both you need to run the following command:
+
+```sh
+curl --location --request PROPPATCH '<url of your calendar>' --header 'Content-Type: application/xml' --header 'Authorization: Basic <your auth>' --data '<?xml version="1.0" encoding="utf-8" ?>
+<propertyupdate xmlns="DAV:">
+	<set>
+		<prop>
+			<C:supported-calendar-component-set
+				xmlns:C="urn:ietf:params:xml:ns:caldav" force="yes">
+				<C:comp name="VEVENT"/>
+				<C:comp name="VTODO"/>
+			</C:supported-calendar-component-set>
+		</prop>
+	</set>
+</propertyupdate>'
+```
+
+Eventually we will an option to enable this in the app
