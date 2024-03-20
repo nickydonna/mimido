@@ -1,4 +1,7 @@
 import * as chrono from 'chrono-node';
+import { isSameDay } from 'date-fns';
+import { format } from 'date-fns/fp';
+
 /** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
 /** @enum {string} */
@@ -26,6 +29,7 @@ const loadRE = /( |^)(?<match>\${1,3})( |$)/;
 const urgencyRE = /( |^)(?<match>\^{1,3})( |$)/;
 const pImportanceRE = /( |^)(?<match>!{1,3})( |$)/;
 const nImportanceRE = /( |^)(?<match>\?{1,3})( |$)/;
+const dateRE = /(^| )\((?<match>.*)\)( |$)/;
 
 /**
  * Parses text and transforms it into {TEventSchema} 
@@ -94,13 +98,16 @@ export function parseTaskText(str, ref) {
     urgency = urgencyStr.length;
   }
   
-  const parsedDate = chrono.parse(str, ref)?.[0];
-  if (parsedDate) {
-    title = title.replace(parsedDate.text, ' ');
-    date = parsedDate.start.date();
-
-    if (parsedDate.end) {
-      endDate = parsedDate.end.date();
+  const dateMatch = title.match(dateRE);
+  if (dateMatch?.groups?.['match']) {
+    title = title.replace(dateMatch[0], '')
+    const parsedDate = chrono.parse(dateMatch.groups['match'], ref)?.[0];
+ 
+    if (parsedDate) {
+      date = parsedDate.start.date();
+      if (parsedDate.end) {
+        endDate = parsedDate.end.date();
+      }
     }
   }
 
@@ -118,3 +125,45 @@ export function parseTaskText(str, ref) {
   }
 }
 
+/**
+ * Takes an event and transforms it into an string so it can be editted
+ * This way we avoid issues with relative dates in text
+ * @param {TEventSchema} event
+ * @return {string}
+ */
+export function unparseTaskText(event) {
+  let text = event.title
+  if (event.date) {
+    text += ` (${format('MMM dd HH:mm', event.date)}`
+    if (event.endDate) {
+     const timeFormat = isSameDay(event.date, event.endDate)
+        ? 'HH:mm'
+        : 'MMM dd HH:mm'
+      text = text + ' until ' + format(timeFormat, event.endDate)
+    }
+    text += ')'
+  }
+  text += ` @${ event.type } %${ event.status }`;
+
+  event.tag.forEach(t => (text += ` #${t}`))
+
+  if (event.importance !== 0) {
+    const symbol = event.importance > 0 ? '!' : '?';
+    text += ` ${repeat(symbol, event.importance)}`
+  }
+
+  if (event.load) text += ` ${repeat('$', event.load)}`
+  if (event.urgency) text += ` ${repeat('$', event.urgency)}`
+  
+  return text;
+}
+
+/**
+ * Repeats the symbol the provided amount of times in a string
+ * @param {string} symbol - Usually a single char 
+ * @param {number} times - can be negative, will use the absolute value
+ * @returns {string}
+ */
+function repeat(symbol, times) {
+  return [...Array(Math.abs(times))].map(() => symbol).join('');
+}

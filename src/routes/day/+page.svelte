@@ -11,7 +11,7 @@
 	} from 'date-fns/fp';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
-	import { AngleLeftOutline, AngleRightOutline } from 'flowbite-svelte-icons';
+	import { AngleLeftOutline, AngleRightOutline, EditOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
 	import { formatDuration, formatISO, roundToNearestMinutes, startOfDay } from 'date-fns';
 
@@ -107,9 +107,14 @@
 			{#each sortedEvents as [type, events]}
 				{#each events.filter(e => timeCheck(time, e)) as e}
 					<div
-						class="{EEventStyle[type]} p-2 rounded-md shadow-2xl border " 
+						class="{EEventStyle[type]} relative p-2 rounded-md shadow-2xl border group" 
 						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
 						style:grid-row={getScheduleSlot(e)}>
+						<div class="absolute right-2 group-hover:block">
+							 <Button href="/form/{e.eventId}" color="none" pill={true} outline={true} class="!p-1" size="xl">
+									<EditOutline />
+  						</Button>
+						</div>
 						{#if e.type === EType.BLOCK}
 							<div class="h-full flex flex-col justify-center items-center">
 								<p class="inline-block text-amber-900 font-medium text-2xl opacity-65">

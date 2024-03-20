@@ -1,6 +1,5 @@
-import { DAVClient } from "tsdav";
+import { DAVClient, DAVNamespaceShort } from "tsdav";
 import { createHash } from 'node:crypto';
-// @ts-ignore
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
 import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
@@ -48,6 +47,11 @@ export const EStatus = {
  * @prop {TAlarm} [alarm]
  */
 
+/** 
+ * @typedef {Omit<TEventSchema, 'eventId'>} ParsedEventSchema
+ * Result of the parsed event from the parsing, without id
+ */
+
 export class Backend {
   /**
    * @param { App.Locals['user']} user - User data to auth to the server
@@ -88,12 +92,11 @@ export class Backend {
     return this.calendar;
   }
 
-  async init() {
+  /**
+   * Check the connection to the server and if the calendar exists
+   */
+  async check() {
     await this.logged;
-  }
-
-  async test() {
-    await this.init();
     await this.getCalendar();
   }
 
@@ -103,44 +106,16 @@ export class Backend {
   async createEvent(eventData) {
     const calendar = await this.getCalendar();
 
-    var comp = new ICAL.Component(['vcalendar', [], []]);
-    comp.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
-
-    const vevent = new ICAL.Component('vevent');
-    const event = new ICAL.Event(vevent);
-
-    // Set standard properties
-    event.summary = eventData.title;
-    event.uid = v4();
-    if (eventData.description) {
-      event.description = eventData.description;
-    }
-    event.startDate = ICAL.Time.fromJSDate(eventData.date);
-    if (eventData.endDate) {
-      event.endDate = ICAL.Time.fromJSDate(eventData.endDate);
-    } else {
-      event.duration = new ICAL.Duration({ minutes: 15 })
-    }
-
-    // Set custom property
-    vevent.addPropertyWithValue(CustomPropName.TYPE, eventData.type ?? EType.EVENT);
-    vevent.addPropertyWithValue(CustomPropName.TAG, (eventData.tag ?? []).join(','));
-    vevent.addPropertyWithValue(CustomPropName.URGENCY, eventData.urgency ?? 0);
-    vevent.addPropertyWithValue(CustomPropName.LOAD, eventData.load ?? 0);
-    vevent.addPropertyWithValue(CustomPropName.IMPORTANCE, eventData.importance ?? 0);
-    vevent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, eventData.originalText);
-    vevent.addPropertyWithValue(CustomPropName.STATUS, eventData.status ?? EStatus.TODO);
-
-    // Add the new component
-    comp.addSubcomponent(vevent);
+    var { event, component } = this.toComponent(eventData);
 
     return await this.client.createCalendarObject({
       calendar: calendar,
       filename: `${event.uid}.ics`,
-      iCalString: comp.toString(),
+      iCalString: component.toString(),
     });
-
   }
+
+
 
   /**
    * 
@@ -167,19 +142,81 @@ export class Backend {
     });
 
     return objects.map(e => {
-      const comp = ICAL.Component.fromString(e.data)
+      const comp = ICAL.Component.fromString(e.data);
       const vevent = comp.getFirstSubcomponent('vevent');
-      const valarm = vevent.getFirstSubcomponent('valarm');
-      return this.fromComponent(vevent, valarm); 
-    })
+      if (vevent) {
+        return this.fromComponent(vevent);
+      }
+    }).filter(
+      /**
+       * @param {TEventSchema | undefined} e 
+       * @returns {e is TEventSchema}
+       */
+      e => typeof e !== 'undefined'
+    )
+  }
+
+  /** @param {string} id */
+  async getEvent(id) {
+    const [object] = await this.client.calendarMultiGet({
+      url: await this.getCalendarUrl(),
+      objectUrls: [await this.getEventUrl(id)],
+      depth: '1',
+      props: {
+        [`${DAVNamespaceShort.DAV}:getetag`]: {},
+        [`${DAVNamespaceShort.CALDAV}:calendar-data`]: {},
+      },
+    });
+    if (!object?.ok || !object?.props) {
+      return;
+    }
+    const comp = ICAL.Component.fromString(object?.props.calendarData._cdata);
+    const vevent = comp.getFirstSubcomponent('vevent');
+    if (vevent) return this.fromComponent(vevent);
   }
 
   /**
-   * @param {Record<string, any>} vevent - vevent component from calendar
-   * @param {Record<string, any>} [valarm] - valarm component from calendar
+   * @param {string} id
+   * @param {ParsedEventSchema} eventData
+   */
+  async editEvent(id, eventData) {
+    const event = await this.getEvent(id);
+    if (!event) throw new Error('Event does not exists');
+
+    const { component } = this.toComponent(eventData, id)
+
+    return this.client.updateCalendarObject({
+      calendarObject: {
+        url: await this.getEventUrl(id),
+        data: component.toString()
+      }
+    })
+
+
+  }
+
+  /**
+   * @private
+   * @param {string | TEventSchema} eventOrId 
+   * @returns {Promise<string>} 
+   */
+  async getEventUrl(eventOrId) {
+    const calUrl = await this.getCalendarUrl();
+    return `${calUrl}/${typeof eventOrId === 'string' ? eventOrId : eventOrId.eventId}.ics`
+
+  }
+
+  /** @private */
+  async getCalendarUrl() {
+    return (await this.getCalendar()).url
+  }
+
+  /**
+   * @param {ICAL.Component} vevent - vevent component from calendar
    * @return {TEventSchema}
    */
-  fromComponent(vevent, valarm) {
+  fromComponent(vevent) {
+    const valarm = vevent.getFirstSubcomponent('valarm');
     const icalEvent = new ICAL.Event(vevent);
     const date = /** @type {Date | undefined} */ (icalEvent.startDate?.toJSDate());
     /** @type {Date | undefined} */
@@ -216,6 +253,8 @@ export class Backend {
         isNegative: dur?.isNegative,
       }
     }
+    const tagProp = vevent.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
+    const tag = tagProp.length > 0 ? tagProp.split(',') : []
 
     return {
       eventId: /** @type {string} */ (icalEvent.uid),
@@ -223,7 +262,7 @@ export class Backend {
       date,
       endDate,
       type: vevent.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
-      tag: vevent.getFirstPropertyValue(CustomPropName.TAG)?.split(',') ?? [],
+      tag, 
       status: vevent.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
       originalText: vevent.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
       urgency,
@@ -233,6 +272,51 @@ export class Backend {
     }
   }  
 
+  /**
+   * Transform an TEventSchema into a {@link ICAL.Component} for sending
+   * If {@link TEventSchema#eventId} is not defined, one will be created
+   * @param {ParsedEventSchema} eventData
+   * @param {string} [eventId]
+   * @returns {{ event: ICAL.Event, component: ICAL.Component  }}
+   */
+  toComponent(eventData, eventId = v4()) {
+    var component = new ICAL.Component(['vcalendar', [], []]);
+    component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
+
+    const vevent = new ICAL.Component('vevent');
+    const event = new ICAL.Event(vevent);
+
+    if (!eventData.date) {
+      // TODO
+      throw new Error('No data task not yet supported');
+    }
+
+    // Set standard properties
+    event.summary = eventData.title;
+    event.uid = eventId; 
+    if (eventData.description) {
+      event.description = eventData.description;
+    }
+    event.startDate = ICAL.Time.fromJSDate(eventData.date, true);
+    if (eventData.endDate) {
+      event.endDate = ICAL.Time.fromJSDate(eventData.endDate, true);
+    } else {
+      event.duration = new ICAL.Duration({ minutes: 15 });
+    }
+
+    // Set custom property
+    vevent.addPropertyWithValue(CustomPropName.TYPE, eventData.type ?? EType.EVENT);
+    vevent.addPropertyWithValue(CustomPropName.TAG, (eventData.tag ?? []).join(','));
+    vevent.addPropertyWithValue(CustomPropName.URGENCY, eventData.urgency ?? 0);
+    vevent.addPropertyWithValue(CustomPropName.LOAD, eventData.load ?? 0);
+    vevent.addPropertyWithValue(CustomPropName.IMPORTANCE, eventData.importance ?? 0);
+    vevent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, eventData.originalText);
+    vevent.addPropertyWithValue(CustomPropName.STATUS, eventData.status ?? EStatus.TODO);
+
+    // Add the new component
+    component.addSubcomponent(vevent);
+    return { event, component };
+  }
 }
 
 const CustomPropName = {
@@ -264,7 +348,7 @@ export async function getBackend(user) {
 
   if (!backends[key]) {
     const back = new Backend(user);
-    await back.init();
+    await back.check();
     backends[key] = back;
   }
   return backends[key]
