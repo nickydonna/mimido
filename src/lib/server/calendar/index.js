@@ -36,9 +36,9 @@ export const EStatus = {
  * @prop {string} originalText 			
  * @prop {string} title
  * @prop {EType} type
- * @prop {Date | undefined} date
+ * @prop {Date} [date]
  * @prop {string} [description]
- * @prop {Date | undefined} endDate
+ * @prop {Date} [endDate]
  * @prop {string[]} tag 
  * @prop {EStatus} status
  * @prop {number} importance
@@ -54,6 +54,7 @@ export const EStatus = {
  */
 
 export class Backend {
+
   /**
    * @param { App.Locals['user']} user - User data to auth to the server
    */
@@ -64,8 +65,8 @@ export class Backend {
     this.client = new DAVClient({
       serverUrl: user.server,
       credentials: {
-        username: user.email, // 'nickydonna@fastmail.com',
-        password: user.password, // 'kra9gqhecya42pkw',
+        username: user.email,
+        password: user.password,
       },
       authMethod: 'Basic',
       defaultAccountType: 'caldav',
@@ -107,16 +108,49 @@ export class Backend {
   async createEvent(eventData) {
     const calendar = await this.getCalendar();
 
-    var { event, component } = this.toComponent(eventData);
+    var { id, component } = this.toComponent(eventData);
 
-    return await this.client.createCalendarObject({
+    const result = await this.client.createCalendarObject({
       calendar: calendar,
-      filename: `${event.uid}.ics`,
+      filename: `${id}.ics`,
       iCalString: component.toString(),
     });
+    console.log(result);
+    return result;
   }
 
+  async listTodos() {
+    const calendar = await this.getCalendar();
+    const objects = await this.client.fetchCalendarObjects({
+      calendar: calendar,
+      filters: {
+        'comp-filter': {
+          _attributes: {
+            name: 'VCALENDAR',
+          },
+          'comp-filter': {
+            _attributes: {
+              name: 'VTODO',
+            },
+          }
+        }
+      }
+    });
 
+    return objects.map(e => {
+      const comp = ICAL.Component.fromString(e.data);
+      const vtodo = comp.getFirstSubcomponent('vtodo');
+      if (vtodo) {
+        return this.fromVTodo(vtodo);
+      }
+    }).filter(
+      /**
+       * @param {TEventSchema | undefined} e 
+       * @returns {e is TEventSchema}
+       */
+      e => typeof e !== 'undefined'
+    )
+  }
 
   /**
    * 
@@ -146,7 +180,7 @@ export class Backend {
       const comp = ICAL.Component.fromString(e.data);
       const vevent = comp.getFirstSubcomponent('vevent');
       if (vevent) {
-        return this.fromComponent(vevent);
+        return this.fromVEvent(vevent);
       }
     }).filter(
       /**
@@ -173,7 +207,7 @@ export class Backend {
     }
     const comp = ICAL.Component.fromString(object?.props.calendarData._cdata);
     const vevent = comp.getFirstSubcomponent('vevent');
-    if (vevent) return this.fromComponent(vevent);
+    if (vevent) return this.fromVEvent(vevent);
   }
 
   /**
@@ -192,8 +226,6 @@ export class Backend {
         data: component.toString()
       }
     })
-
-
   }
 
   /**
@@ -211,12 +243,41 @@ export class Backend {
   async getCalendarUrl() {
     return (await this.getCalendar()).url
   }
+ /**
+   * @param {ICAL.Component} vtodo - vtodo component from calendar
+   * @return {TEventSchema}
+   */
+  fromVTodo(vtodo) {
+    let eventId = vtodo.getFirstPropertyValue('uid');
+    let title = vtodo.getFirstPropertyValue('summary');
+    let urgency = parseInt(vtodo.getFirstPropertyValue(CustomPropName.URGENCY), 10)
+    urgency = Number.isFinite(urgency) ? urgency : 0;
+    let load = parseInt(vtodo.getFirstPropertyValue(CustomPropName.LOAD), 10)
+    load = Number.isFinite(load) ? load : 0;
+    let importance = parseInt(vtodo.getFirstPropertyValue(CustomPropName.IMPORTANCE), 10)
+    importance = Number.isFinite(importance) ? importance : 0;
+
+    const tagProp = vtodo.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
+    const tag = tagProp.length > 0 ? tagProp.split(',') : []
+
+    return {
+      eventId,
+      title,
+      type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
+      tag, 
+      status: vtodo.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
+      originalText: vtodo.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
+      urgency,
+      importance,
+      load,
+    }
+  }
 
   /**
    * @param {ICAL.Component} vevent - vevent component from calendar
    * @return {TEventSchema}
    */
-  fromComponent(vevent) {
+  fromVEvent(vevent) {
     const valarm = vevent.getFirstSubcomponent('valarm');
     const icalEvent = new ICAL.Event(vevent);
     const date = /** @type {Date | undefined} */ (icalEvent.startDate?.toJSDate());
@@ -289,51 +350,63 @@ export class Backend {
    * If {@link TEventSchema#eventId} is not defined, one will be created
    * @param {ParsedEventSchema} eventData
    * @param {string} [eventId]
-   * @returns {{ event: ICAL.Event, component: ICAL.Component  }}
+   * @returns {{ id: string, component: ICAL.Component, isTodo: boolean }}
    */
-  toComponent(eventData, eventId = v4()) {
+  toComponent(eventData, eventId) {
     var component = new ICAL.Component(['vcalendar', [], []]);
     component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
 
-    const vevent = new ICAL.Component('vevent');
-    const event = new ICAL.Event(vevent);
+    let vcomponent
+    let id = eventId ?? v4();
+    let isTodo = false;
 
-    if (!eventData.date) {
-      // TODO
-      throw new Error('No data task not yet supported');
-    }
+    if (eventData.date) {
+      vcomponent = new ICAL.Component('vevent');
+      const event = new ICAL.Event(vcomponent);
+      // Set standard properties
+      event.summary = eventData.title;
+      event.uid = id;
+      if (eventData.description) {
+        event.description = eventData.description;
+      }
+      event.startDate = ICAL.Time.fromJSDate(eventData.date, true);
+      if (eventData.endDate) {
+        event.endDate = ICAL.Time.fromJSDate(eventData.endDate, true);
+      } else {
+        event.duration = new ICAL.Duration({ minutes: 15 });
+      }
 
-    // Set standard properties
-    event.summary = eventData.title;
-    event.uid = eventId; 
-    if (eventData.description) {
-      event.description = eventData.description;
-    }
-    event.startDate = ICAL.Time.fromJSDate(eventData.date, true);
-    if (eventData.endDate) {
-      event.endDate = ICAL.Time.fromJSDate(eventData.endDate, true);
+      if (eventData.recur) {
+        const icalRecur = ICAL.Recur.fromString(eventData.recur.replace('RRULE:', ''))
+        vcomponent.addPropertyWithValue('rrule', icalRecur);
+      }
+    } else if (!eventId) {
+      console.log('creating todo')
+      isTodo = true;
+      vcomponent = new ICAL.Component('vtodo');
+      vcomponent.addPropertyWithValue('uid', id);
+      vcomponent.addPropertyWithValue('summary', eventData.title);
+      if (eventData.description) {
+        vcomponent.addPropertyWithValue('description', eventData.description)
+      }
     } else {
-      event.duration = new ICAL.Duration({ minutes: 15 });
+      throw new Error('Edit TODO not supported yet')
     }
 
-    if (eventData.recur) {
-      const icalRecur = ICAL.Recur.fromString(eventData.recur.replace('RRULE:', ''))
-      console.log(eventData.recur, icalRecur);
-      vevent.addPropertyWithValue('rrule', icalRecur); 
+    vcomponent.addPropertyWithValue(CustomPropName.TYPE, eventData.type ?? EType.EVENT);
+    if (eventData.tag.length > 0) {
+      vcomponent.addPropertyWithValue(CustomPropName.TAG, eventData.tag.join(','));
     }
-
-    // Set custom property
-    vevent.addPropertyWithValue(CustomPropName.TYPE, eventData.type ?? EType.EVENT);
-    vevent.addPropertyWithValue(CustomPropName.TAG, (eventData.tag ?? []).join(','));
-    vevent.addPropertyWithValue(CustomPropName.URGENCY, eventData.urgency ?? 0);
-    vevent.addPropertyWithValue(CustomPropName.LOAD, eventData.load ?? 0);
-    vevent.addPropertyWithValue(CustomPropName.IMPORTANCE, eventData.importance ?? 0);
-    vevent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, eventData.originalText);
-    vevent.addPropertyWithValue(CustomPropName.STATUS, eventData.status ?? EStatus.TODO);
+    vcomponent.addPropertyWithValue(CustomPropName.URGENCY, eventData.urgency ?? 0);
+    vcomponent.addPropertyWithValue(CustomPropName.LOAD, eventData.load ?? 0);
+    vcomponent.addPropertyWithValue(CustomPropName.IMPORTANCE, eventData.importance ?? 0);
+    vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, eventData.originalText);
+    vcomponent.addPropertyWithValue(CustomPropName.STATUS, eventData.status ?? EStatus.TODO);
 
     // Add the new component
-    component.addSubcomponent(vevent);
-    return { event, component };
+    component.addSubcomponent(vcomponent);
+
+    return { id, component, isTodo };
   }
 }
 

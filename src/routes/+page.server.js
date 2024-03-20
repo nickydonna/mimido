@@ -26,7 +26,7 @@ export const actions = {
     
     const back = new Backend(user);
     try {
-      await back.test();
+      await back.check();
       const token = jwt.sign(user, SESSION_KEY);
       cookies.set('session', token, {
         path: '/',
