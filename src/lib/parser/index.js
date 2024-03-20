@@ -6,7 +6,7 @@ import * as pkg from 'rrule';
 // @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 const { RRule } =  pkg.default || pkg;
 
-/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+/** @typedef {import('$lib/server/calendar').ParsedEventSchema} ParsedEventSchema */
 
 /** @enum {string} */
 export const EType = {
@@ -39,7 +39,7 @@ const dateRE = /(^| )\((?<match>.*)\)( |$)/;
  * Parses text and transforms it into {TEventSchema} 
  * @param {string} str 
  * @param {Date} ref 
- * @returns {Omit<TEventSchema, 'eventId'>}
+ * @returns {ParsedEventSchema}
  */
 export function parseTaskText(str, ref) {
   let title = str + '';
@@ -136,6 +136,7 @@ export function parseTaskText(str, ref) {
     importance,
     urgency,
     recur,
+    alarm: undefined,
   }
 }
 
