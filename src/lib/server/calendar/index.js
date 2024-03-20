@@ -202,13 +202,16 @@ export class Backend {
         [`${DAVNamespaceShort.CALDAV}:calendar-data`]: {},
       },
     });
+    console.log(object)
     if (!object?.ok || !object?.props) {
       return;
     }
     const comp = ICAL.Component.fromString(object?.props.calendarData._cdata);
     const vevent = comp.getFirstSubcomponent('vevent');
     if (vevent) return this.fromVEvent(vevent);
-  }
+    const vtodo = comp.getFirstSubcomponent('vtodo');
+    if (vtodo) return this.fromVTodo(vtodo);
+}
 
   /**
    * @param {string} id
@@ -218,7 +221,7 @@ export class Backend {
     const event = await this.getEvent(id);
     if (!event) throw new Error('Event does not exists');
 
-    const { component } = this.toComponent(eventData, id)
+    const { component } = this.toComponent(eventData, id);
 
     return this.client.updateCalendarObject({
       calendarObject: {
