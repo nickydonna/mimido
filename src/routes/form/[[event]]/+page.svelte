@@ -6,10 +6,13 @@
 	import { format, isSameDay } from 'date-fns/fp';
 	import { formatISO, formatRelative } from 'date-fns';
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
+
+	import * as pkg from 'rrule';
+	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
+	const { RRule } =  pkg.default || pkg;
 	
 	/** @type {import('./$types').PageData}*/
 	export let data;
-	console.log(data.event);
 
 	let taskText = data.event ? unparseTaskText(data.event) : ''; // Duplicate to avoid chainging the prop
 	const today = new Date();
@@ -63,7 +66,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Title</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{taskInfo.title}
-									<Popover triggeredBy="#title-info" title="The title of the task">
+									<Popover placement="bottom" triggeredBy="#title-info" title="The title of the task">
 										The title of the task. It will what remains after parsing all modifiers.
 									</Popover>
 								</dd>
@@ -71,7 +74,7 @@
 							<div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" id="type-info">
 								<dt class="text-sm font-medium leading-6 text-gray-900">
 									Type (@)
-									<Popover triggeredBy="#type-info" title="Type of the task">
+									<Popover placement="bottom" triggeredBy="#type-info" title="Type of the task">
 										The type of task, prefix with <code>@</code>, can be <code>Block</code>,
 										<code>Event</code>, <code>Task</code> or <code>Remainder</code>
 									</Popover>
@@ -94,9 +97,13 @@
 											{/if}
 										{/if}
 									{/if}
-									<Popover triggeredBy="#date-info" title="The date of the task">
-										The date of this task/event. It will be parsed from the text in parenthesis. Example: Go
-										shopping (at 21 until 23) -> Date: today 9pm until 23:00
+									{#if taskInfo.recur}
+									  <p>| {RRule.fromString(taskInfo.recur).toText()}</p>
+									{/if}
+									<Popover placement="bottom" triggeredBy="#date-info" title="The date of the task">
+										The date of this task/event. It will be parsed from the text in parenthesis. 
+										After the date you can add a <code>|</code> and a recurrence pattern (check rrule.js)
+										Example: Go shopping (at 21 until 23 | every monday) -> Date: today 9pm until 23:00 [every week on Monday]
 									</Popover>
 								</dd>
 							</div>
@@ -104,7 +111,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Status (%)</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{taskInfo.status}
-									<Popover triggeredBy="#status-info" title="The status of the task">
+									<Popover placement="bottom" triggeredBy="#status-info" title="The status of the task">
 										The status of task, prefix with <code>%</code>, can be <code>back</code>,
 										<code>todo</code>, <code>doing</code> or <code>done</code>
 									</Popover>
@@ -114,7 +121,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Tags (#)</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{taskInfo.tag.join(', ')}
-									<Popover triggeredBy="#tag-info" title="The tags of the task">
+									<Popover placement="bottom" triggeredBy="#tag-info" title="The tags of the task">
 										The tags for this task, prefix with <code>#</code>, there can be many of these.
 									</Popover>
 								</dd>
@@ -123,7 +130,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Importance (? or !)</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{taskInfo.importance ?? 0}
-									<Popover triggeredBy="#importance-info" title="The importance of the task">
+									<Popover placement="bottom" triggeredBy="#importance-info" title="The importance of the task">
 										How important is this task, use <code>?</code> for less import or <code>!</code>
 										for more important ones. You can add up to 3 of either. <code>??</code> means
 										-2, and <code>!</code> means +1
@@ -134,7 +141,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Urgency (^)</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{taskInfo.urgency ?? 0}
-									<Popover triggeredBy="#urgency-info" title="The urgency of the task">
+									<Popover placement="bottom" triggeredBy="#urgency-info" title="The urgency of the task">
 										How urgent the task is, use <code>^</code>. You can add up to 3.
 									</Popover>
 								</dd>
@@ -143,7 +150,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Load ($)</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{taskInfo.load ?? 0}
-									<Popover triggeredBy="#load-info" title="The load of the task">
+									<Popover placement="bottom" triggeredBy="#load-info" title="The load of the task">
 										How hard is the task, use <code>$</code>. You can add up to 3.
 									</Popover>
 								</dd>

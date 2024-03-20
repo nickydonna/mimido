@@ -45,6 +45,7 @@ export const EStatus = {
  * @prop {number} urgency
  * @prop {number} load
  * @prop {TAlarm} [alarm]
+ * @prop {string} [recur]
  */
 
 /** 
@@ -229,6 +230,16 @@ export class Backend {
       endDate = addMinutes(30, date);
     }
 
+    let rrule = vevent.getFirstPropertyValue('rrule');
+    /** @type {TEventSchema['recur']} */
+    let recur;
+
+    if (rrule) {
+      const icalRecur = new ICAL.Recur(rrule)
+      console.log(icalRecur.toString());
+      recur = icalRecur.toString()
+    }
+
     let urgency = parseInt(vevent.getFirstPropertyValue(CustomPropName.URGENCY), 10)
     urgency = Number.isFinite(urgency) ? urgency : 0;
     let load = parseInt(vevent.getFirstPropertyValue(CustomPropName.LOAD), 10)
@@ -269,6 +280,7 @@ export class Backend {
       importance,
       load,
       alarm,
+      recur,
     }
   }  
 
@@ -302,6 +314,12 @@ export class Backend {
       event.endDate = ICAL.Time.fromJSDate(eventData.endDate, true);
     } else {
       event.duration = new ICAL.Duration({ minutes: 15 });
+    }
+
+    if (eventData.recur) {
+      const icalRecur = ICAL.Recur.fromString(eventData.recur.replace('RRULE:', ''))
+      console.log(eventData.recur, icalRecur);
+      vevent.addPropertyWithValue('rrule', icalRecur); 
     }
 
     // Set custom property

@@ -197,6 +197,8 @@ declare module "ical.js" {
     public freq: FrequencyValues;
     public count: number | null;
 
+    static fromString(expression: string): Recur
+
     public clone(): Recur;
     public toJSON(): Omit<RecurData, "until"> & { until?: string };
     public iterator(startTime?: Time): RecurIterator;

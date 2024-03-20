@@ -2,6 +2,10 @@ import * as chrono from 'chrono-node';
 import { isSameDay } from 'date-fns';
 import { format } from 'date-fns/fp';
 
+import * as pkg from 'rrule';
+// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
+const { RRule } =  pkg.default || pkg;
+
 /** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
 /** @enum {string} */
@@ -48,6 +52,8 @@ export function parseTaskText(str, ref) {
   let importance = 0;
   let load = 0;
   let urgency = 0;
+  /** @type {string | undefined} Formatted in iCalendar RFC */
+  let recur;
 
   const tagMatch = title.match(tagRE);
   if (tagMatch) {
@@ -101,13 +107,20 @@ export function parseTaskText(str, ref) {
   const dateMatch = title.match(dateRE);
   if (dateMatch?.groups?.['match']) {
     title = title.replace(dateMatch[0], '')
-    const parsedDate = chrono.parse(dateMatch.groups['match'], ref)?.[0];
+    const [datePart, recurPart] = dateMatch.groups['match'].split('|')
+    const parsedDate = chrono.parse(datePart, ref)?.[0];
  
     if (parsedDate) {
       date = parsedDate.start.date();
       if (parsedDate.end) {
         endDate = parsedDate.end.date();
       }
+    }
+    if (recurPart) {
+      try {
+        const parseResult = RRule.fromText(recurPart)
+        recur = parseResult.toString()
+      } catch (e) { /* empty */ }
     }
   }
 
@@ -122,6 +135,7 @@ export function parseTaskText(str, ref) {
     status,
     importance,
     urgency,
+    recur,
   }
 }
 
@@ -140,6 +154,9 @@ export function unparseTaskText(event) {
         ? 'HH:mm'
         : 'MMM dd HH:mm'
       text = text + ' until ' + format(timeFormat, event.endDate)
+    }
+    if (event.recur) {
+      text += ' | ' + RRule.fromString(event.recur).toText()
     }
     text += ')'
   }
