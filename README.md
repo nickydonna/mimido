@@ -45,3 +45,5 @@ curl --location --request PROPPATCH '<url of your calendar>' --header 'Content-T
 ```
 
 Eventually we will an option to enable this in the app
+
+See this conversation for more info [vdirsyncer issue](https://github.com/pimutils/vdirsyncer/issues/824#issuecomment-860621642)
