@@ -87,7 +87,7 @@
 								<dt class="text-sm font-medium leading-6 text-gray-900">Date (.*)</dt>
 								<dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
 									{#if taskInfo.date}
-											{format('dd MMM yyyy HH:mm', taskInfo.date)}
+										{format('dd MMM yyyy HH:mm', taskInfo.date)}
 										{#if taskInfo.endDate}
 											-
 											{#if !isSameDay(taskInfo.endDate, taskInfo.date)}

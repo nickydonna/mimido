@@ -13,7 +13,7 @@
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
 	import { AngleLeftOutline, AngleRightOutline, EditOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
-	import { formatDuration, formatISO, roundToNearestMinutes, startOfDay } from 'date-fns';
+	import { formatDuration, formatISO, getMinutes, roundToNearestMinutes, startOfDay } from 'date-fns';
 
 	/** @enum {string} */
 	const EEventStyle = {
@@ -105,6 +105,12 @@
 		{#each dates as time}
 			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>{format('HH:mm', time)}</h2>
 			{#each sortedEvents as [type, events]}
+				<div
+					class="border-t border-dotted" 
+					class:border-gray-600={getMinutes(time) === 0}
+					class:border-gray-300={getMinutes(time) === 30}
+					style:grid-column={type} 
+					style:grid-row="time-{format('HHmm', time)}"></div>
 				{#each events.filter(e => timeCheck(time, e)) as e}
 					<div
 						class="{EEventStyle[type]} relative p-2 rounded-md shadow-2xl border group" 
@@ -154,13 +160,15 @@
 		}
 	.time-slot {
 		grid-column: times;
+		padding: 0.4em 0.2em 0.4em 0;
+		margin-right: 0.5em;
+		border-right: 1px solid gray;
 	}
 	.schedule {
 		margin: 20px 0;
 		display: grid;
-		grid-gap: 1em;
 		grid-template-columns:
-			[times] 3em
+			[times] 4em
 			[event-start] 1fr
 			[event-end task-start] 1fr
 			[task-end reminder-start] 1fr
