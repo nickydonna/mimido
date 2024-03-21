@@ -27,7 +27,7 @@ export const EStatus = {
 /** 
  * @typedef {Object} TAlarm
  * @prop {import("date-fns").Duration} duration - The time before the related date
- * @prop {'START'} related - The date to use for the duraction, for now just related to start date
+ * @prop {string} related - The date to use for the duraction, for now just related to start date
  * @prop {boolean} [isNegative=true] - if the duration is before or after related 
  */
 
@@ -60,20 +60,20 @@ const statusRE = new RegExp(Object.values(EStatus).join('|'));
  */
 const baseSchema = yup.object({
   originalText: yup.string().required(),
-  title: yup.string().required().length(3),
+  title: yup.string().required().min(3),
   type: yup.string().required().matches(typeRE, { excludeEmptyString: true }),
   status: yup.string().required().matches(statusRE, { excludeEmptyString: true }),
   date: yup.date(),
   endDate: yup.date(),
   description: yup.string(),
-  tag: yup.array().of(yup.string()),
-  importance: yup.number().min(-3).max(3),
-  urgency: yup.number().min(0).max(3),
-  load: yup.number().min(0).max(3),
+  tag: yup.array().of(yup.string().required()).required(),
+  importance: yup.number().min(-3).max(3).required(),
+  urgency: yup.number().min(0).max(3).required(),
+  load: yup.number().min(0).max(3).required(),
   recur: yup.string(), // TODO Add RRULE validation - .test('rrule', 'Recur is not a valid RRULE', (v => RRule.fromString(v).))
   alarm: yup.object({
-    related: yup.string().matches(/START/),
-    isNegative: yup.boolean(),
+    related: yup.string().matches(/START/).required(),
+    isNegative: yup.boolean().required(),
     duration: yup.object({
       years: yup.number(),
       months: yup.number(),
@@ -83,7 +83,7 @@ const baseSchema = yup.object({
       minutes: yup.number(),
       seconds: yup.number(),
     })
-  })
+  }).default(undefined)
 });
 
 /**
@@ -292,12 +292,28 @@ export class Backend {
 
     const { component } = this.toComponent(eventData, id);
 
-    return this.client.updateCalendarObject({
+    const result = await this.client.updateCalendarObject({
       calendarObject: {
         url: await this.getEventUrl(id),
         data: component.toString()
       }
     })
+    return result
+  }
+
+  /**
+   * @param {string} id
+   */
+  async deleteEvent(id) {
+    const event = await this.getEvent(id);
+    if (!event) throw new Error('Event does not exists');
+
+    await this.client.deleteCalendarObject({
+      calendarObject: {
+        url: await this.getEventUrl(id),
+      }
+    })
+    return event
   }
 
   /**
@@ -369,7 +385,6 @@ export class Backend {
 
     if (rrule) {
       const icalRecur = new ICAL.Recur(rrule)
-      console.log(icalRecur.toString());
       recur = icalRecur.toString()
     }
 
@@ -437,6 +452,8 @@ export class Backend {
       const event = new ICAL.Event(vcomponent);
       // Set standard properties
       event.summary = eventData.title;
+      // Prefix id with vevent to reuse id when chaining to todo
+      // event.uid = `vevent:${id}`;
       event.uid = id;
       if (eventData.description) {
         event.description = eventData.description;
@@ -453,10 +470,11 @@ export class Backend {
         vcomponent.addPropertyWithValue('rrule', icalRecur);
       }
     } else if (!eventId) {
-      console.log('creating todo')
       isTodo = true;
       vcomponent = new ICAL.Component('vtodo');
-      vcomponent.addPropertyWithValue('uid', id);
+      // Prefix id with vtodo to reuse id when chaining to event
+      // vcomponent.addPropertyWithValue('uid', `vtodo:${id}`);
+      vcomponent.addPropertyWithValue('uid', `${id}`);
       vcomponent.addPropertyWithValue('summary', eventData.title);
       if (eventData.description) {
         vcomponent.addPropertyWithValue('description', eventData.description)
