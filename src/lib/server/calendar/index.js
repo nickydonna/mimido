@@ -202,7 +202,6 @@ export class Backend {
         [`${DAVNamespaceShort.CALDAV}:calendar-data`]: {},
       },
     });
-    console.log(object)
     if (!object?.ok || !object?.props) {
       return;
     }
