@@ -32,7 +32,9 @@
     	<NavLi href="/contact">Contact</NavLi>
   	</NavUl>
 	</Navbar>
-	<slot />	
+	<div class="mb-16">
+		<slot />	
+	</div>
 	<BottomNav position="fixed" classInner="grid-cols-3">
 		<BottomNavItem btnName="ListTask" href="/list?date={date}">
 			<RectangleListOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
