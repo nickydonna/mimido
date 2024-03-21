@@ -8,13 +8,16 @@
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
 
 	import * as pkg from 'rrule';
+	import { Helper } from 'flowbite-svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } =  pkg.default || pkg;
 	
 	/** @type {import('./$types').PageData}*/
 	export let data;
+		/** @type {import('./$types').ActionData} */
+	export let form;
 
-	let taskText = data.event ? unparseTaskText(data.event) : ''; // Duplicate to avoid chainging the prop
+	let taskText = form?.originalText ?? (data.event ? unparseTaskText(data.event) : ''); // Duplicate to avoid chainging the prop
 	const today = new Date();
 	/** @type {boolean} */
 	let editting;
@@ -58,7 +61,16 @@
 				>
 					Type your task
 				</FloatingLabelInput>
-				<input type="text" bind:value={dateStr} readonly class="hidden" />
+				{#if form?.errors}
+				<Helper class="pt-2 text-red-950">
+					Please fix the following errors
+					<ul class="list-disc">
+						{#each form.errors as e}
+							<li>{e}</li>
+						{/each}
+					</ul>
+				</Helper>
+				{/if}
 				<div class="mt-3 flex">
 					<div class="flex-1">
 						<dl class="divide-y divide-gray-100">

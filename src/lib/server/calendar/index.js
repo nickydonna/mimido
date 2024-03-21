@@ -4,6 +4,7 @@ import ICAL from 'ical.js'
 import { v4 } from "uuid";
 import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
 import { endOfDay } from "date-fns";
+import yup from 'yup';
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
 
@@ -47,6 +48,60 @@ export const EStatus = {
  * @prop {TAlarm} [alarm]
  * @prop {string} [recur]
  */
+
+// eslint-disable-next-line no-useless-escape
+const typeRE = new RegExp(Object.values(EType).join('|'));
+// eslint-disable-next-line no-useless-escape
+const statusRE = new RegExp(Object.values(EStatus).join('|'));
+
+/**
+ * Base schema with optional dates
+ * Right now only tasks can have blank dates
+ */
+const baseSchema = yup.object({
+  originalText: yup.string().required(),
+  title: yup.string().required().length(3),
+  type: yup.string().required().matches(typeRE, { excludeEmptyString: true }),
+  status: yup.string().required().matches(statusRE, { excludeEmptyString: true }),
+  date: yup.date(),
+  endDate: yup.date(),
+  description: yup.string(),
+  tag: yup.array().of(yup.string()),
+  importance: yup.number().min(-3).max(3),
+  urgency: yup.number().min(0).max(3),
+  load: yup.number().min(0).max(3),
+  recur: yup.string(), // TODO Add RRULE validation - .test('rrule', 'Recur is not a valid RRULE', (v => RRule.fromString(v).))
+  alarm: yup.object({
+    related: yup.string().matches(/START/),
+    isNegative: yup.boolean(),
+    duration: yup.object({
+      years: yup.number(),
+      months: yup.number(),
+      weeks: yup.number(),
+      days: yup.number(),
+      hours: yup.number(),
+      minutes: yup.number(),
+      seconds: yup.number(),
+    })
+  })
+});
+
+/**
+ * Block and event need start and end date
+ */
+const blockOrEventSchema = baseSchema.shape({
+  date: yup.date().required(),
+  endDate: yup.date().required(),
+});
+
+/**
+ * Reminders must have an start date
+ */
+const reminderSchema = baseSchema.shape({
+  date: yup.date().required(),
+})
+
+
 
 /** 
  * @typedef {Omit<TEventSchema, 'eventId'>} ParsedEventSchema
@@ -115,7 +170,6 @@ export class Backend {
       filename: `${id}.ics`,
       iCalString: component.toString(),
     });
-    console.log(result);
     return result;
   }
 
@@ -210,7 +264,23 @@ export class Backend {
     if (vevent) return this.fromVEvent(vevent);
     const vtodo = comp.getFirstSubcomponent('vtodo');
     if (vtodo) return this.fromVTodo(vtodo);
-}
+  }
+
+  /**
+   * 
+   * @param {ParsedEventSchema} data 
+   */
+  async validateEventData(data) {
+    switch (data.type) {
+      case EType.BLOCK:
+      case EType.EVENT:
+        return blockOrEventSchema.validate(data)
+      case EType.REMINDER:
+        return reminderSchema.validate(data)
+      default:
+        return baseSchema.validate(data)  
+    }
+  }
 
   /**
    * @param {string} id

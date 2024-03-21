@@ -38,10 +38,10 @@ const dateRE = /(^| )\((?<match>.*)\)( |$)/;
 /**
  * Parses text and transforms it into {TEventSchema} 
  * @param {string} str 
- * @param {Date} ref 
+ * @param {Date} [ref] 
  * @returns {ParsedEventSchema}
  */
-export function parseTaskText(str, ref) {
+export function parseTaskText(str, ref = new Date()) {
   let title = str + '';
   let type = 'task';
   let date;
@@ -143,7 +143,7 @@ export function parseTaskText(str, ref) {
 /**
  * Takes an event and transforms it into an string so it can be editted
  * This way we avoid issues with relative dates in text
- * @param {TEventSchema} event
+ * @param {ParsedEventSchema} event
  * @return {string}
  */
 export function unparseTaskText(event) {
