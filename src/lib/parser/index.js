@@ -147,41 +147,43 @@ export function parseTaskText(str, ref = new Date()) {
  * @return {string}
  */
 export function unparseTaskText(event) {
-  let text = event.title
-  if (event.date) {
-    text += ` (${format('MMM dd HH:mm', event.date)}`
-    if (event.endDate) {
-     const timeFormat = isSameDay(event.date, event.endDate)
+  const {
+    title,
+    date,
+    endDate,
+    recur,
+    type,
+    status,
+    importance,
+    urgency,
+    load,
+    tag,
+  } = event;
+  let text = title
+  if (date) {
+    text += ` (${format('MMM dd HH:mm', date)}`
+    if (endDate) {
+     const timeFormat = isSameDay(date, endDate)
         ? 'HH:mm'
         : 'MMM dd HH:mm'
-      text = text + ' until ' + format(timeFormat, event.endDate)
+      text = text + ' until ' + format(timeFormat, endDate)
     }
-    if (event.recur) {
-      text += ' | ' + RRule.fromString(event.recur).toText()
+    if (recur) {
+      text += ' | ' + RRule.fromString(recur).toText()
     }
     text += ')'
   }
-  text += ` @${ event.type } %${ event.status }`;
+  text += ` @${ type } %${ status }`;
 
-  event.tag.forEach(t => (text += ` #${t}`))
+  tag.forEach(t => (text += ` #${t}`))
 
-  if (event.importance !== 0) {
-    const symbol = event.importance > 0 ? '!' : '?';
-    text += ` ${repeat(symbol, event.importance)}`
+  if (importance !== 0) {
+    const symbol = importance > 0 ? '!' : '?';
+    text += ` ${symbol.repeat(importance)}`
   }
 
-  if (event.load) text += ` ${repeat('$', event.load)}`
-  if (event.urgency) text += ` ${repeat('$', event.urgency)}`
+  if (load > 0) text += ` ${'$'.repeat(load)}`
+  if (urgency > 0) text += ` ${'^'.repeat(urgency)}`
   
   return text;
-}
-
-/**
- * Repeats the symbol the provided amount of times in a string
- * @param {string} symbol - Usually a single char 
- * @param {number} times - can be negative, will use the absolute value
- * @returns {string}
- */
-function repeat(symbol, times) {
-  return [...Array(Math.abs(times))].map(() => symbol).join('');
 }

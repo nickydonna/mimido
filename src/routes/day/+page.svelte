@@ -11,9 +11,10 @@
 	} from 'date-fns/fp';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
-	import { AngleLeftOutline, AngleRightOutline, EditOutline } from 'flowbite-svelte-icons';
+	import { AngleLeftOutline, AngleRightOutline, EditOutline, TrashBinOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
-	import { formatDuration, formatISO, getMinutes, roundToNearestMinutes, startOfDay } from 'date-fns';
+	import { formatDuration, formatISO, getMinutes, isAfter, roundToNearestMinutes, startOfDay } from 'date-fns';
+	import { enhance } from '$app/forms';
 
 	/** @enum {string} */
 	const EEventStyle = {
@@ -70,6 +71,17 @@
 			]
 	}
 
+	let loading = false;
+
+	  /** @type {import('./$types').SubmitFunction} */
+  const onDelete = () => {
+    loading = true;
+    return async ({ update }) => {
+      loading = false;
+      update();
+    }
+  }
+
 	/** @param {TEventSchema} e */
 	function getScheduleSlot(e) {
 		if (!e.date) return '';
@@ -79,6 +91,47 @@
 		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`
 	}
 
+	/** 
+	 * Tuple of type, start time, end time
+	 * @type {{ type: EType, start: Date, end: Date} | undefined}
+	 */
+	let dragData;
+
+	/**
+	 * @param {Date} time
+	 * @param {EType} type
+	 */
+	const handleDragStart = (time, type) => /** @param {MouseEvent} event */ (event) => {
+		console.log('drag')
+		dragData = {type, start: time, end: addMinutes(30, time)}
+	}
+
+	/**
+	 * @param {Date} time
+	 * @param {EType} type
+	 */
+	const handleDragEnd = (time, type) => /** @param {MouseEvent} event */ (event) => {
+		dragData = undefined;
+	}
+
+		/**
+	 * @param {Date} time
+	 * @param {EType} type
+	 */
+	const handleDragEnter = (time, type) => /** @param {MouseEvent} event */ (event) => {
+		if (!dragData) return;
+		if (type != dragData.type || isAfter(dragData.start, time)) return;
+
+		dragData = {...dragData, end: time}
+	}
+
+		/**
+	 * @param {Date} time
+	 * @param {EType} type
+	 */
+	const handleDrop = (time, type) => /** @param {MouseEvent} event */ (event) => {
+		// Create Evente
+	}
 </script>
 
 <div>
@@ -102,24 +155,46 @@
 		<span class="track-slot text-center" aria-hidden="true" style="grid-column: event; grid-row: tracks;">Events</span>
 		<span class="track-slot text-center" aria-hidden="true" style="grid-column: task; grid-row: tracks;">Tasks</span>
 		<span class="track-slot text-center" aria-hidden="true" style="grid-column: reminder; grid-row: tracks;">Reminder</span>
-		{#each dates as time}
+		{#if dragData}
+			<div
+				class="bg-slate-800" 
+				style:grid-column={dragData.type} 
+				style:grid-row="time-{format('HHmm', dragData.start)} / time-{format('HHmm', dragData.end)}"
+				draggable="true"
+			></div>	
+		{/if}
+		{#each dates as time, j}
 			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>{format('HH:mm', time)}</h2>
-			{#each sortedEvents as [type, events]}
+			{#each sortedEvents as [type, events], i}
 				<div
+					tabindex={i + j}
+					role="cell"
 					class="border-t border-dotted" 
 					class:border-gray-600={getMinutes(time) === 0}
 					class:border-gray-300={getMinutes(time) === 30}
 					style:grid-column={type} 
-					style:grid-row="time-{format('HHmm', time)}"></div>
+					style:grid-row="time-{format('HHmm', time)}"
+					draggable="true"
+					on:dragstart={handleDragStart(time, type)}
+					on:dragend={handleDragEnd(time, type)} 
+					on:dragenter={handleDragEnter(time, type)} 
+					on:drop={handleDrop(time, type)}
+					></div>
 				{#each events.filter(e => timeCheck(time, e)) as e}
 					<div
 						class="{EEventStyle[type]} relative p-2 rounded-md shadow-2xl border group" 
 						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
 						style:grid-row={getScheduleSlot(e)}>
-						<div class="absolute right-2 group-hover:block">
+						<div class="absolute right-2 hidden group-hover:block">
 							 <Button href="/form/{e.eventId}" color="none" pill={true} outline={true} class="!p-1" size="xl">
 									<EditOutline />
   						</Button>
+							<form class="inline-block" method="POST" action="?/delete" use:enhance={onDelete}>
+      			    <input type="text" name="eventId" value={e.eventId} class="hidden">
+			          <Button disabled={loading} class="!p-1" size="xs" color="red" type="submit">
+									<TrashBinOutline />
+								</Button>
+        			</form>
 						</div>
 						{#if e.type === EType.BLOCK}
 							<div class="h-full flex flex-col justify-center items-center">

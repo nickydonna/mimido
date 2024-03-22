@@ -24,6 +24,11 @@ export const EStatus = {
   DONE: 'done',
 };
 
+/**
+ * @typedef {Object} TEventMeta
+ * @prop {'vtodo' | 'vevent'} icalType
+ */
+
 /** 
  * @typedef {Object} TAlarm
  * @prop {import("date-fns").Duration} duration - The time before the related date
@@ -47,6 +52,7 @@ export const EStatus = {
  * @prop {number} load
  * @prop {TAlarm} [alarm]
  * @prop {string} [recur]
+ * @prop {TEventMeta} [meta]
  */
 
 // eslint-disable-next-line no-useless-escape
@@ -256,14 +262,30 @@ export class Backend {
         [`${DAVNamespaceShort.CALDAV}:calendar-data`]: {},
       },
     });
-    if (!object?.ok || !object?.props) {
-      return;
+    if (!object?.ok || !object?.props || object.status % 200 > 100) {
+      throw new Error('Event not found: ' + id);
     }
+
     const comp = ICAL.Component.fromString(object?.props.calendarData._cdata);
-    const vevent = comp.getFirstSubcomponent('vevent');
-    if (vevent) return this.fromVEvent(vevent);
-    const vtodo = comp.getFirstSubcomponent('vtodo');
-    if (vtodo) return this.fromVTodo(vtodo);
+    /** @type {TEventSchema | undefined} */
+    let event; 
+    /** @type {TEventMeta} */
+    let meta;
+    if (id.startsWith('vevent-')) {
+      meta = { icalType: 'vevent' }
+      const vevent = comp.getFirstSubcomponent('vevent');
+      if (vevent) (event = this.fromVEvent(vevent));
+    } else if (id.startsWith('vtodo-')) {
+      meta = { icalType: 'vtodo' }
+      const vtodo = comp.getFirstSubcomponent('vtodo');
+      if (vtodo) return this.fromVTodo(vtodo);
+    } else {
+      throw new Error('Event with old id: ' + id)
+    }
+
+    if (!event) throw new Error("Can't parse event: :" + id);
+    return {...event, meta }
+
   }
 
   /**
@@ -290,7 +312,18 @@ export class Backend {
     const event = await this.getEvent(id);
     if (!event) throw new Error('Event does not exists');
 
-    const { component } = this.toComponent(eventData, id);
+    const { component, meta, id: newId } = this.toComponent(eventData, id);
+
+    // If event changed type, destroy and recreate
+    if (event.meta?.icalType != meta.icalType) {
+      await this.deleteEvent(id)
+      const result = await this.client.createCalendarObject({
+        calendar: await this.getCalendar(),
+        filename: `${newId}.ics`,
+        iCalString: component.toString(),
+      });
+      return result;
+    }
 
     const result = await this.client.updateCalendarObject({
       calendarObject: {
@@ -323,7 +356,7 @@ export class Backend {
    */
   async getEventUrl(eventOrId) {
     const calUrl = await this.getCalendarUrl();
-    return `${calUrl}/${typeof eventOrId === 'string' ? eventOrId : eventOrId.eventId}.ics`
+    return `${calUrl}${typeof eventOrId === 'string' ? eventOrId : eventOrId.eventId}.ics`
 
   }
 
@@ -437,24 +470,27 @@ export class Backend {
    * If {@link TEventSchema#eventId} is not defined, one will be created
    * @param {ParsedEventSchema} eventData
    * @param {string} [eventId]
-   * @returns {{ id: string, component: ICAL.Component, isTodo: boolean }}
+   * @returns {{ id: string, component: ICAL.Component, meta: TEventMeta }}
    */
   toComponent(eventData, eventId) {
     var component = new ICAL.Component(['vcalendar', [], []]);
     component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
 
     let vcomponent
-    let id = eventId ?? v4();
-    let isTodo = false;
+    // Remove type in ids in case it changes
+    let id = eventId?.replace('vtodo-', '').replace('vevent-', '') ?? v4();
+    /** @type {TEventMeta} */
+    let meta;
 
     if (eventData.date) {
+      meta = { icalType: 'vevent' };
+      // Prefix id with vevent to reuse id when chaining to todo
+      id = `vevent-${id}`;
       vcomponent = new ICAL.Component('vevent');
       const event = new ICAL.Event(vcomponent);
       // Set standard properties
       event.summary = eventData.title;
-      // Prefix id with vevent to reuse id when chaining to todo
-      // event.uid = `vevent:${id}`;
-      event.uid = id;
+      event.uid = id
       if (eventData.description) {
         event.description = eventData.description;
       }
@@ -469,19 +505,17 @@ export class Backend {
         const icalRecur = ICAL.Recur.fromString(eventData.recur.replace('RRULE:', ''))
         vcomponent.addPropertyWithValue('rrule', icalRecur);
       }
-    } else if (!eventId) {
-      isTodo = true;
-      vcomponent = new ICAL.Component('vtodo');
+    } else {
       // Prefix id with vtodo to reuse id when chaining to event
-      // vcomponent.addPropertyWithValue('uid', `vtodo:${id}`);
-      vcomponent.addPropertyWithValue('uid', `${id}`);
+      id = `vtodo-${id}`;
+      meta = {icalType: 'vtodo'}
+      vcomponent = new ICAL.Component('vtodo');
+      vcomponent.addPropertyWithValue('uid', id);
       vcomponent.addPropertyWithValue('summary', eventData.title);
       if (eventData.description) {
         vcomponent.addPropertyWithValue('description', eventData.description)
       }
-    } else {
-      throw new Error('Edit TODO not supported yet')
-    }
+    } 
 
     vcomponent.addPropertyWithValue(CustomPropName.TYPE, eventData.type ?? EType.EVENT);
     if (eventData.tag.length > 0) {
@@ -496,7 +530,7 @@ export class Backend {
     // Add the new component
     component.addSubcomponent(vcomponent);
 
-    return { id, component, isTodo };
+    return { id, component, meta };
   }
 }
 
