@@ -2,13 +2,13 @@
 	import FloatingLabelInput from 'flowbite-svelte/FloatingLabelInput.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import Popover from 'flowbite-svelte/Popover.svelte';
+	import { Accordion, AccordionItem, Badge, Helper } from 'flowbite-svelte';
 
 	import { format, isSameDay } from 'date-fns/fp';
 	import { formatISO, formatRelative } from 'date-fns';
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
 
 	import * as pkg from 'rrule';
-	import { Accordion, AccordionItem, Badge, Helper } from 'flowbite-svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 

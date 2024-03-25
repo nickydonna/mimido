@@ -13,8 +13,11 @@
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
 	import { AngleLeftOutline, AngleRightOutline, EditOutline, TrashBinOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
-	import { formatDuration, formatISO, getMinutes, isAfter, roundToNearestMinutes, startOfDay } from 'date-fns';
+	import { endOfDay, formatDuration, formatISO, getMinutes, isAfter, roundToNearestMinutes, startOfDay } from 'date-fns';
 	import { enhance } from '$app/forms';
+	import * as pkg from 'rrule';
+	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
+	const { RRule, rrulestr } = pkg.default || pkg;
 
 	/** @enum {string} */
 	const EEventStyle = {
@@ -31,31 +34,33 @@
 
 	/** @type {Date} */
 	let current;
-	/** @type {Date[]} */
-	let dates;
+	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
+	let timeBlocks;
 	$: {
 		current = startOfDay(data.date);
 		let start = setHours(8, current);
 		let end = setHours(23, current);
-		dates = eachHourOfInterval({ start, end }).map(d => [d, addMinutes(30, d)]).flat();
+		let eachHour = eachHourOfInterval({ start, end }).map(d => [d, addMinutes(30, d)]).flat();
+		timeBlocks = eachHour.map(h => ({
+			time: h,
+			// TODO maybe memo this?
+			check: /** @type {(d: Date) => boolean} */ 
+				(isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) }))
+		}))
 	}
 
 	/**
-	 * @param {Date} startHour
 	 * @param {TEventSchema} event
+	 * @param {(d: Date) => boolean} timeCheck
 	 * @returns {boolean}
 	 */
-	let timeCheck = (startHour, event) => {
-		if (!event.date) {
-			return false;
-		}
-		return isWithinInterval(
-			{
-				start: subSeconds(1, startHour),
-				end: subSeconds(1, addMinutes(30, startHour))
-			},
-			event.date
-		);
+	let timeCheck = (event, timeCheck) => {
+		if (!event.date) return false;
+
+		let recurRule = event.recur ? rrulestr(event.recur) : undefined;
+		let checkDates = recurRule?.between(current, endOfDay(current)) ?? []
+		checkDates = [...checkDates, event.date]
+		return checkDates.some(timeCheck);
 	};
 
 	/** @type {Array<[EType, TEventSchema[]]>} */
@@ -102,7 +107,6 @@
 	 * @param {EType} type
 	 */
 	const handleDragStart = (time, type) => /** @param {MouseEvent} event */ (event) => {
-		console.log('drag')
 		dragData = {type, start: time, end: addMinutes(30, time)}
 	}
 
@@ -130,7 +134,7 @@
 	 * @param {EType} type
 	 */
 	const handleDrop = (time, type) => /** @param {MouseEvent} event */ (event) => {
-		// Create Evente
+		// Create Event
 	}
 </script>
 
@@ -163,7 +167,7 @@
 				draggable="true"
 			></div>	
 		{/if}
-		{#each dates as time, j}
+		{#each timeBlocks as { time, check }, j (time)}
 			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>{format('HH:mm', time)}</h2>
 			{#each sortedEvents as [type, events], i}
 				<div
@@ -180,7 +184,7 @@
 					on:dragenter={handleDragEnter(time, type)} 
 					on:drop={handleDrop(time, type)}
 					></div>
-				{#each events.filter(e => timeCheck(time, e)) as e}
+				{#each events.filter(e => timeCheck(e, check)) as e}
 					<div
 						class="{EEventStyle[type]} relative p-2 rounded-md shadow-2xl border group" 
 						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
@@ -220,8 +224,6 @@
 		{/each}
 	</div>
 </div>
-
-
 
 <style>
 	/** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
