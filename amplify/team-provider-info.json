@@ -10,11 +10,6 @@
       "StackName": "amplify-mimido-dev-115935",
       "StackId": "arn:aws:cloudformation:us-west-1:623155984954:stack/amplify-mimido-dev-115935/d0cb2fb0-e3a5-11ee-899c-0242c9b9c0c9",
       "AmplifyAppId": "d2lv3hienbf7gd"
-    },
-    "categories": {
-      "auth": {
-        "mimido2da18b53": {}
-      }
     }
   }
 }
