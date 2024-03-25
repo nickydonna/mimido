@@ -16,6 +16,7 @@
 	import { endOfDay, formatDuration, formatISO, getMinutes, isAfter, roundToNearestMinutes, startOfDay } from 'date-fns';
 	import { enhance } from '$app/forms';
 	import * as pkg from 'rrule';
+	import EventCard from '$lib/components/event-card/event-card.svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule, rrulestr } = pkg.default || pkg;
 
@@ -221,16 +222,7 @@
 								</p>
 							</div>
 						{:else}
-							<div>
-								{e.title}
-							</div>
-							{#if e.alarm}
-								<div>
-									Alarm:
-									{formatDuration({...e.alarm.duration}, { format: ['days', 'hours', 'minutes']})}
-									{e.alarm.isNegative ? 'before' : 'after'}
-								</div>
-							{/if}
+							<EventCard event={e} />
 						{/if}
 					</div>	
 				{/each}

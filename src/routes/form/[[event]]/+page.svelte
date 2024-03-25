@@ -9,6 +9,7 @@
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
 
 	import * as pkg from 'rrule';
+	import { importanceToString, loadToString, urgencyToString } from '$lib/util';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
@@ -171,9 +172,7 @@
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Importance</div>
 									<div>
-										{['Sub-Zero', 'Very Low', 'Low', '', 'Mid', 'High', 'Very High'][
-											taskInfo.importance + 3
-										]}
+										{importanceToString(taskInfo.importance)}
 									</div>
 								</div>
 							{/if}
@@ -181,7 +180,7 @@
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Urgency</div>
 									<div>
-										{['Soon', 'Next Up', 'Why are you not doing it'][taskInfo.urgency - 1]}
+  									{urgencyToString(taskInfo.urgency)}
 									</div>
 								</div>
 							{/if}
@@ -189,7 +188,7 @@
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Load</div>
 									<div>
-										{['Mid', 'Hard', 'Fat Rolling'][taskInfo.load - 1]}
+									  {loadToString(taskInfo.load)}
 									</div>
 								</div>
 							{/if}
