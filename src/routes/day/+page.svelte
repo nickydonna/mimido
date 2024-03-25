@@ -32,6 +32,8 @@
 	/** @type {import('./$types').PageData} */
 	export let data;
 
+	/** @type {string | undefined} */
+	let deleting;
 	/** @type {Date} */
 	let current;
 	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
@@ -190,14 +192,26 @@
 						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
 						style:grid-row={getScheduleSlot(e)}>
 						<div class="absolute right-2 hidden group-hover:block">
-							 <Button href="/form/{e.eventId}" color="none" pill={true} outline={true} class="!p-1" size="xl">
+							 <Button href="/form/{e.eventId}" color="none" pill={true} outline={true} class="!p-1" size="xs">
 									<EditOutline />
   						</Button>
 							<form class="inline-block" method="POST" action="?/delete" use:enhance={onDelete}>
       			    <input type="text" name="eventId" value={e.eventId} class="hidden">
-			          <Button disabled={loading} class="!p-1" size="xs" color="red" type="submit">
+								{#if deleting !== e.eventId}
+			          <Button disabled={loading} class="!p-1" size="xs" color="red" type="button" on:click={() => (deleting = e.eventId)} >
 									<TrashBinOutline />
 								</Button>
+								{:else}
+									<div class="flex">
+										<Button disabled={loading} class="!p-1 mr-1" size="xs" type="button" on:click={() => (deleting = undefined)}>
+											Cancel
+										</Button>
+										<Button disabled={loading} class="!p-1" size="xs" color="red" type="submit">
+											<TrashBinOutline />
+											Delete
+										</Button>
+									</div>
+								{/if}
         			</form>
 						</div>
 						{#if e.type === EType.BLOCK}
