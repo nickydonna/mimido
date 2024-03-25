@@ -2,7 +2,7 @@ import { DAVClient, DAVNamespaceShort } from "tsdav";
 import { createHash } from 'node:crypto';
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
-import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
+import { add, addMinutes, formatISO, startOfDay, isWithinInterval } from "date-fns/fp";
 import { endOfDay } from "date-fns";
 import yup from 'yup';
 
@@ -27,6 +27,7 @@ export const EStatus = {
 /**
  * @typedef {Object} TEventMeta
  * @prop {'vtodo' | 'vevent'} icalType
+ * @prop {Date} [recurrenceId]
  */
 
 /** 
@@ -52,7 +53,7 @@ export const EStatus = {
  * @prop {number} load
  * @prop {TAlarm} [alarm]
  * @prop {string} [recur]
- * @prop {TEventMeta} [meta]
+ * @prop {TEventMeta} meta
  */
 
 // eslint-disable-next-line no-useless-escape
@@ -110,8 +111,8 @@ const reminderSchema = baseSchema.shape({
 
 
 /** 
- * @typedef {Omit<TEventSchema, 'eventId'>} ParsedEventSchema
- * Result of the parsed event from the parsing, without id
+ * @typedef {Omit<TEventSchema, 'eventId' | 'meta'> & { meta?: TEventMeta }} ParsedEventSchema
+ * Result of the parsed event from the parsing, without id and optional meta
  */
 
 export class Backend {
@@ -236,13 +237,21 @@ export class Backend {
       }
     });
 
+    const intervalCheck =
+      /** @param {TEventSchema} e  */
+      (e) => e.date && isWithinInterval({ start: from, end: to }, e.date)
+
+    // Calendar components can have many event components
+    // Map all to a TEventSchema, filter them for in range and flat()
     return objects.map(e => {
       const comp = ICAL.Component.fromString(e.data);
-      const vevent = comp.getFirstSubcomponent('vevent');
-      if (vevent) {
-        return this.fromVEvent(vevent);
-      }
-    }).filter(
+      const vevents = comp.getAllSubcomponents('vevent');
+      if (vevents.length === 0) return;
+      const parsed = vevents.map(e => this.fromVEvent(e))
+        .filter(intervalCheck)
+      return parsed.find(p => !!p.meta?.recurrenceId) ?? parsed[parsed.length - 1];
+    })
+      .filter(
       /**
        * @param {TEventSchema | undefined} e 
        * @returns {e is TEventSchema}
@@ -391,6 +400,7 @@ export class Backend {
       urgency,
       importance,
       load,
+      meta: { icalType: 'vtodo' }
     }
   }
 
@@ -448,6 +458,12 @@ export class Backend {
     const tagProp = vevent.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
     const tag = tagProp.length > 0 ? tagProp.split(',') : []
 
+    /** @type {TEventMeta} */
+    const meta = {
+      icalType: 'vevent',
+      recurrenceId: icalEvent.recurrenceId?.toJSDate(),
+    }
+
     return {
       eventId: /** @type {string} */ (icalEvent.uid),
       title: /** @type {string} */ (icalEvent.summary),
@@ -462,6 +478,7 @@ export class Backend {
       load,
       alarm,
       recur,
+      meta,
     }
   }  
 
