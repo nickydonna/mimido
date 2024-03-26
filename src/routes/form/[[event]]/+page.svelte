@@ -79,6 +79,11 @@
 					<span class="mr-1 font-semibold">Load:</span>
 					Load is dictated by <code>^</code>. You can add up to 3.
 				</p>
+				<p class="mb-2 text-gray-600 dark:text-gray-400">
+					<span class="mr-1 font-semibold">Alarms:</span>
+					Alarms are set using a <code>*</code> followed by ISO 860 duration. 
+					For example *PT1H30M -> is alert me 1 hour 30 min before. And *P1DT1H is a day and an hour before
+				</p>
 			</AccordionItem>
 		</Accordion>
 
@@ -160,7 +165,7 @@
 									</div>
 								</div>
 							{/if}
-							{#if taskInfo.alarms}
+							{#if taskInfo.alarms.length > 0}
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Alarms</div>
 									{#each taskInfo.alarms as alarm}

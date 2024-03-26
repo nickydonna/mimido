@@ -237,9 +237,10 @@ export class Backend {
       }
     });
 
-    const intervalCheck =
-      /** @param {TEventSchema} e  */
-      (e) => e.date && isWithinInterval({ start: from, end: to }, e.date)
+    // TODO Review intervalcheck
+    // const intervalCheck =
+    //   /** @param {TEventSchema} e  */
+    //   (e) => e.date && isWithinInterval({ start: from, end: to }, e.date)
 
     // Calendar components can have many event components
     // Map all to a TEventSchema, filter them for in range and flat()
@@ -248,7 +249,6 @@ export class Backend {
       const vevents = comp.getAllSubcomponents('vevent');
       if (vevents.length === 0) return;
       const parsed = vevents.map(e => this.fromVEvent(e))
-        .filter(intervalCheck)
       return parsed.find(p => !!p.meta?.recurrenceId) ?? parsed[parsed.length - 1];
     })
       .filter(

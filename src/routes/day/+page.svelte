@@ -190,9 +190,11 @@
 				{#each events.filter(e => timeCheck(e, check)) as e, k}
 					<div
 						class="{EEventStyle[type]} relative p-2 rounded-md shadow-2xl border group" 
+						class:my-1={type === EType.BLOCK}
+						class:m-1={type !== EType.BLOCK}
 						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
 						style:grid-row={getScheduleSlot(e)}
-						style:z-index={i + k}
+						style:z-index={type === EType.BLOCK ? 0 : i + k}
 						>
 						<div class="absolute right-2 hidden group-hover:block">
 							 <Button href="/form/{e.eventId}" color="none" pill={true} outline={true} class="!p-1" size="xs">
