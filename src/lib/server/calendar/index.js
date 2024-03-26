@@ -448,7 +448,7 @@ export class Backend {
         .filter(comp => comp.getFirstPropertyValue('action') === 'DISPLAY')
         .map(comp => {
           // The ICAL duraction is not good for formating
-          const dur = comp.getFirstPropertyValue('trigger')      
+          const dur = comp.getFirstPropertyValue('trigger') 
           return {
             related: 'START', // TODO check actual related
             duration: {
@@ -531,7 +531,8 @@ export class Backend {
         valarm.addPropertyWithValue('action', 'DISPLAY');
         valarm.addPropertyWithValue('related', 'START');
         valarm.addPropertyWithValue('trigger', new ICAL.Duration({
-          ...a.duration, isNegative: a.isNegative 
+          // Force before event
+          ...a.duration, isNegative: true
         }))
         vcomponent.addSubcomponent(valarm)
       })
