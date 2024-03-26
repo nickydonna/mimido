@@ -29,7 +29,8 @@ export const EStatus = {
 const typeRE = new RegExp("@(?<match>" + Object.values(EType).join('|') + ")( |$)");
 // eslint-disable-next-line no-useless-escape
 const statusRE = new RegExp("%(?<match>" + Object.values(EStatus).join('|') + ")( |$)");
-const tagRE = /( |^)?#(?<match>[a-z0-9]+)( |$)/g
+
+const tagRE = /( |^)?#(?<match>(:?bg:|c:)?:?[a-z0-9]+)( |$)/g
 const alarmRE = /( |^)?\*(?<match>[A-Z0-9]+)( |$)/g
 const loadRE = /( |^)(?<match>\${1,3})( |$)/;
 const urgencyRE = /( |^)(?<match>\^{1,3})( |$)/;

@@ -34,11 +34,11 @@
 	const { RRule, rrulestr } = pkg.default || pkg;
 
 	/** @enum {string} */
-	const EEventStyle = {
-		[EType.BLOCK]: 'bg-blue-400 border-blue-600',
-		[EType.EVENT]: 'bg-green-400 border-green-600 bg-opacity-45',
-		[EType.TASK]: 'bg-pink-400 border-pink-600 bg-opacity-45',
-		[EType.REMINDER]: 'bg-red-400 border-red-600 bg-opacity-45',
+	const EDefaultEventStyle = {
+		[EType.BLOCK]: 'bg-polka-indigo-600 border-indigo-600',
+		[EType.EVENT]: 'bg-green-400 border-green-600',
+		[EType.TASK]: 'bg-pink-400 border-pink-600',
+		[EType.REMINDER]: 'bg-red-400 border-red-600',
 	}
 
 	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
@@ -122,10 +122,33 @@
 		const { tag } = event;
 		if (event.type !== EType.BLOCK) return '';
 		const lcTags = tag.map(t => t.toLowerCase())
-		if (lcTags.includes('bgwork')) {
-			console.log( `background-image: ${workImg};`)
+		if (lcTags.includes('bg:work')) {
 			return `url(${workImg})`;
 		}
+	}
+
+		/**
+	 * @param {TEventSchema} event
+	 * @return {string}
+	 */
+	function getCardClass(event) {
+		const { tag } = event;
+		const isBlock = event.type === EType.BLOCK;
+		const opacity = !isBlock ? 'bg-opacity-45' : '';
+		const lcTags = tag.map(t => t.toLowerCase())
+		const colorTag = lcTags.find(t => t.startsWith('c:'));
+		if (colorTag) {
+			const color = colorTag.replace('c:', '');
+			return isBlock
+				? `${opacity} bg-polka-${color}-600 border-${color}-600`
+				: `${opacity} bg-${color}-400 border-${color}-600`;
+		}
+		const bgTag = lcTags.find(t => t.startsWith('bg:'))
+		if (bgTag) {
+			return `card__bg-${bgTag.replace('bg:', '')}`
+		}
+
+		return `${EDefaultEventStyle[event.type]} ${opacity}`;
 	}
 
 	/**
@@ -233,15 +256,13 @@
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
 					<div
-						class="{EEventStyle[type]} group relative rounded-lg border p-2 shadow-2xl"
+						class="{getCardClass(e)} group relative rounded-lg border p-2 shadow-2xl"
 						class:m-1={type === EType.BLOCK}
 						class:m-2={type !== EType.BLOCK}
 						class:glass={type !== EType.BLOCK}
 						style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
 						style:grid-row={getScheduleSlot(e)}
 						style:z-index={type === EType.BLOCK ? 0 : i + k}
-						style:background-image={getImageBg(e)}
-						style:background-position="center"
 					>
 						<div class="absolute right-2 hidden group-hover:block">
 							<Button
@@ -308,9 +329,14 @@
 		/* background: rgba(255, 255, 255, 0.47); */
 
 		box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-		backdrop-filter: blur(5.4px);
-		-webkit-backdrop-filter: blur(5.4px);
+		backdrop-filter: blur(1.5px);
+		-webkit-backdrop-filter: blur(1.5px);
 		border: 1px solid rgba(255, 255, 255, 0.3);
+	}
+
+	.card__bg-work {
+			background-position: center;
+			background-image: url('$lib/assets/work.jpg');
 	}
 	/** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
 	.track-slot {
