@@ -51,7 +51,7 @@ export const EStatus = {
  * @prop {number} importance
  * @prop {number} urgency
  * @prop {number} load
- * @prop {TAlarm} [alarm]
+ * @prop {Array<TAlarm>} alarms
  * @prop {string} [recur]
  * @prop {TEventMeta} meta
  */
@@ -392,6 +392,7 @@ export class Backend {
 
     return {
       eventId,
+      alarms: [],
       title,
       type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
       tag, 
@@ -409,7 +410,6 @@ export class Backend {
    * @return {TEventSchema}
    */
   fromVEvent(vevent) {
-    const valarm = vevent.getFirstSubcomponent('valarm');
     const icalEvent = new ICAL.Event(vevent);
     const date = /** @type {Date | undefined} */ (icalEvent.startDate?.toJSDate());
     /** @type {Date | undefined} */
@@ -438,22 +438,29 @@ export class Backend {
     let importance = parseInt(vevent.getFirstPropertyValue(CustomPropName.IMPORTANCE), 10)
     importance = Number.isFinite(importance) ? importance : 0;
 
-    /** @type {TAlarm | undefined} */
-    let alarm;
+    /** @type {Array<TAlarm>} */
+    let alarms = [];
 
-    if (valarm && valarm.getFirstPropertyValue('action') === 'DISPLAY') {
-      // The ICAL duraction is not good for formating
-      const dur = valarm.getFirstPropertyValue('trigger')      
-      alarm = {
-        related: 'START', // TODO check actual related
-        duration: {
-          hours: Math.abs(dur.hours),
-          minutes: Math.abs(dur.minutes),
-          days: Math.abs(dur.days),
-          weeks: Math.abs(dur.weeks),
-        },
-        isNegative: dur?.isNegative,
-      }
+    const valarms = vevent.getAllSubcomponents('valarm');
+    if (valarms.length !== 0) {
+      alarms = valarms
+        // Only support display, no email
+        .filter(comp => comp.getFirstPropertyValue('action') === 'DISPLAY')
+        .map(comp => {
+          // The ICAL duraction is not good for formating
+          const dur = comp.getFirstPropertyValue('trigger')      
+          return {
+            related: 'START', // TODO check actual related
+            duration: {
+              hours: Math.abs(dur.hours),
+              minutes: Math.abs(dur.minutes),
+              days: Math.abs(dur.days),
+              weeks: Math.abs(dur.weeks),
+            },
+            isNegative: dur?.isNegative,
+          }
+        })
+      
     }
     const tagProp = vevent.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
     const tag = tagProp.length > 0 ? tagProp.split(',') : []
@@ -476,7 +483,7 @@ export class Backend {
       urgency,
       importance,
       load,
-      alarm,
+      alarms,
       recur,
       meta,
     }
@@ -493,6 +500,7 @@ export class Backend {
     var component = new ICAL.Component(['vcalendar', [], []]);
     component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
 
+    /** @type {ICAL.Component} */
     let vcomponent
     // Remove type in ids in case it changes
     let id = eventId?.replace('vtodo-', '').replace('vevent-', '') ?? v4();
@@ -517,6 +525,16 @@ export class Backend {
       } else {
         event.duration = new ICAL.Duration({ minutes: 15 });
       }
+
+      eventData.alarms.forEach(a => {
+        const valarm = new ICAL.Component('valarm');
+        valarm.addPropertyWithValue('action', 'DISPLAY');
+        valarm.addPropertyWithValue('related', 'START');
+        valarm.addPropertyWithValue('trigger', new ICAL.Duration({
+          ...a.duration, isNegative: a.isNegative 
+        }))
+        vcomponent.addSubcomponent(valarm)
+      })
 
       if (eventData.recur) {
         const icalRecur = ICAL.Recur.fromString(eventData.recur.replace('RRULE:', ''))

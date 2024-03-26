@@ -7,6 +7,7 @@ import * as pkg from 'rrule';
 const { RRule } =  pkg.default || pkg;
 
 /** @typedef {import('$lib/server/calendar').ParsedEventSchema} ParsedEventSchema */
+/** @typedef {import('$lib/server/calendar').TAlarm} TAlarm */
 
 /** @enum {string} */
 export const EType = {
@@ -29,6 +30,7 @@ const typeRE = new RegExp("@(?<match>" + Object.values(EType).join('|') + ")( |$
 // eslint-disable-next-line no-useless-escape
 const statusRE = new RegExp("%(?<match>" + Object.values(EStatus).join('|') + ")( |$)");
 const tagRE = /( |^)?#(?<match>[a-z0-9]+)( |$)/g
+const alarmRE = /( |^)?\*(?<match>[A-Z0-9]+)( |$)/g
 const loadRE = /( |^)(?<match>\${1,3})( |$)/;
 const urgencyRE = /( |^)(?<match>\^{1,3})( |$)/;
 const pImportanceRE = /( |^)(?<match>!{1,3})( |$)/;
@@ -52,6 +54,8 @@ export function parseTaskText(str, ref = new Date()) {
   let importance = 0;
   let load = 0;
   let urgency = 0;
+  /** @type {Array<import('$lib/server/calendar').TAlarm>} */
+  let alarms = [];
   /** @type {string | undefined} Formatted in iCalendar RFC */
   let recur;
 
@@ -103,6 +107,28 @@ export function parseTaskText(str, ref = new Date()) {
     const urgencyStr = urgencyMatch.groups['match'];
     urgency = urgencyStr.length;
   }
+
+  const alarmMatch = title.match(alarmRE);
+  if (alarmMatch) {
+    alarmMatch.forEach(m => {
+      title = title.replace(m, ' ');
+    })
+    alarms = alarmMatch.map(t => {
+      try {
+        // Force duration to be negative so alarm is before
+        return alarmFromString(`-${t.trim()}`);
+      } catch (e) {
+        console.log(e);
+        return undefined;
+      }
+    }).filter(
+      /**
+       * @param {TAlarm | undefined} a
+       * @returns {a is TAlarm}
+       */
+      a => !!a
+    );
+  }
   
   const dateMatch = title.match(dateRE);
   if (dateMatch?.groups?.['match']) {
@@ -136,7 +162,7 @@ export function parseTaskText(str, ref = new Date()) {
     importance,
     urgency,
     recur,
-    alarm: undefined,
+    alarms,
   }
 }
 
@@ -158,6 +184,7 @@ export function unparseTaskText(event) {
     urgency,
     load,
     tag,
+    alarms,
   } = event;
   let text = title
   if (date) {
@@ -173,6 +200,21 @@ export function unparseTaskText(event) {
     }
     text += ')'
   }
+
+  if (alarms.length > 0) {
+    alarms.forEach(a => {
+      const { weeks, days, hours, minutes } = a.duration;
+      let durText = ' *P';
+      if (weeks) durText += `${weeks}W`;
+      if (days) durText += `${days}D`;
+      if (hours || minutes) {
+        durText += 'T';
+        if (hours) durText += `${hours}H`;
+        if (minutes) durText += `${minutes}M`;
+      }
+      text += durText
+    })
+  }
   text += ` @${ type } %${ status }`;
 
   tag.forEach(t => (text += ` #${t}`))
@@ -186,4 +228,96 @@ export function unparseTaskText(event) {
   if (urgency > 0) text += ` ${'^'.repeat(urgency)}`
   
   return text;
+}
+
+const DURATION_LETTERS = /([PDWHMTS]{1,1})/;
+
+/**
+ * Copied from https://kewisch.github.io/ical.js/api/duration.js.html#line46 
+ * @param {string} aStr 
+ * @returns {import('$lib/server/calendar').TAlarm}
+ */
+function alarmFromString(aStr) {
+  let pos = 0;
+  let dict = Object.create(null);
+  let chunks = 0;
+
+  while ((pos = aStr.search(DURATION_LETTERS)) !== -1) {
+    let type = aStr[pos];
+    let numeric = aStr.slice(0, Math.max(0, pos));
+    aStr = aStr.slice(pos + 1);
+    chunks += parseDurationChunk(type, numeric, dict);
+  }
+ 
+  if (chunks < 2) {
+    // There must be at least a chunk with "P" and some unit chunk
+     throw new Error(
+      'invalid duration value: Not enough duration components in "' + aStr + '"'
+    );
+  }
+  const { isNegative, ...duration } = dict;
+  return {
+    isNegative,
+    duration,
+    related: 'START',
+  }
+}
+
+/**
+ * Internal helper function to handle a chunk of a duration.
+ *
+ * @private
+ * @param {string} letter type of duration chunk
+ * @param {string} number numeric value or -/+
+ * @param {Partial<import('date-fns').Duration> & { isNegative: boolean }} object target to assign values to
+ */
+function parseDurationChunk(letter, number, object) {
+  /** @type {keyof import('date-fns').Duration | undefined} */
+  let type;
+  switch (letter) {
+    case 'P':
+      if (number && number === '-') {
+        object.isNegative = true;
+      } else {
+        object.isNegative = false;
+      }
+      // period
+      break;
+    case 'D':
+      type = 'days';
+      break;
+    case 'W':
+      type = 'weeks';
+      break;
+    case 'H':
+      type = 'hours';
+      break;
+    case 'M':
+      type = 'minutes';
+      break;
+    case 'S':
+      type = 'seconds';
+      break;
+    default:
+      // Not a valid chunk
+      return 0;
+  }
+
+  if (type) {
+    let num = parseInt(number, 10);
+    if (!number && num !== 0) {
+      throw new Error(
+        'invalid duration value: Missing number before "' + letter + '"'
+      );
+    }
+    if (Number.isNaN(num)) {
+      throw new Error(
+        'invalid duration value: Invalid number "' + number + '" before "' + letter + '"'
+      );
+    }
+
+    object[type] = num;
+
+  }
+  return 1;
 }

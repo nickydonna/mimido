@@ -187,11 +187,13 @@
 					on:dragenter={handleDragEnter(time, type)} 
 					on:drop={handleDrop(time, type)}
 					></div>
-				{#each events.filter(e => timeCheck(e, check)) as e}
+				{#each events.filter(e => timeCheck(e, check)) as e, k}
 					<div
 						class="{EEventStyle[type]} relative p-2 rounded-md shadow-2xl border group" 
 						style:grid-column={type === EType.BLOCK ? "event / reminder" : type}
-						style:grid-row={getScheduleSlot(e)}>
+						style:grid-row={getScheduleSlot(e)}
+						style:z-index={i + k}
+						>
 						<div class="absolute right-2 hidden group-hover:block">
 							 <Button href="/form/{e.eventId}" color="none" pill={true} outline={true} class="!p-1" size="xs">
 									<EditOutline />

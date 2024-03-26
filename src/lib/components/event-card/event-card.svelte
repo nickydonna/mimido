@@ -21,11 +21,13 @@
   {importanceToString(event.importance, '|')}
   {urgencyToString(event.urgency, '|')}
   {loadToString(event.load)}
-  {#if event.alarm}
-	<div>
-    Alarm:
-    {formatDuration({...event.alarm.duration}, { format: ['days', 'hours', 'minutes']})}
-    {event.alarm.isNegative ? 'before' : 'after'}
-  </div>
-  {/if}
+  {#each event.alarms as alarm}
+  	<div>
+      Alarm:
+     {formatDuration({...alarm.duration}, { format: ['days', 'hours', 'minutes']})}
+      {alarm.isNegative ? 'before' : 'after'}
+    </div>
+  {/each}
+
 </div>
+

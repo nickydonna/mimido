@@ -5,11 +5,11 @@
 	import { Accordion, AccordionItem, Badge, Helper } from 'flowbite-svelte';
 
 	import { format, isSameDay } from 'date-fns/fp';
-	import { formatISO, formatRelative } from 'date-fns';
+	import { formatDuration, formatISO, formatRelative } from 'date-fns';
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
+	import { importanceToString, loadToString, urgencyToString } from '$lib/util';
 
 	import * as pkg from 'rrule';
-	import { importanceToString, loadToString, urgencyToString } from '$lib/util';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
@@ -29,12 +29,6 @@
 		taskInfo = parseTaskText(taskText, today);
 		editting = typeof data.event !== 'undefined';
 	}
-
-	/** @type {import('./$types').Snapshot<string>} */
-	export const snapshot = {
-		capture: () => taskText,
-		restore: (value) => (taskText = value)
-	};
 
 	// TODO use current date?
 	let dateStr = formatISO(today);
@@ -163,6 +157,16 @@
 									<div class="mb-1 border-b border-solid border-gray-400">Recur</div>
 									<div>
 										{RRule.fromString(taskInfo.recur).toText()}
+									</div>
+								</div>
+							{/if}
+							{#if taskInfo.alarms}
+								<div class="flex-0 px-1">
+									<div class="mb-1 border-b border-solid border-gray-400">Alarms</div>
+									{#each taskInfo.alarms as alarm}
+										{formatDuration({...alarm.duration}, { format: ['days', 'hours', 'minutes']})} before | 
+									{/each}
+									<div>
 									</div>
 								</div>
 							{/if}
