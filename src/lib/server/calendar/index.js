@@ -2,7 +2,7 @@ import { DAVClient, DAVNamespaceShort } from "tsdav";
 import { createHash } from 'node:crypto';
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
-import { add, addMinutes, formatISO, startOfDay, isWithinInterval } from "date-fns/fp";
+import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
 import { endOfDay } from "date-fns";
 import yup from 'yup';
 
