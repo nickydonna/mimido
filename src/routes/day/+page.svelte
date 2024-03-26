@@ -172,7 +172,11 @@
 
 <div>
 	<div class="flex">
-		<div class="flex-1"></div>
+		<div class="flex-1">
+			<p class="text-4xl dark:text-white">
+				{format("do MMM yy ", data.date)}
+			</p>
+		</div>
 		<ButtonGroup>
 			<Button href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
 				<AngleLeftOutline />
