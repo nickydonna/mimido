@@ -16,7 +16,7 @@ export const load = async ({ cookies }) => {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-  default: async({ request, cookies }) => {
+  login: async({ request, cookies }) => {
 		const data = await request.formData();
 		const email = /** @type {string} */ (data.get('email'));
 		const password = /** @type {string} */ (data.get('password'));
@@ -38,5 +38,25 @@ export const actions = {
       return error(500, e instanceof Error ? e.message : "")
     }
     throw redirect(303, '/day');
-	}
+  },
+  import: async ({ request, cookies }) => {
+    const data = await request.formData();
+		const token = /** @type {string} */ (data.get('token'));
+
+    const payload = /** @type {App.Locals['user']} */ (jwt.verify(token, SESSION_KEY));
+    
+    const back = new Backend(payload);
+    try {
+      await back.check();
+      const token = jwt.sign(payload, SESSION_KEY);
+      cookies.set('session', token, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: !dev 
+      })
+    } catch (e) {
+      return error(500, e instanceof Error ? e.message : "")
+    }
+    throw redirect(303, '/day');  }
 };

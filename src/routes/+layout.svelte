@@ -1,7 +1,7 @@
 <script>
 	import '../app.pcss';
 
-  import {  RectangleListOutline,  CalendarEditOutline, PlusOutline } from 'flowbite-svelte-icons';
+	import { RectangleListOutline, CalendarEditOutline, PlusOutline } from 'flowbite-svelte-icons';
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
 	import Navbar from 'flowbite-svelte/Navbar.svelte';
@@ -11,39 +11,60 @@
 	import NavHamburger from 'flowbite-svelte/NavHamburger.svelte';
 	import { formatISO } from 'date-fns/fp';
 	import { page } from '$app/stores';
+	import { Button, Modal, Input } from 'flowbite-svelte';
+
+	/** @type {import('./$types').LayoutData} */
+	export let data;
 
 	/** @type {string} */
 	let date;
-	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date())
-
+	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date());
+	let authModal = false;
 </script>
 
 <div class="container mx-auto h-full">
 	<Navbar>
 		<NavBrand href="/">
-			<span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">MimiDo</span>
+			<span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">MimiDo</span
+			>
 		</NavBrand>
-  	<NavHamburger  />
-  	<NavUl >
-  	  <NavLi href="/">Home</NavLi>
-   	 <NavLi href="/about">About</NavLi>
-    	<NavLi href="/docs/components/navbar">Navbar</NavLi>
-    	<NavLi href="/pricing">Pricing</NavLi>
-    	<NavLi href="/contact">Contact</NavLi>
-  	</NavUl>
+		<NavHamburger />
+		{#if data.token}
+			<NavUl>
+				<NavLi on:click={() => (authModal = true)}>Export Auth</NavLi>
+			</NavUl>
+			<Modal title="Access Token" bind:open={authModal} autoclose>
+				<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+					Copy this token, and use it on any other platform to copy login.
+				</p>
+				<p class="font-bold text-lg">DO NOT SHARE THIS!!!!</p>
+				<Input type="text" value={data.token} />
+				<svelte:fragment slot="footer">
+					<Button color="alternative" on:click={() => (authModal = false)}>Close</Button>
+				</svelte:fragment>
+			</Modal>
+		{/if}
 	</Navbar>
 	<div class="mb-16">
-		<slot />	
+		<slot />
 	</div>
-	<BottomNav position="fixed" classInner="grid-cols-3">
-		<BottomNavItem btnName="ListTask" href="/list?date={date}">
-			<RectangleListOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
-		</BottomNavItem>
-		<BottomNavItem btnName="CalenderView" href="/day?date={date}">
-			<CalendarEditOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
-		</BottomNavItem>
-		<BottomNavItem btnName="Add" href="/form?date={date}">
-			<PlusOutline class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500" />
-		</BottomNavItem>
-	</BottomNav>
+	{#if data.token}
+		<BottomNav position="fixed" classInner="grid-cols-3">
+			<BottomNavItem btnName="ListTask" href="/list?date={date}">
+				<RectangleListOutline
+					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+				/>
+			</BottomNavItem>
+			<BottomNavItem btnName="CalenderView" href="/day?date={date}">
+				<CalendarEditOutline
+					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+				/>
+			</BottomNavItem>
+			<BottomNavItem btnName="Add" href="/form?date={date}">
+				<PlusOutline
+					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+				/>
+			</BottomNavItem>
+		</BottomNav>
+	{/if}
 </div>
