@@ -4,7 +4,15 @@
 	import * as pkg from 'rrule';
 	import { formatDuration } from 'date-fns';
 	import { getEventColor, importanceToString, loadToString, urgencyToString } from '$lib/util';
-	import { AngleLeftOutline, AngleRightOutline, ArrowLeftToBracketOutline, CheckOutline } from 'flowbite-svelte-icons';
+	import {
+		AngleLeftOutline,
+		AngleRightOutline,
+		ArrowLeftToBracketOutline,
+		CheckOutline,
+
+		TrashBinOutline
+
+	} from 'flowbite-svelte-icons';
 	import { EStatus } from '$lib/parser';
 	import EventCard from '../event-card/event-card.svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
@@ -12,55 +20,68 @@
 
 	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
-  /**
-   * @type {import('svelte').EventDispatcher<{ close: null, statuschange: { status: EStatus }}>}
-   */
+	/**
+	 * @type {import('svelte').EventDispatcher<{ close: null, delete: null, statuschange: { status: EStatus }}>}
+	 */
 	const dispatch = createEventDispatcher();
 
 	const onClose = () => dispatch('close');
-  /** @param {EStatus} status */
-  const onStatusChange = (status) => dispatch('statuschange', { status }) 
+	const onDelete = () => dispatch('delete');
+	/** @param {EStatus} status */
+	const onStatusChange = (status) => dispatch('statuschange', { status });
 
 	/** @type {TEventSchema | undefined} */
 	export let event;
-  export let loading = false;
+	export let loading = false;
 
 	let open = false;
-  let color = '';
+	let color = '';
 	$: open = !!event;
-  $: color = event ? getEventColor(event) : '';
-  const statuses = Object.values(EStatus);
-  let statusIdx = -1;
-  $: statusIdx = statuses.indexOf(event?.status ?? '');
+	$: color = event ? getEventColor(event) : '';
+	const statuses = Object.values(EStatus);
+	let statusIdx = -1;
+	$: statusIdx = statuses.indexOf(event?.status ?? '');
 </script>
 
-<Modal bind:open dismissable={false} >
+<Modal bind:open dismissable={false}>
 	<svelte:fragment slot="header">
-		<div class="flex w-full ">
+		<div class="flex w-full">
 			<div class="flex-1 self-center">
-        <span class="mr-1 text-{color}-600">{event?.type.toUpperCase()}:</span>
+				<span class="mr-1 text-{color}-600">{event?.type.toUpperCase()}:</span>
 				{event?.title}
 			</div>
 			<div>
-        <ButtonGroup>
-          {#if event?.status !== EStatus.BACK}
-          <Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
-            <ArrowLeftToBracketOutline class=" rotate-180 w-4 h-4 me-2" />
-          </Button>
-          <Button disabled={loading} on:click={() => onStatusChange(statuses[statusIdx - 1])} aria-label="Move to {statuses[statusIdx - 1]}">
-            <AngleLeftOutline class="w-4 h-4 me-2" />
-          </Button>
-          {/if}
-          <Button>{event?.status.toUpperCase()}</Button>
-          {#if event?.status !== EStatus.DONE}
-          <Button disabled={loading} on:click={() => onStatusChange(statuses[statusIdx + 1])} aria-label="Move to {statuses[statusIdx + 1]}">
-            <AngleRightOutline class="w-4 h-4 me-2" />
-          </Button>
-          <Button disabled={loading} on:click={() => onStatusChange(EStatus.DONE)} aria-label="move to done">
-            <CheckOutline class="w-4 h-4 me-2" />
-          </Button>
-          {/if}
-        </ButtonGroup>
+				<ButtonGroup>
+					{#if event?.status !== EStatus.BACK}
+						<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
+							<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
+						</Button>
+						<Button
+							disabled={loading}
+							on:click={() => onStatusChange(statuses[statusIdx - 1])}
+							aria-label="Move to {statuses[statusIdx - 1]}"
+						>
+							<AngleLeftOutline class="me-2 h-4 w-4" />
+						</Button>
+					{/if}
+					<Button>{event?.status.toUpperCase()}</Button>
+					{#if event?.status !== EStatus.DONE}
+						<Button
+							disabled={loading}
+							on:click={() => onStatusChange(statuses[statusIdx + 1])}
+							aria-label="Move to {statuses[statusIdx + 1]}"
+						>
+							<AngleRightOutline class="me-2 h-4 w-4" />
+						</Button>
+						<Button
+							disabled={loading}
+							on:click={() => onStatusChange(EStatus.DONE)}
+							aria-label="move to done"
+						>
+							<CheckOutline class="me-2 h-4 w-4" />
+						</Button>
+					{/if}
+				</ButtonGroup>
 			</div>
 		</div>
 	</svelte:fragment>
@@ -99,9 +120,23 @@
 		{loadToString(event?.load)}
 	</p>
 	<svelte:fragment slot="footer">
-    <div class="w-full flex flex-row-reverse">
-      <Button disabled={loading} on:click={onClose}>Close</Button>
-      <Button disabled={loading} href="/form/{event?.eventId}" class="mr-2" color="alternative">Edit</Button>
-    </div>
+		<div class="flex w-full">
+			<div class="flex-1">
+				<Button
+					disabled={loading}
+					color="red"
+					type="button"
+					on:click={onDelete}
+				>
+					<TrashBinOutline />
+				</Button>
+			</div>
+			<div>
+				<Button disabled={loading} on:click={onClose}>Close</Button>
+				<Button disabled={loading} href="/form/{event?.eventId}" class="mr-2" color="alternative"
+					>Edit</Button
+				>
+			</div>
+		</div>
 	</svelte:fragment>
 </Modal>

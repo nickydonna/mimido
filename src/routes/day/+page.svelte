@@ -15,6 +15,7 @@
 		AngleLeftOutline,
 		AngleRightOutline,
 		EditOutline,
+		ExclamationCircleOutline,
 		TrashBinOutline
 	} from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
@@ -33,6 +34,7 @@
 	import { getEventCardClass } from '$lib/util';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { Modal } from 'flowbite-svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule, rrulestr } = pkg.default || pkg;
 
@@ -41,8 +43,8 @@
 		[EType.BLOCK]: 'bg-polka-indigo-600 border-indigo-600',
 		[EType.EVENT]: 'bg-green-400 border-green-600',
 		[EType.TASK]: 'bg-pink-400 border-pink-600',
-		[EType.REMINDER]: 'bg-red-400 border-red-600',
-	}
+		[EType.REMINDER]: 'bg-red-400 border-red-600'
+	};
 
 	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 
@@ -50,9 +52,10 @@
 	export let data;
 
 	/** @type {TEventSchema | undefined} */
-	let	selectedEvent
+	let selectedEvent;
 	/** @type {string | undefined} */
-	let deleting;
+	let idOfDeleting;
+	let showDelete = false;
 	let loading = false;
 	/** @type {Date} */
 	let current;
@@ -72,6 +75,7 @@
 				/** @type {(d: Date) => boolean} */
 				(isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) }))
 		}));
+		showDelete = !!idOfDeleting;
 	}
 
 	/**
@@ -105,6 +109,8 @@
 		loading = true;
 		return async ({ update }) => {
 			loading = false;
+			idOfDeleting = undefined;
+			selectedEvent = undefined;
 			update();
 		};
 	};
@@ -167,20 +173,20 @@
 		const res = await fetch(`/event/${selectedEvent.eventId}/status`, {
 			method: 'PUT',
 			body: JSON.stringify({ status: event.detail.status })
-		})
+		});
 
 		selectedEvent = /** @type {TEventSchema} */ (await res.json());
 		// TODO manage error
 		loading = false;
 		invalidateAll();
-	}
+	};
 </script>
 
 <div>
 	<div class="flex">
 		<div class="flex-1">
 			<p class="text-4xl dark:text-white">
-				{format("do MMM yy ", data.date)}
+				{format('do MMM yy ', data.date)}
 			</p>
 		</div>
 		<ButtonGroup>
@@ -196,10 +202,26 @@
 
 	<DetailModal
 		loading={loading}
-		event={selectedEvent}
+		event={!idOfDeleting ? selectedEvent : undefined}
 		on:close={(e) => (selectedEvent = undefined)}
 		on:statuschange={handleStatusChange}
+		on:delete={() => (idOfDeleting = selectedEvent?.eventId)}
 	/>
+	<Modal bind:open={showDelete} size="xs" on:close={() => (idOfDeleting = undefined)}>
+		<div class="text-center">
+			<ExclamationCircleOutline class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-200" />
+			<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
+				Are you sure you want to delete this event?
+			</h3>
+			<form class="inline-block" method="POST" action="?/delete" use:enhance={onDelete}>
+				<input type="text" name="eventId" value={idOfDeleting} class="hidden" />
+				<Button disabled={loading} color="red" class="me-2" type="submit">Yes, I'm sure</Button>
+				<Button disabled={loading} on:click={() => (idOfDeleting = undefined)} color="alternative">
+					No, cancel
+				</Button>
+			</form>
+		</div>
+	</Modal>
 
 	<div class="schedule">
 		<span
@@ -257,52 +279,10 @@
 						style:z-index={type === EType.BLOCK ? 0 : i + k}
 						on:click={() => (selectedEvent = e)}
 						on:keypress={(event) => {
-							if (event.code === "Enter") (selectedEvent = e)
+							if (event.code === 'Enter') selectedEvent = e;
 						}}
 					>
-						<div class="absolute right-2 hidden group-hover:block">
-							<Button
-								href="/form/{e.eventId}"
-								color="none"
-								pill={true}
-								outline={true}
-								class="!p-1"
-								size="xs"
-							>
-								<EditOutline />
-							</Button>
-							<form class="inline-block" method="POST" action="?/delete" use:enhance={onDelete}>
-								<input type="text" name="eventId" value={e.eventId} class="hidden" />
-								{#if deleting !== e.eventId}
-									<Button
-										disabled={loading}
-										class="!p-1"
-										size="xs"
-										color="red"
-										type="button"
-										on:click={() => (deleting = e.eventId)}
-									>
-										<TrashBinOutline />
-									</Button>
-								{:else}
-									<div class="flex">
-										<Button
-											disabled={loading}
-											class="mr-1 !p-1"
-											size="xs"
-											type="button"
-											on:click={() => (deleting = undefined)}
-										>
-											Cancel
-										</Button>
-										<Button disabled={loading} class="!p-1" size="xs" color="red" type="submit">
-											<TrashBinOutline />
-											Delete
-										</Button>
-									</div>
-								{/if}
-							</form>
-						</div>
+						<div class="absolute right-2 hidden group-hover:block"></div>
 						{#if e.type === EType.BLOCK}
 							<div class="flex h-full flex-col items-center justify-center">
 								<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
@@ -331,8 +311,8 @@
 	}
 
 	.card__bg-work {
-			background-position: center;
-			background-image: url('$lib/assets/work.jpg');
+		background-position: center;
+		background-image: url('$lib/assets/work.jpg');
 	}
 	/** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
 	.track-slot {
@@ -352,7 +332,7 @@
 	.schedule {
 		margin: 20px 0;
 		display: grid;
-	grid-template-columns:
+		grid-template-columns:
 			[times] 4em
 			[event-start] 1fr
 			[event-end task-start] 1fr
