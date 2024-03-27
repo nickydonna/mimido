@@ -18,6 +18,7 @@ const config = {
 			`bg-${c}-400`,
 			`border-${c}-600`,
 			`bg-polka-${c}-600`,
+			`text-${c}-600`
 		]).flat()
 	],
 	theme: {

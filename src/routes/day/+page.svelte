@@ -30,6 +30,9 @@
 	import workImg from '$lib/assets/work.jpg';
 	import * as pkg from 'rrule';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
+	import { getEventCardClass } from '$lib/util';
+	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
+	import { invalidateAll } from '$app/navigation';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule, rrulestr } = pkg.default || pkg;
 
@@ -46,8 +49,11 @@
 	/** @type {import('./$types').PageData} */
 	export let data;
 
+	/** @type {TEventSchema | undefined} */
+	let	selectedEvent
 	/** @type {string | undefined} */
 	let deleting;
+	let loading = false;
 	/** @type {Date} */
 	let current;
 	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
@@ -94,8 +100,6 @@
 		];
 	}
 
-	let loading = false;
-
 	/** @type {import('./$types').SubmitFunction} */
 	const onDelete = () => {
 		loading = true;
@@ -112,43 +116,6 @@
 		//
 		endTime = roundToNearestMinutes(endTime, { nearestTo: 30 });
 		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`;
-	}
-
-	/**
-	 * @param {TEventSchema} event
-	 * @return 
-	 */
-	function getImageBg(event) {
-		const { tag } = event;
-		if (event.type !== EType.BLOCK) return '';
-		const lcTags = tag.map(t => t.toLowerCase())
-		if (lcTags.includes('bg:work')) {
-			return `url(${workImg})`;
-		}
-	}
-
-		/**
-	 * @param {TEventSchema} event
-	 * @return {string}
-	 */
-	function getCardClass(event) {
-		const { tag } = event;
-		const isBlock = event.type === EType.BLOCK;
-		const opacity = !isBlock ? 'bg-opacity-45' : '';
-		const lcTags = tag.map(t => t.toLowerCase())
-		const colorTag = lcTags.find(t => t.startsWith('c:'));
-		if (colorTag) {
-			const color = colorTag.replace('c:', '');
-			return isBlock
-				? `${opacity} bg-polka-${color}-600 border-${color}-600`
-				: `${opacity} bg-${color}-400 border-${color}-600`;
-		}
-		const bgTag = lcTags.find(t => t.startsWith('bg:'))
-		if (bgTag) {
-			return `card__bg-${bgTag.replace('bg:', '')}`
-		}
-
-		return `${EDefaultEventStyle[event.type]} ${opacity}`;
 	}
 
 	/**
@@ -191,6 +158,22 @@
 	const handleDrop = (time, type) => /** @param {MouseEvent} event */ (event) => {
 		// Create Event
 	};
+
+	/** @typedef {import('$lib/parser').EStatus} EStatus */
+	/** @param {CustomEvent<{ status: EStatus}>} event */
+	const handleStatusChange = async (event) => {
+		if (!selectedEvent) return;
+		loading = true;
+		const res = await fetch(`/event/${selectedEvent.eventId}/status`, {
+			method: 'PUT',
+			body: JSON.stringify({ status: event.detail.status })
+		})
+
+		selectedEvent = /** @type {TEventSchema} */ (await res.json());
+		// TODO manage error
+		loading = false;
+		invalidateAll();
+	}
 </script>
 
 <div>
@@ -210,6 +193,13 @@
 			</Button>
 		</ButtonGroup>
 	</div>
+
+	<DetailModal
+		loading={loading}
+		event={selectedEvent}
+		on:close={(e) => (selectedEvent = undefined)}
+		on:statuschange={handleStatusChange}
+	/>
 
 	<div class="schedule">
 		<span
@@ -256,13 +246,19 @@
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
 					<div
-						class="{getCardClass(e)} group relative rounded-lg border p-2 shadow-2xl"
+						tabindex={i + j + k}
+						role="button"
+						class="{getEventCardClass(e)} group relative rounded-lg border p-2 shadow-2xl"
 						class:m-1={type === EType.BLOCK}
 						class:m-2={type !== EType.BLOCK}
 						class:glass={type !== EType.BLOCK}
 						style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
 						style:grid-row={getScheduleSlot(e)}
 						style:z-index={type === EType.BLOCK ? 0 : i + k}
+						on:click={() => (selectedEvent = e)}
+						on:keypress={(event) => {
+							if (event.code === "Enter") (selectedEvent = e)
+						}}
 					>
 						<div class="absolute right-2 hidden group-hover:block">
 							<Button
@@ -356,7 +352,7 @@
 	.schedule {
 		margin: 20px 0;
 		display: grid;
-		grid-template-columns:
+	grid-template-columns:
 			[times] 4em
 			[event-start] 1fr
 			[event-end task-start] 1fr

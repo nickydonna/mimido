@@ -344,6 +344,16 @@ export class Backend {
   }
 
   /**
+   * @param {string} eventId
+   * @param {EStatus} status
+   */
+  async updateStatus(eventId, status) {
+    const event = await this.getEvent(eventId);
+    event.status = status;
+    return this.editEvent(eventId, event);
+  }
+
+  /**
    * @param {string} id
    */
   async deleteEvent(id) {
