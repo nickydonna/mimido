@@ -1,3 +1,4 @@
+import { readable } from "svelte/store";
 import { EType } from "./parser";
 import memoize from 'just-memoize';
 
@@ -93,3 +94,17 @@ export const getEventCardClass = memoize(
       : `${opacity} bg-${color}-400 border-${color}-600`;
   }
 )
+
+
+/**
+ * Svelte Store that ticks every minute
+ */
+export const timeStore = readable(new Date(), (set) => {
+	set(new Date());
+
+	const interval = setInterval(() => {
+		set(new Date());
+	}, 10000);
+
+	return () => clearInterval(interval);
+});

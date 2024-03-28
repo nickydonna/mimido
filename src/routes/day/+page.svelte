@@ -23,15 +23,13 @@
 		endOfDay,
 		formatISO,
 		getMinutes,
-		isAfter,
 		roundToNearestMinutes,
 		startOfDay
 	} from 'date-fns';
 	import { enhance } from '$app/forms';
-	import workImg from '$lib/assets/work.jpg';
 	import * as pkg from 'rrule';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
-	import { getEventCardClass } from '$lib/util';
+	import { getEventCardClass, timeStore } from '$lib/util';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Modal } from 'flowbite-svelte';
@@ -61,6 +59,24 @@
 	let current;
 	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
 	let timeBlocks;
+	
+	/** @type {Date} */
+	let currentTime;
+	/**
+	 * Row style for the time indicator
+	 * @type {{ row: string, offset: number }}
+	 */
+	let timeIndicator
+	timeStore.subscribe(storeTime => {
+		currentTime = storeTime;
+		const neareastSlot = roundToNearestMinutes(storeTime, { nearestTo: 30, roundingMethod: 'floor'})
+		const minutes = getMinutes(storeTime) - getMinutes(neareastSlot);
+		timeIndicator = {
+			row: `time-${format('HHmm', neareastSlot)}`,
+			offset: (minutes * 100) / 30
+		}
+	})
+
 	$: {
 		current = startOfDay(data.date);
 		let start = setHours(8, current);
@@ -198,8 +214,33 @@
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
+		<div
+			style:z-index="10001"
+			style:grid-column="times"
+			style:grid-row={timeIndicator.row} 
+		>
+			<span
+				style:top="{timeIndicator.offset}%"
+				class="relative py-3 px-2 rounded-xl"
+				style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
+				style:backdrop-filter="blur(1.5px)"
+			>
+				{format('HH:mm', currentTime)}
+			</span>
+		</div>
+		<div
+			style:z-index="10000"
+			style:grid-column={'times / reminder'}
+			style:grid-row={timeIndicator.row}
+		>
+			<div
+				style:top="{timeIndicator.offset}%"
+				class="relative border-b-2 border-dotted border-gray-700 w-full"
+			/>
+		</div>
+
 		{#each timeBlocks as { time, check }, j (time)}
-			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>
+			<h2 class="time-slot text-center" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
 			</h2>
 			{#each sortedEvents as [type, events], i}

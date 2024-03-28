@@ -14,6 +14,9 @@
 	import { copy } from 'svelte-copy';
 	import { Button, Modal, Input, Popover } from 'flowbite-svelte';
 
+	// Make SPA
+	export const ssr = false;
+
 	/** @type {import('./$types').LayoutData} */
 	export let data;
 
