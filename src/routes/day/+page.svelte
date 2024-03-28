@@ -19,7 +19,14 @@
 		TrashBinOutline
 	} from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
-	import { endOfDay, formatISO, getMinutes, roundToNearestMinutes, startOfDay } from 'date-fns';
+	import {
+		endOfDay,
+		formatISO,
+		getMinutes,
+		isSameDay,
+		roundToNearestMinutes,
+		startOfDay
+	} from 'date-fns';
 	import { enhance } from '$app/forms';
 	import * as pkg from 'rrule';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
@@ -53,6 +60,7 @@
 	let current;
 	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
 	let timeBlocks;
+	let showingToday = false;
 
 	/** @type {Date} */
 	let currentTime;
@@ -62,6 +70,7 @@
 	 */
 	let timeIndicator;
 	timeStore.subscribe((storeTime) => {
+		showingToday = isSameDay(storeTime, data.date);
 		currentTime = storeTime;
 		const neareastSlot = roundToNearestMinutes(storeTime, {
 			nearestTo: 30,
@@ -211,50 +220,59 @@
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
-		<div
-			class="pointer-events-none"
-			style:z-index="10000"
-			style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
-			style:backdrop-filter="blur(1.5px)"
-			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
-				'HHmm',
-				timeIndicator.neareastSlot
-			)}"
-		/>
-		<div
-			class="pointer-events-none"
-			style:z-index="10001"
-			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
-		>
+		{#if showingToday}
+			<!-- Blur time before current slot -->
 			<div
-				class="pointer-events-none relative w-full"
-				style:height="{timeIndicator.offset}%"
-				style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
-				style:backdrop-filter="blur(1.5px)"
-			>
-				<span
-					class="relative px-2"
-					style:top="15%"
-					style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
-					style:backdrop-filter="blur(1.5px)"
-				>
-					{format('HH:mm', currentTime)}
-				</span>
-			</div>
-		</div>
-		<div
-			class="pointer-events-none"
-			style:z-index="10001"
-			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
-		>
-			<div
-				style:top="{timeIndicator.offset}%"
-				class="pointer-events-none relative w-full border-b-2 border-dotted border-gray-700"
+				class="blurred-time pointer-events-none "
+				style:z-index="10000"
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
+					'HHmm',
+					timeIndicator.neareastSlot
+				)}"
 			/>
-		</div>
+			<!-- Time indicator -->
+			<div
+				class="pointer-events-none"
+				style:z-index="10002"
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			>
+				<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
+					<span class="relative px-2">
+						{format('HH:mm', currentTime)}
+					</span>
+				</div>
+			</div>
+			<!-- Blur percentage time of current slot -->
+			<div
+				class="pointer-events-none"
+				style:z-index="10001"
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			>
+				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
+			</div>
+			<!-- Blur percentage time of current slot -->
+			<div
+				class="pointer-events-none"
+				style:z-index="10001"
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			/>
+			<!-- Dotted line for current time -->
+			<div
+				class="pointer-events-none"
+				style:z-index="10001"
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			>
+				<div
+					style:top="{timeIndicator.offset}%"
+					class="relative w-full border-b-2 border-dotted border-gray-700"
+				/>
+			</div>
+		{/if}
 		{#each timeBlocks as { time, check }, j (time)}
 			<h2 class="time-slot text-center" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
@@ -311,6 +329,9 @@
 		border: 1px solid rgba(255, 255, 255, 0.3);
 	}
 
+	.blurred-time {
+		backdrop-filter: blur(1.5px);
+	}
 	.card__bg-work {
 		background-position: center;
 		background-image: url('$lib/assets/work.jpg');
@@ -324,6 +345,7 @@
 		z-index: 1000;
 		background-color: rgba(255, 255, 255, 0.9);
 	}
+
 	.time-slot {
 		grid-column: times;
 		padding: 0.4em 0.2em 0.4em 0;
