@@ -124,47 +124,6 @@
 		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`;
 	}
 
-	/**
-	 * Tuple of type, start time, end time
-	 * @type {{ type: EType, start: Date, end: Date} | undefined}
-	 */
-	let dragData;
-
-	/**
-	 * @param {Date} time
-	 * @param {EType} type
-	 */
-	const handleDragStart = (time, type) => /** @param {MouseEvent} event */ (event) => {
-		dragData = { type, start: time, end: addMinutes(30, time) };
-	};
-
-	/**
-	 * @param {Date} time
-	 * @param {EType} type
-	 */
-	const handleDragEnd = (time, type) => /** @param {MouseEvent} event */ (event) => {
-		dragData = undefined;
-	};
-
-	/**
-	 * @param {Date} time
-	 * @param {EType} type
-	 */
-	const handleDragEnter = (time, type) => /** @param {MouseEvent} event */ (event) => {
-		if (!dragData) return;
-		if (type != dragData.type || isAfter(dragData.start, time)) return;
-
-		dragData = { ...dragData, end: time };
-	};
-
-	/**
-	 * @param {Date} time
-	 * @param {EType} type
-	 */
-	const handleDrop = (time, type) => /** @param {MouseEvent} event */ (event) => {
-		// Create Event
-	};
-
 	/** @typedef {import('$lib/parser').EStatus} EStatus */
 	/** @param {CustomEvent<{ status: EStatus}>} event */
 	const handleStatusChange = async (event) => {
@@ -239,32 +198,17 @@
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
-		{#if dragData}
-			<div
-				class="bg-slate-800"
-				style:grid-column={dragData.type}
-				style:grid-row="time-{format('HHmm', dragData.start)} / time-{format('HHmm', dragData.end)}"
-				draggable="true"
-			></div>
-		{/if}
 		{#each timeBlocks as { time, check }, j (time)}
 			<h2 class="time-slot" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
 			</h2>
 			{#each sortedEvents as [type, events], i}
 				<div
-					tabindex={i + j}
-					role="cell"
 					class="border-t border-dotted"
 					class:border-gray-600={getMinutes(time) === 0}
 					class:border-gray-300={getMinutes(time) === 30}
 					style:grid-column={type}
 					style:grid-row="time-{format('HHmm', time)}"
-					draggable="true"
-					on:dragstart={handleDragStart(time, type)}
-					on:dragend={handleDragEnd(time, type)}
-					on:dragenter={handleDragEnter(time, type)}
-					on:drop={handleDrop(time, type)}
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
 					<div
