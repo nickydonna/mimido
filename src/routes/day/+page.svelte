@@ -19,13 +19,7 @@
 		TrashBinOutline
 	} from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
-	import {
-		endOfDay,
-		formatISO,
-		getMinutes,
-		roundToNearestMinutes,
-		startOfDay
-	} from 'date-fns';
+	import { endOfDay, formatISO, getMinutes, roundToNearestMinutes, startOfDay } from 'date-fns';
 	import { enhance } from '$app/forms';
 	import * as pkg from 'rrule';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
@@ -59,23 +53,26 @@
 	let current;
 	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
 	let timeBlocks;
-	
+
 	/** @type {Date} */
 	let currentTime;
 	/**
 	 * Row style for the time indicator
-	 * @type {{ row: string, offset: number }}
+	 * @type {{ neareastSlot: Date, offset: number }}
 	 */
-	let timeIndicator
-	timeStore.subscribe(storeTime => {
+	let timeIndicator;
+	timeStore.subscribe((storeTime) => {
 		currentTime = storeTime;
-		const neareastSlot = roundToNearestMinutes(storeTime, { nearestTo: 30, roundingMethod: 'floor'})
+		const neareastSlot = roundToNearestMinutes(storeTime, {
+			nearestTo: 30,
+			roundingMethod: 'floor'
+		});
 		const minutes = getMinutes(storeTime) - getMinutes(neareastSlot);
 		timeIndicator = {
-			row: `time-${format('HHmm', neareastSlot)}`,
+			neareastSlot,
 			offset: (minutes * 100) / 30
-		}
-	})
+		};
+	});
 
 	$: {
 		current = startOfDay(data.date);
@@ -176,7 +173,7 @@
 	</div>
 
 	<DetailModal
-		loading={loading}
+		{loading}
 		event={!idOfDeleting ? selectedEvent : undefined}
 		on:close={(e) => (selectedEvent = undefined)}
 		on:statuschange={handleStatusChange}
@@ -215,30 +212,49 @@
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
 		<div
+			class="pointer-events-none"
+			style:z-index="10000"
+			style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
+			style:backdrop-filter="blur(1.5px)"
+			style:grid-column="times / reminder"
+			style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
+				'HHmm',
+				timeIndicator.neareastSlot
+			)}"
+		/>
+		<div
+			class="pointer-events-none"
 			style:z-index="10001"
-			style:grid-column="times"
-			style:grid-row={timeIndicator.row} 
+			style:grid-column="times / reminder"
+			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
 		>
-			<span
-				style:top="{timeIndicator.offset}%"
-				class="relative py-3 px-2 rounded-xl"
+			<div
+				class="pointer-events-none relative w-full"
+				style:height="{timeIndicator.offset}%"
 				style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
 				style:backdrop-filter="blur(1.5px)"
 			>
-				{format('HH:mm', currentTime)}
-			</span>
+				<span
+					class="relative px-2"
+					style:top="15%"
+					style:box-shadow="0 4px 30px rgba(0, 0, 0, 0.1);"
+					style:backdrop-filter="blur(1.5px)"
+				>
+					{format('HH:mm', currentTime)}
+				</span>
+			</div>
 		</div>
 		<div
-			style:z-index="10000"
-			style:grid-column={'times / reminder'}
-			style:grid-row={timeIndicator.row}
+			class="pointer-events-none"
+			style:z-index="10001"
+			style:grid-column="times / reminder"
+			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
 		>
 			<div
 				style:top="{timeIndicator.offset}%"
-				class="relative border-b-2 border-dotted border-gray-700 w-full"
+				class="pointer-events-none relative w-full border-b-2 border-dotted border-gray-700"
 			/>
 		</div>
-
 		{#each timeBlocks as { time, check }, j (time)}
 			<h2 class="time-slot text-center" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
