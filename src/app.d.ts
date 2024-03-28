@@ -1,3 +1,5 @@
+/// <reference types="vite-plugin-pwa/client" />
+/// <reference types="vite-plugin-pwa/svelte" />
 // See https://kit.svelte.dev/docs/types#app
 import 'vite-plugin-pwa/pwa-assets';
 import type { Backend } from "$lib/server/calendar";
