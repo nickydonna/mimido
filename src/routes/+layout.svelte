@@ -1,7 +1,12 @@
 <script>
 	import '../app.pcss';
 
-	import { RectangleListOutline, CalendarEditOutline, PlusOutline, FileCopyAltOutline } from 'flowbite-svelte-icons';
+	import {
+		RectangleListOutline,
+		CalendarEditOutline,
+		PlusOutline,
+		FileCopyAltOutline
+	} from 'flowbite-svelte-icons';
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
 	import Navbar from 'flowbite-svelte/Navbar.svelte';
@@ -13,9 +18,36 @@
 	import { page } from '$app/stores';
 	import { copy } from 'svelte-copy';
 	import { Button, Modal, Input, Popover } from 'flowbite-svelte';
+	import { pwaAssetsHead } from 'virtual:pwa-assets/head';
 
-	// Make SPA
-	export const ssr = false;
+	// @ts-expect-error virtual import
+	import { pwaInfo } from 'virtual:pwa-info';
+	import { onMount } from 'svelte';
+
+	onMount(async () => {
+		if (pwaInfo) {
+			// @ts-expect-error virtual import
+			const { registerSW } = await import('virtual:pwa-register');
+			registerSW({
+				immediate: true,
+				// @ts-expect-error virtual import
+				onRegistered(r) {
+					// uncomment following code if you want check for updates
+					// r && setInterval(() => {
+					//    console.log('Checking for sw update')
+					//    r.update()
+					// }, 20000 /* 20s for testing purposes */)
+					console.log(`SW Registered: ${r}`);
+				},
+				// @ts-expect-error virtual import
+				onRegisterError(error) {
+					console.log('SW registration error', error);
+				}
+			});
+		}
+	});
+
+	$: webManifest = pwaInfo ? pwaInfo.webManifest.linkTag : '';
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
@@ -25,6 +57,16 @@
 	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date());
 	let authModal = false;
 </script>
+
+<svelte:head>
+	{#if pwaAssetsHead.themeColor}
+		<meta name="theme-color" content={pwaAssetsHead.themeColor.content} />
+	{/if}
+	{#each pwaAssetsHead.links as link}
+		<link {...link} />
+	{/each}
+	{@html webManifest}
+</svelte:head>
 
 <div class="container mx-auto h-full">
 	<Navbar>
@@ -41,13 +83,24 @@
 				<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
 					Copy this token, and use it on any other platform to copy login.
 				</p>
-				<p class="font-bold text-lg">DO NOT SHARE THIS!!!!</p>
+				<p class="text-lg font-bold">DO NOT SHARE THIS!!!!</p>
 				<Input type="text" value={data.token} class="select-all">
-					<button slot="right" use:copy={data.token} class="pointer-events-auto" offset="30" id="copy-token">
+					<button
+						slot="right"
+						use:copy={data.token}
+						class="pointer-events-auto"
+						offset="30"
+						id="copy-token"
+					>
 						<FileCopyAltOutline />
 					</button>
 				</Input>
-				<Popover class="w-64 text-sm font-light " title="Copied" triggeredBy="#copy-token" trigger="click">
+				<Popover
+					class="w-64 text-sm font-light "
+					title="Copied"
+					triggeredBy="#copy-token"
+					trigger="click"
+				>
 					Paste in a new browser in the import token to login.
 				</Popover>
 				<svelte:fragment slot="footer">
@@ -79,3 +132,7 @@
 		</BottomNav>
 	{/if}
 </div>
+
+{#await import('$lib/components/reload-prompt') then { default: ReloadPrompt }}
+	<ReloadPrompt />
+{/await}

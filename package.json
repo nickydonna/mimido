@@ -22,6 +22,7 @@
 		"@types/date-fns": "^2.6.0",
 		"@types/eslint": "^8.56.0",
 		"@types/yup": "^0.32.0",
+		"@vite-pwa/sveltekit": "^0.4.0",
 		"amplify-adapter": "^0.1.2",
 		"autoprefixer": "^10.4.16",
 		"color": "^4.2.3",

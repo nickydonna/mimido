@@ -1,5 +1,5 @@
 // See https://kit.svelte.dev/docs/types#app
-
+import 'vite-plugin-pwa/pwa-assets';
 import type { Backend } from "$lib/server/calendar";
 
 // for information about these interfaces
