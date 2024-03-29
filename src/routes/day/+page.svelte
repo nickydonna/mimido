@@ -73,13 +73,13 @@
 		showingToday = isSameDay(storeTime, data.date);
 		currentTime = storeTime;
 		const neareastSlot = roundToNearestMinutes(storeTime, {
-			nearestTo: 30,
+			nearestTo: 15,
 			roundingMethod: 'floor'
 		});
 		const minutes = getMinutes(storeTime) - getMinutes(neareastSlot);
 		timeIndicator = {
 			neareastSlot,
-			offset: (minutes * 100) / 30
+			offset: (minutes * 100) / 15
 		};
 	});
 
@@ -88,7 +88,7 @@
 		let start = setHours(8, current);
 		let end = setHours(23, current);
 		let eachHour = eachHourOfInterval({ start, end })
-			.map((d) => [d, addMinutes(30, d)])
+			.map((d) => [d, addMinutes(15, d), addMinutes(30, d), addMinutes(45, d)])
 			.flat();
 		timeBlocks = eachHour.map((h) => ({
 			time: h,
@@ -140,9 +140,9 @@
 	/** @param {TEventSchema} e */
 	function getScheduleSlot(e) {
 		if (!e.date) return '';
-		let endTime = e.endDate ?? addMinutes(30, e.date);
+		let endTime = e.endDate ?? addMinutes(15, e.date);
 		//
-		endTime = roundToNearestMinutes(endTime, { nearestTo: 30 });
+		endTime = roundToNearestMinutes(endTime, { nearestTo: 15, roundingMethod: 'floor' });
 		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`;
 	}
 
@@ -274,7 +274,7 @@
 			</div>
 		{/if}
 		{#each timeBlocks as { time, check }, j (time)}
-			<h2 class="time-slot text-center" style:grid-row={`time-${format('HHmm', time)}`}>
+			<h2 class="time-slot text-sm text-center" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
 			</h2>
 			{#each sortedEvents as [type, events], i}
@@ -364,37 +364,69 @@
 		grid-template-rows:
 			[tracks] auto
 			[time-0800] 1fr
+			[time-0815] 1fr
 			[time-0830] 1fr
+			[time-0845] 1fr
 			[time-0900] 1fr
+			[time-0915] 1fr
 			[time-0930] 1fr
+			[time-0945] 1fr
 			[time-1000] 1fr
+			[time-1015] 1fr
 			[time-1030] 1fr
+			[time-1045] 1fr
 			[time-1100] 1fr
+			[time-1115] 1fr
 			[time-1130] 1fr
+			[time-1145] 1fr
 			[time-1200] 1fr
+			[time-1215] 1fr
 			[time-1230] 1fr
+			[time-1245] 1fr
 			[time-1300] 1fr
+			[time-1315] 1fr
 			[time-1330] 1fr
+			[time-1345] 1fr
 			[time-1400] 1fr
+			[time-1415] 1fr
 			[time-1430] 1fr
+			[time-1445] 1fr
 			[time-1500] 1fr
+			[time-1515] 1fr
 			[time-1530] 1fr
+			[time-1545] 1fr
 			[time-1600] 1fr
+			[time-1615] 1fr
 			[time-1630] 1fr
+			[time-1645] 1fr
 			[time-1700] 1fr
+			[time-1715] 1fr
 			[time-1730] 1fr
+			[time-1745] 1fr
 			[time-1800] 1fr
+			[time-1815] 1fr
 			[time-1830] 1fr
+			[time-1845] 1fr
 			[time-1900] 1fr
+			[time-1915] 1fr
 			[time-1930] 1fr
+			[time-1945] 1fr
 			[time-2000] 1fr
+			[time-2015] 1fr
 			[time-2030] 1fr
+			[time-2045] 1fr
 			[time-2100] 1fr
+			[time-2115] 1fr
 			[time-2130] 1fr
+			[time-2145] 1fr
 			[time-2200] 1fr
+			[time-2215] 1fr
 			[time-2230] 1fr
+			[time-2245] 1fr
 			[time-2300] 1fr
+			[time-2315] 1fr
 			[time-2330] 1fr
+			[time-2345] 1fr
 			[time-0000] 1fr;
 	}
 </style>
