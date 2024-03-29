@@ -43,12 +43,12 @@
 		[EType.REMINDER]: 'bg-red-400 border-red-600'
 	};
 
-	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/calendar').TBaseSchema} TBaseSchema */
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	/** @type {TEventSchema | undefined} */
+	/** @type {TBaseSchema | undefined} */
 	let selectedEvent;
 	/** @type {string | undefined} */
 	let idOfDeleting;
@@ -98,7 +98,7 @@
 	}
 
 	/**
-	 * @param {TEventSchema} event
+	 * @param {TBaseSchema} event
 	 * @param {(d: Date) => boolean} timeCheck
 	 * @returns {boolean}
 	 */
@@ -111,7 +111,7 @@
 		return checkDates.some(timeCheck);
 	};
 
-	/** @type {Array<[EType, TEventSchema[]]>} */
+	/** @type {Array<[EType, TBaseSchema[]]>} */
 	let sortedEvents;
 
 	$: {
@@ -134,7 +134,7 @@
 		};
 	};
 
-	/** @param {TEventSchema} e */
+	/** @param {TBaseSchema} e */
 	function getScheduleSlot(e) {
 		if (!e.date) return '';
 		let endTime = e.endDate ?? addMinutes(15, e.date);
@@ -153,7 +153,7 @@
 			body: JSON.stringify({ status: event.detail.status })
 		});
 
-		selectedEvent = /** @type {TEventSchema} */ (await res.json());
+		selectedEvent = /** @type {TBaseSchema} */ (await res.json());
 		// TODO manage error
 		loading = false;
 		invalidateAll();

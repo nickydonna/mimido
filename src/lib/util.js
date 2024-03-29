@@ -2,6 +2,8 @@ import { readable } from "svelte/store";
 import { EType } from "./parser";
 import memoize from 'just-memoize';
 
+/** @typedef {import('$lib/server/calendar').TAllTypes} TAllTypes */
+
 const IMPORTANCE_STRINGS = ['Sub-Zero', 'Very Low', 'Low', undefined, 'Mid', 'High', 'Very High']
 const URGENCY_STRINGS = [undefined, 'Soon', 'Next Up', 'Why are you not doing it']
 const LOAD_STRINGS = [undefined, 'Mid', 'Hard', 'Fat Rolling']
@@ -38,9 +40,10 @@ export const loadToString = getString(LOAD_STRINGS)
 
 /**
  * TODO Ask tessy
- * @param {import("./parser").ParsedEventSchema} event 
+ * @param {TAllTypes} event 
  */
 export function getRanking(event) {
+  if (isBlock(event)) return 0;
   const { urgency, load, importance } = event;
   return urgency + load + importance;
 }
@@ -53,17 +56,9 @@ const EDefaultEventColor = {
   [EType.REMINDER]: 'blue',
 }
 
-export const isBlock = memoize(
-  /**
-   * @param {import("./parser").ParsedEventSchema} event 
-   */  function (event) {
-    return event.type === EType.BLOCK;
-  }
-)
-
 export const getEventColor = memoize(
   /**
-   * @param {import("./parser").ParsedEventSchema} event 
+   * @param {TAllTypes} event 
    */
   function (event) {
     const { tag, type } = event;
@@ -76,7 +71,7 @@ export const getEventColor = memoize(
 
 export const getEventCardClass = memoize(
   /**
-   * @param {import("./parser").ParsedEventSchema} event 
+   * @param {TAllTypes} event 
    */
   function (event) {
     const { tag, type } = event;
@@ -108,3 +103,49 @@ export const timeStore = readable(new Date(), (set) => {
 
 	return () => clearInterval(interval);
 });
+
+/**
+ * @template T
+ * @param {T | undefined | null} obj 
+ * @returns {obj is NonNullable<T>}
+ */
+export function isDefined(obj) {
+  return typeof obj === 'undefined' && obj !== null;
+}
+
+/** @typedef {import('$lib/server/calendar').TBlockSchema} TBlockSchema */
+/** @typedef {import('$lib/server/calendar').TTaskSchema} TTaskSchema */
+/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+/** @typedef {import('$lib/server/calendar').TReminderSchema} TReminderSchema */
+
+/**
+ * @param {TAllTypes | undefined} obj 
+ * @returns {obj is NonNullable<TBlockSchema>}
+ */
+export function isBlock(obj) {
+  return isDefined(obj) && obj.type === EType.BLOCK
+}
+
+/**
+ * @param {TAllTypes | undefined} obj 
+ * @returns {obj is NonNullable<TTaskSchema>} 
+ */
+export function isTask(obj) {
+  return isDefined(obj) && obj.type === EType.TASK
+}
+
+/**
+ * @param {TAllTypes | undefined} obj 
+ * @returns {obj is NonNullable<TReminderSchema>}
+ */
+export function isReminder(obj) {
+  return isDefined(obj) && obj.type === EType.REMINDER
+}
+
+/**
+ * @param {TAllTypes | undefined} obj 
+ * @returns {obj is NonNullable<TEventSchema>} 
+ */
+export function isEvent(obj) {
+  return isDefined(obj) && obj.type === EType.EVENT
+}

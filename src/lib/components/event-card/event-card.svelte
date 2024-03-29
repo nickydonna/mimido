@@ -6,7 +6,7 @@
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
-	/** @type {import("$lib/server/calendar").TEventSchema} */
+	/** @type {import("$lib/server/calendar").TBaseSchema} */
 	export let event;
 	const sizeClass =
 		differenceInMinutes(/** @type {Date} */ (event.date), /** @type {Date} */ (event.endDate)) < 16

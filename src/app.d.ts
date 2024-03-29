@@ -2,7 +2,7 @@
 /// <reference types="vite-plugin-pwa/svelte" />
 // See https://kit.svelte.dev/docs/types#app
 import 'vite-plugin-pwa/pwa-assets';
-import type { Backend } from "$lib/server/calendar";
+import type { CalendarBackend } from "$lib/server/calendar";
 
 // for information about these interfaces
 declare global {
@@ -10,7 +10,7 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			user: { email: string, password: string, calendar: string, server: string}
-			backend: Backend,
+			backend: CalendarBackend,
 		}
 		// interface PageData {}
 		// interface PageState {}

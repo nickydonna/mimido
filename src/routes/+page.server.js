@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { Backend } from '$lib/server/calendar';
+import { CalendarBackend } from '$lib/server/calendar';
 import { dev } from '$app/environment';
 import { error, redirect } from '@sveltejs/kit';
 
@@ -24,7 +24,7 @@ export const actions = {
     const calendar = /** @type {string} */ (data.get('calendar'));
     const user = { email, password, server, calendar};
     
-    const back = new Backend(user);
+    const back = new CalendarBackend(user);
     try {
       await back.check();
       const token = jwt.sign(user, SESSION_KEY);
@@ -45,7 +45,7 @@ export const actions = {
 
     const payload = /** @type {App.Locals['user']} */ (jwt.verify(token, SESSION_KEY));
     
-    const back = new Backend(payload);
+    const back = new CalendarBackend(payload);
     try {
       await back.check();
       const token = jwt.sign(payload, SESSION_KEY);

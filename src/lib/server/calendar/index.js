@@ -5,8 +5,14 @@ import { v4 } from "uuid";
 import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
 import { endOfDay, isAfter, isWithinInterval } from "date-fns";
 import yup from 'yup';
+import { isValidRRule } from "$lib/utils/rrule";
+import { isBlock, isDefined, isReminder, isTask } from "$lib/util";
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
+/**
+ * @template {import("yup").ISchema<any, any>} T
+ * @typedef {import('yup').InferType<T>} InferType
+ */
 
 /** @enum {string} */
 export const EType = {
@@ -30,15 +36,24 @@ export const EStatus = {
  * @prop {Date} [recurrenceId]
  */
 
-/** 
- * @typedef {Object} TAlarm
- * @prop {import("date-fns").Duration} duration - The time before the related date
- * @prop {string} related - The date to use for the duraction, for now just related to start date
- * @prop {boolean} [isNegative=true] - if the duration is before or after related 
- */
+const alarmSchema = yup.object({
+  related: yup.string().matches(/START/).required(),
+  isNegative: yup.boolean().required(),
+  duration: yup.object({
+    years: yup.number(),
+    months: yup.number(),
+    weeks: yup.number(),
+    days: yup.number(),
+    hours: yup.number(),
+    minutes: yup.number(),
+    seconds: yup.number(),
+  }).required()
+}).required()
+
+/** @typedef {InferType<typeof alarmSchema>} TAlarm */
 
 /**
- * @typedef {Object} TEventSchema
+ * @typedef {Object} TBaseSchema
  * @prop {string} eventId
  * @prop {string} originalText 			
  * @prop {string} title
@@ -53,6 +68,7 @@ export const EStatus = {
  * @prop {number} load
  * @prop {Array<TAlarm>} alarms
  * @prop {string} [recur]
+ * @prop {Date} [lastDone] - Date used when recurring task/reminder to indicated when it was last set to done
  * @prop {TEventMeta} meta
  */
 
@@ -69,55 +85,84 @@ const baseSchema = yup.object({
   originalText: yup.string().required(),
   title: yup.string().required().min(3),
   type: yup.string().required().matches(typeRE, { excludeEmptyString: true }),
-  status: yup.string().required().matches(statusRE, { excludeEmptyString: true }),
   date: yup.date(),
   endDate: yup.date(),
   description: yup.string(),
   tag: yup.array().of(yup.string().required()).required(),
-  importance: yup.number().min(-3).max(3).required(),
-  urgency: yup.number().min(0).max(3).required(),
-  load: yup.number().min(0).max(3).required(),
-  recur: yup.string(), // TODO Add RRULE validation - .test('rrule', 'Recur is not a valid RRULE', (v => RRule.fromString(v).))
-  alarms: yup.array().of(
-    yup.object({
-      related: yup.string().matches(/START/).required(),
-      isNegative: yup.boolean().required(),
-      duration: yup.object({
-        years: yup.number(),
-        months: yup.number(),
-        weeks: yup.number(),
-        days: yup.number(),
-        hours: yup.number(),
-        minutes: yup.number(),
-        seconds: yup.number(),
-      }).required()
-    }).required()
-  ).required()
+  recur: yup.string().test(
+    'is-recur',
+    str => `${str.path} is not a valid RRule`,
+    value => !!value && isValidRRule(value),
+  ), 
+  lastDone: yup.date(),
+  alarms: yup.array().of(alarmSchema).required(), 
 });
 
 /**
- * Block and event need start and end date
+ * Field status, block and events don't have it
  */
-const blockOrEventSchema = baseSchema.shape({
+const statusField = yup.string().required().matches(statusRE, { excludeEmptyString: true });
+
+/**
+ * Fields related to ranking
+ */
+const rankingFields = yup.object({
+  importance: yup.number().min(-3).max(3).required(),
+  urgency: yup.number().min(0).max(3).required(),
+  load: yup.number().min(0).max(3).required(),
+});
+
+/**
+ * Blocks must have a start and end date
+ * They have no importance nor status
+ */
+const blockSchema = baseSchema.shape({
   date: yup.date().required(),
   endDate: yup.date().required(),
 });
 
 /**
  * Reminders must have an start date
+ * They also can have rank and status
  */
-const reminderSchema = baseSchema.shape({
+const reminderSchema = rankingFields
+  .concat(baseSchema)
+  .shape({
+    date: yup.date().required(),
+    status: statusField,
+  })
+
+const eventSchema = baseSchema.shape({
   date: yup.date().required(),
+  endDate: yup.date().required(),
 })
 
+const taskSchema = rankingFields
+  .concat(baseSchema)
+  .shape({
+    status: statusField,
+  })
 
+
+/** @typedef {InferType<typeof blockSchema>} TBlockSchema */
+/** @typedef {InferType<typeof reminderSchema>} TReminderSchema */
+/** @typedef {InferType<typeof eventSchema>} TEventSchema */
+/** @typedef {InferType<typeof taskSchema>} TTaskSchema */
+/** @typedef {TBlockSchema | TReminderSchema | TEventSchema | TTaskSchema} TAllTypes */
+
+/**
+ * @template {TAllTypes} T
+ * @typedef {T & { eventId: string }} WithId
+ */
+
+/** @typedef {WithId<TReminderSchema> | WithId<TTaskSchema> | WithId<TBlockSchema> | WithId<TEventSchema> } TAllTypesWithId */
 
 /** 
- * @typedef {Omit<TEventSchema, 'eventId' | 'meta'> & { meta?: TEventMeta }} ParsedEventSchema
+ * @typedef {Omit<TBaseSchema, 'eventId' | 'meta'> & { meta?: TEventMeta }} ParsedEventSchema
  * Result of the parsed event from the parsing, without id and optional meta
  */
 
-export class Backend {
+export class CalendarBackend {
 
   /**
    * @param { App.Locals['user']} user - User data to auth to the server
@@ -167,7 +212,7 @@ export class Backend {
   }
 
   /**
-   * @param {Omit<TEventSchema, 'eventId' | 'meta'>} eventData
+   * @param {TAllTypes} eventData
    */
   async createEvent(eventData) {
     const calendar = await this.getCalendar();
@@ -204,15 +249,9 @@ export class Backend {
       const comp = ICAL.Component.fromString(e.data);
       const vtodo = comp.getFirstSubcomponent('vtodo');
       if (vtodo) {
-        return this.fromVTodo(vtodo);
+        return this.fromVTodo(vtodo).event;
       }
-    }).filter(
-      /**
-       * @param {TEventSchema | undefined} e 
-       * @returns {e is TEventSchema}
-       */
-      e => typeof e !== 'undefined'
-    )
+    }).filter(isDefined)
   }
 
   /**
@@ -243,7 +282,7 @@ export class Backend {
 
     // TODO Refactor this use better the ICAL recur exceptions
     // Calendar components can have many event components
-    // Map all to a TEventSchema, filter them for in range and flat()
+    // Map all to a TBaseSchema, filter them for in range and flat()
     return objects.map(e => {
       const comp = ICAL.Component.fromString(e.data);
       const vevents = comp.getAllSubcomponents('vevent');
@@ -254,9 +293,9 @@ export class Backend {
         return parsed[parsed.length - 1].event
       }
 
-      /** @type {TEventSchema | undefined} */
+      /** @type {TAllTypes | undefined} */
       let exception;
-      /** @type {TEventSchema | undefined} */
+      /** @type {TAllTypes | undefined} */
       let occurrenceEvent;
 
       for (let index = 0; index < parsed.length; index++) {
@@ -281,7 +320,6 @@ export class Backend {
             break;
           }
           if (next && isWithinInterval(nextJS, { start: from, end: to })) {
-            console.log(element.event.title, nextJS)
             currentOccurence = next
             break;
           }
@@ -302,14 +340,7 @@ export class Backend {
       return exception ?? occurrenceEvent;
 
 
-    })
-      .filter(
-      /**
-       * @param {TEventSchema | undefined} e 
-       * @returns {e is TEventSchema}
-       */
-      e => typeof e !== 'undefined'
-    )
+    }).filter(isDefined)
   }
 
   /** @param {string} id */
@@ -328,55 +359,55 @@ export class Backend {
     }
 
     const comp = ICAL.Component.fromString(object?.props.calendarData._cdata);
-    /** @type {TEventSchema | undefined} */
-    let event; 
-    /** @type {TEventMeta} */
-    let meta;
+    /** @type {ReturnType<CalendarBackend['fromVTodo']> | ReturnType<CalendarBackend['fromVEvent']> | undefined} */
+    let result;
     if (id.startsWith('vevent-')) {
-      meta = { icalType: 'vevent' }
       const vevent = comp.getFirstSubcomponent('vevent');
-      if (vevent) (event = this.fromVEvent(vevent).event);
+      if (vevent) (result = this.fromVEvent(vevent));
     } else if (id.startsWith('vtodo-')) {
-      meta = { icalType: 'vtodo' }
       const vtodo = comp.getFirstSubcomponent('vtodo');
-      if (vtodo) return this.fromVTodo(vtodo);
+      if (vtodo) (result = this.fromVTodo(vtodo));
     } else {
       throw new Error('Event with old id: ' + id)
     }
 
-    if (!event) throw new Error("Can't parse event: :" + id);
-    return {...event, meta }
-
+    if (!result) {
+      throw new Error("Can't parse event: :" + id);
+    }
+    return result;
   }
 
   /**
    * 
    * @param {ParsedEventSchema} data 
+   * @return {Promise<TAllTypes>}
    */
   async validateEventData(data) {
     switch (data.type) {
       case EType.BLOCK:
+        return blockSchema.validate(data);
       case EType.EVENT:
-        return blockOrEventSchema.validate(data)
+        return eventSchema.validate(data)
       case EType.REMINDER:
         return reminderSchema.validate(data)
       default:
-        return baseSchema.validate(data)  
+        return taskSchema.validate(data)  
     }
   }
 
   /**
    * @param {string} id
-   * @param {ParsedEventSchema} eventData
+   * @param {TAllTypes} eventData
    */
   async editEvent(id, eventData) {
-    const event = await this.getEvent(id);
-    if (!event) throw new Error('Event does not exists');
+    const res  = await this.getEvent(id);
+    if (!res) throw new Error('Event does not exists');
+    const { meta } = res;
 
-    const { component, meta, id: newId } = this.toComponent(eventData, id);
+    const { component, id: newId } = this.toComponent(eventData, id);
 
     // If event changed type, destroy and recreate
-    if (event.meta?.icalType != meta.icalType) {
+    if (meta.icalType != meta.icalType) {
       await this.deleteEvent(id)
       const result = await this.client.createCalendarObject({
         calendar: await this.getCalendar(),
@@ -400,9 +431,16 @@ export class Backend {
    * @param {EStatus} status
    */
   async updateStatus(eventId, status) {
-    const event = await this.getEvent(eventId);
-    event.status = status;
-    return this.editEvent(eventId, event);
+    const res = await this.getEvent(eventId);
+    if (!res) {
+      throw new Error(`Could not find event with id: ${eventId}`)
+    }
+    const { event } = res; 
+
+    if (isTask(event) || isReminder(event)) {
+      event.status = status;
+      return this.editEvent(eventId, event);
+    }
   }
 
   /**
@@ -422,7 +460,7 @@ export class Backend {
 
   /**
    * @private
-   * @param {string | TEventSchema} eventOrId 
+   * @param {string | TBaseSchema} eventOrId 
    * @returns {Promise<string>} 
    */
   async getEventUrl(eventOrId) {
@@ -437,7 +475,7 @@ export class Backend {
   }
  /**
    * @param {ICAL.Component} vtodo - vtodo component from calendar
-   * @return {TEventSchema}
+   * @return {{ event: WithId<TTaskSchema>, meta: TEventMeta }}
    */
   fromVTodo(vtodo) {
     let eventId = vtodo.getFirstPropertyValue('uid');
@@ -454,24 +492,26 @@ export class Backend {
     const tag = tagProp.length > 0 ? tagProp.split(',') : []
 
     return {
-      eventId,
-      description, 
-      alarms: [],
-      title,
-      type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
-      tag, 
-      status: vtodo.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
-      originalText: vtodo.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
-      urgency,
-      importance,
-      load,
+      event: {
+        eventId,
+        description,
+        alarms: [],
+        title,
+        type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
+        tag,
+        status: vtodo.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
+        originalText: vtodo.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
+        urgency,
+        importance,
+        load,
+      },
       meta: { icalType: 'vtodo' }
     }
   }
 
   /**
    * @param {ICAL.Component} vevent - vevent component from calendar
-   * @return {{ event: TEventSchema, icalEvent: ICAL.Event}}
+   * @return {{ event: TAllTypes, icalEvent: ICAL.Event, meta: TEventMeta}}
    */
   fromVEvent(vevent) {
     const icalEvent = new ICAL.Event(vevent);
@@ -487,7 +527,7 @@ export class Backend {
     }
 
     let rrule = vevent.getFirstPropertyValue('rrule');
-    /** @type {TEventSchema['recur']} */
+    /** @type {TBaseSchema['recur']} */
     let recur;
 
     if (rrule) {
@@ -521,7 +561,7 @@ export class Backend {
               days: Math.abs(dur.days),
               weeks: Math.abs(dur.weeks),
             },
-            isNegative: dur?.isNegative,
+            isNegative: dur?.isNegative ?? true,
           }
         })
       
@@ -550,16 +590,15 @@ export class Backend {
       load,
       alarms,
       recur,
-      meta,
     }
 
-    return { event, icalEvent }
+    return { event, icalEvent, meta }
   }  
 
   /**
-   * Transform an TEventSchema into a {@link ICAL.Component} for sending
-   * If {@link TEventSchema#eventId} is not defined, one will be created
-   * @param {ParsedEventSchema} eventData
+   * Transform an {@link TBaseSchema} into a {@link ICAL.Component} for sending
+   * If {@link TBaseSchema#eventId} is not defined, one will be created
+   * @param {TAllTypes} eventData
    * @param {string} [eventId]
    * @returns {{ id: string, component: ICAL.Component, meta: TEventMeta }}
    */
@@ -570,11 +609,7 @@ export class Backend {
       endDate,
       alarms,
       title,
-      importance,
-      urgency,
-      load,
       recur,
-      status,
       originalText,
       type,
       tag,
@@ -635,19 +670,26 @@ export class Backend {
       }
     } 
 
+    vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, originalText);
     vcomponent.addPropertyWithValue(CustomPropName.TYPE, type ?? EType.EVENT);
+
     if (tag.length > 0) {
       vcomponent.addPropertyWithValue(CustomPropName.TAG, tag.join(','));
     }
-    vcomponent.addPropertyWithValue(CustomPropName.URGENCY, urgency ?? 0);
-    vcomponent.addPropertyWithValue(CustomPropName.LOAD, load ?? 0);
-    vcomponent.addPropertyWithValue(CustomPropName.IMPORTANCE, importance ?? 0);
-    vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, originalText);
-    vcomponent.addPropertyWithValue(CustomPropName.STATUS, status ?? EStatus.TODO);
+    
+    if (!isBlock(eventData)) { 
+      const { urgency, load, importance } = eventData;
+      vcomponent.addPropertyWithValue(CustomPropName.URGENCY, urgency ?? 0);
+      vcomponent.addPropertyWithValue(CustomPropName.LOAD, load ?? 0);
+      vcomponent.addPropertyWithValue(CustomPropName.IMPORTANCE, importance ?? 0);
+    }
+
+    if (isTask(eventData) || isReminder(eventData)) {
+      vcomponent.addPropertyWithValue(CustomPropName.STATUS, eventData.status ?? EStatus.TODO);
+    }
 
     // Add the new component
     component.addSubcomponent(vcomponent);
-
 
     return { id, component, meta };
   }
@@ -663,7 +705,7 @@ const CustomPropName = {
   STATUS: 'x-status',
 }
 
-/** @type {Record<string, Backend>} */
+/** @type {Record<string, CalendarBackend>} */
 const backends = {};
 
 /** @param {App.Locals['user']} user */
@@ -681,10 +723,11 @@ export async function getBackend(user) {
   const key = hashUser(user);
 
   if (!backends[key]) {
-    const back = new Backend(user);
+    const back = new CalendarBackend(user);
     await back.check();
     backends[key] = back;
   }
   return backends[key]
 
 }
+

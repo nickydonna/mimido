@@ -30,12 +30,12 @@
 	} from 'flowbite-svelte-icons';
 	import { sineIn } from 'svelte/easing';
 
-	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	/** @type {TEventSchema | undefined} */
+	/** @type {TAllTypesWithId| undefined} */
 	let selectedEvent;
 	/** @type {string | undefined} */
 	let idOfDeleting;
@@ -72,7 +72,7 @@
 			body: JSON.stringify({ status: event.detail.status })
 		});
 
-		selectedEvent = /** @type {TEventSchema} */ (await res.json());
+		selectedEvent = /** @type {TAllTypesWithId} */ (await res.json());
 		// TODO manage error
 		loading = false;
 		invalidateAll();

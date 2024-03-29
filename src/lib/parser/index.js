@@ -1,10 +1,7 @@
+import { parseRRule, tryParseTextForRRule } from '$lib/utils/rrule';
 import * as chrono from 'chrono-node';
 import { isSameDay } from 'date-fns';
 import { format } from 'date-fns/fp';
-
-import * as pkg from 'rrule';
-// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
-const { RRule } =  pkg.default || pkg;
 
 /** @typedef {import('$lib/server/calendar').ParsedEventSchema} ParsedEventSchema */
 /** @typedef {import('$lib/server/calendar').TAlarm} TAlarm */
@@ -39,7 +36,7 @@ const nImportanceRE = /( |^)(?<match>\?{1,3})( |$)/;
 const dateRE = /(^| )\((?<match>.*)\)( |$)/;
 
 /**
- * Parses text and transforms it into {TEventSchema} 
+ * Parses text and transforms it into {@link TBaseSchema} 
  * @param {string} str 
  * @param {Date} [ref] 
  * @returns {ParsedEventSchema}
@@ -144,10 +141,7 @@ export function parseTaskText(str, ref = new Date()) {
       }
     }
     if (recurPart) {
-      try {
-        const parseResult = RRule.fromText(recurPart)
-        recur = parseResult.toString()
-      } catch (e) { /* empty */ }
+      recur = tryParseTextForRRule(recurPart)?.toString(); 
     }
   }
 
@@ -197,7 +191,7 @@ export function unparseTaskText(event) {
       text = text + ' until ' + format(timeFormat, endDate)
     }
     if (recur) {
-      text += ' | ' + RRule.fromString(recur).toText()
+      text += ' | ' + parseRRule(recur).toText()
     }
     text += ')'
   }

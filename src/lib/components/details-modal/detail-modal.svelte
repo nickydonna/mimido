@@ -3,7 +3,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import * as pkg from 'rrule';
 	import { formatDuration } from 'date-fns';
-	import { getEventColor, importanceToString, loadToString, urgencyToString } from '$lib/util';
+	import { getEventColor, importanceToString, isBlock, isDefined, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
 	import {
 		AngleLeftOutline,
 		AngleRightOutline,
@@ -18,7 +18,7 @@
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
-	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 	/**
 	 * @type {import('svelte').EventDispatcher<{ close: null, delete: null, statuschange: { status: EStatus }}>}
@@ -30,7 +30,7 @@
 	/** @param {EStatus} status */
 	const onStatusChange = (status) => dispatch('statuschange', { status });
 
-	/** @type {TEventSchema | undefined} */
+	/** @type {TAllTypesWithId | undefined} */
 	export let event;
 	export let loading = false;
 
@@ -39,8 +39,16 @@
 	$: open = !!event;
 	$: color = event ? getEventColor(event) : '';
 	const statuses = Object.values(EStatus);
-	let statusIdx = -1;
-	$: statusIdx = statuses.indexOf(event?.status ?? '');
+	/** @type {EStatus | undefined} */
+	let status;
+	/** @type {number | undefined }*/
+	let statusIdx = undefined;
+	$: {
+		if (event && isTask(event) && isReminder(event)) {
+			status = event.status;
+			statusIdx = statuses.indexOf(event.status);
+		}
+	}
 
 	/** @param {HTMLElement} dom */
 	function editor(dom) {
@@ -67,25 +75,26 @@
 				<span class="mr-1 text-{color}-600">{event?.type.toUpperCase()}:</span>
 				{event?.title}
 			</div>
+			{#if status && isDefined(statusIdx)}
 			<div>
 				<ButtonGroup>
-					{#if event?.status !== EStatus.BACK}
+					{#if status !== EStatus.BACK}
 						<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
 							<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
 						</Button>
 						<Button
 							disabled={loading}
-							on:click={() => onStatusChange(statuses[statusIdx - 1])}
+							on:click={() => statusIdx && onStatusChange(statuses[statusIdx - 1])}
 							aria-label="Move to {statuses[statusIdx - 1]}"
 						>
 							<AngleLeftOutline class="me-2 h-4 w-4" />
 						</Button>
 					{/if}
-					<Button>{event?.status.toUpperCase()}</Button>
-					{#if event?.status !== EStatus.DONE}
+					<Button>{status.toUpperCase()}</Button>
+					{#if status !== EStatus.DONE}
 						<Button
 							disabled={loading}
-							on:click={() => onStatusChange(statuses[statusIdx + 1])}
+							on:click={() => statusIdx && onStatusChange(statuses[statusIdx + 1])}
 							aria-label="Move to {statuses[statusIdx + 1]}"
 						>
 							<AngleRightOutline class="me-2 h-4 w-4" />
@@ -100,6 +109,7 @@
 					{/if}
 				</ButtonGroup>
 			</div>
+			{/if}
 		</div>
 	</svelte:fragment>
 	<div>
@@ -131,11 +141,13 @@
 			</div>
 		{/if}
 	</p>
+	{#if !isBlock(event)}
 	<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
 		{importanceToString(event?.importance, '|')}
 		{urgencyToString(event?.urgency, '|')}
 		{loadToString(event?.load)}
 	</p>
+	{/if}
 	<div use:editor class="prose-sm" />
 	<svelte:fragment slot="footer">
 		<div class="flex w-full">

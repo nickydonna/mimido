@@ -2,9 +2,9 @@ import { parseTaskText } from '$lib/parser';
 import { redirect, fail } from '@sveltejs/kit';
 import yup from 'yup';
 
-/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+/** @typedef {import('$lib/server/calendar').TAllTypes} TAllTypes */
 
-/** @type {import('./$types').PageServerLoad<{event?: TEventSchema }>} */
+/** @type {import('./$types').PageServerLoad<{event?: TAllTypes }>} */
 export const load = async ({ locals, params }) => {
   const eventId = params.event;
 
@@ -12,7 +12,7 @@ export const load = async ({ locals, params }) => {
     return { }
   }
 
-  const event = await locals.backend.getEvent(eventId);
+  const event = (await locals.backend.getEvent(eventId)).event;
   return { event }
 }
 

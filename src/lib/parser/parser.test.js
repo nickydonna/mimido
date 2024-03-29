@@ -11,7 +11,7 @@ const baseInfo = {
   load: 0,
   urgency: 0,
   importance: 0,
-  alarm: undefined,
+  alarms: [],
   recur: undefined
 }
 

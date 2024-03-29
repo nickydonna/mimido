@@ -1,5 +1,5 @@
 /** @typedef {import('../$types').Actions} Actions */
-/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 import { fail } from '@sveltejs/kit';
 
@@ -16,7 +16,7 @@ export const actions = {
 	}
 }
 
-/** @type {import('./$types').PageServerLoad<{ events: TEventSchema[] }>} */
+/** @type {import('./$types').PageServerLoad<{ events: TAllTypesWithId[] }>} */
 export const load = async ({ locals }) => {
 
 	const { backend } = locals;
