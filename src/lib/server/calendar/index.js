@@ -78,19 +78,21 @@ const baseSchema = yup.object({
   urgency: yup.number().min(0).max(3).required(),
   load: yup.number().min(0).max(3).required(),
   recur: yup.string(), // TODO Add RRULE validation - .test('rrule', 'Recur is not a valid RRULE', (v => RRule.fromString(v).))
-  alarm: yup.object({
-    related: yup.string().matches(/START/).required(),
-    isNegative: yup.boolean().required(),
-    duration: yup.object({
-      years: yup.number(),
-      months: yup.number(),
-      weeks: yup.number(),
-      days: yup.number(),
-      hours: yup.number(),
-      minutes: yup.number(),
-      seconds: yup.number(),
-    })
-  }).default(undefined)
+  alarms: yup.array().of(
+    yup.object({
+      related: yup.string().matches(/START/).required(),
+      isNegative: yup.boolean().required(),
+      duration: yup.object({
+        years: yup.number(),
+        months: yup.number(),
+        weeks: yup.number(),
+        days: yup.number(),
+        hours: yup.number(),
+        minutes: yup.number(),
+        seconds: yup.number(),
+      }).required()
+    }).required()
+  ).required()
 });
 
 /**
@@ -165,7 +167,7 @@ export class Backend {
   }
 
   /**
-   * @param {Omit<TEventSchema, 'eventId'>} eventData
+   * @param {Omit<TEventSchema, 'eventId' | 'meta'>} eventData
    */
   async createEvent(eventData) {
     const calendar = await this.getCalendar();
@@ -396,12 +398,14 @@ export class Backend {
     load = Number.isFinite(load) ? load : 0;
     let importance = parseInt(vtodo.getFirstPropertyValue(CustomPropName.IMPORTANCE), 10)
     importance = Number.isFinite(importance) ? importance : 0;
+    const description = vtodo.getFirstPropertyValue('description');
 
     const tagProp = vtodo.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
     const tag = tagProp.length > 0 ? tagProp.split(',') : []
 
     return {
       eventId,
+      description, 
       alarms: [],
       title,
       type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
@@ -484,6 +488,7 @@ export class Backend {
     return {
       eventId: /** @type {string} */ (icalEvent.uid),
       title: /** @type {string} */ (icalEvent.summary),
+      description: /** @type {string | undefined} */ (icalEvent.description),
       date,
       endDate,
       type: vevent.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
@@ -507,6 +512,21 @@ export class Backend {
    * @returns {{ id: string, component: ICAL.Component, meta: TEventMeta }}
    */
   toComponent(eventData, eventId) {
+    const {
+      description,
+      date,
+      endDate,
+      alarms,
+      title,
+      importance,
+      urgency,
+      load,
+      recur,
+      status,
+      originalText,
+      type,
+      tag,
+    } = eventData;
     var component = new ICAL.Component(['vcalendar', [], []]);
     component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
 
@@ -517,26 +537,26 @@ export class Backend {
     /** @type {TEventMeta} */
     let meta;
 
-    if (eventData.date) {
+    if (date) {
       meta = { icalType: 'vevent' };
       // Prefix id with vevent to reuse id when chaining to todo
       id = `vevent-${id}`;
       vcomponent = new ICAL.Component('vevent');
       const event = new ICAL.Event(vcomponent);
       // Set standard properties
-      event.summary = eventData.title;
+      event.summary = title;
       event.uid = id
-      if (eventData.description) {
-        event.description = eventData.description;
+      if (description) {
+        event.description = description;
       }
-      event.startDate = ICAL.Time.fromJSDate(eventData.date, true);
-      if (eventData.endDate) {
-        event.endDate = ICAL.Time.fromJSDate(eventData.endDate, true);
+      event.startDate = ICAL.Time.fromJSDate(date, true);
+      if (endDate) {
+        event.endDate = ICAL.Time.fromJSDate(endDate, true);
       } else {
         event.duration = new ICAL.Duration({ minutes: 15 });
       }
 
-      eventData.alarms.forEach(a => {
+      alarms.forEach(a => {
         const valarm = new ICAL.Component('valarm');
         valarm.addPropertyWithValue('action', 'DISPLAY');
         valarm.addPropertyWithValue('related', 'START');
@@ -547,8 +567,8 @@ export class Backend {
         vcomponent.addSubcomponent(valarm)
       })
 
-      if (eventData.recur) {
-        const icalRecur = ICAL.Recur.fromString(eventData.recur.replace('RRULE:', ''))
+      if (recur) {
+        const icalRecur = ICAL.Recur.fromString(recur.replace('RRULE:', ''))
         vcomponent.addPropertyWithValue('rrule', icalRecur);
       }
     } else {
@@ -557,24 +577,25 @@ export class Backend {
       meta = {icalType: 'vtodo'}
       vcomponent = new ICAL.Component('vtodo');
       vcomponent.addPropertyWithValue('uid', id);
-      vcomponent.addPropertyWithValue('summary', eventData.title);
-      if (eventData.description) {
-        vcomponent.addPropertyWithValue('description', eventData.description)
+      vcomponent.addPropertyWithValue('summary', title);
+      if (description) {
+        vcomponent.addPropertyWithValue('description', description)
       }
     } 
 
-    vcomponent.addPropertyWithValue(CustomPropName.TYPE, eventData.type ?? EType.EVENT);
-    if (eventData.tag.length > 0) {
-      vcomponent.addPropertyWithValue(CustomPropName.TAG, eventData.tag.join(','));
+    vcomponent.addPropertyWithValue(CustomPropName.TYPE, type ?? EType.EVENT);
+    if (tag.length > 0) {
+      vcomponent.addPropertyWithValue(CustomPropName.TAG, tag.join(','));
     }
-    vcomponent.addPropertyWithValue(CustomPropName.URGENCY, eventData.urgency ?? 0);
-    vcomponent.addPropertyWithValue(CustomPropName.LOAD, eventData.load ?? 0);
-    vcomponent.addPropertyWithValue(CustomPropName.IMPORTANCE, eventData.importance ?? 0);
-    vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, eventData.originalText);
-    vcomponent.addPropertyWithValue(CustomPropName.STATUS, eventData.status ?? EStatus.TODO);
+    vcomponent.addPropertyWithValue(CustomPropName.URGENCY, urgency ?? 0);
+    vcomponent.addPropertyWithValue(CustomPropName.LOAD, load ?? 0);
+    vcomponent.addPropertyWithValue(CustomPropName.IMPORTANCE, importance ?? 0);
+    vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, originalText);
+    vcomponent.addPropertyWithValue(CustomPropName.STATUS, status ?? EStatus.TODO);
 
     // Add the new component
     component.addSubcomponent(vcomponent);
+
 
     return { id, component, meta };
   }

@@ -9,12 +9,12 @@
 		AngleRightOutline,
 		ArrowLeftToBracketOutline,
 		CheckOutline,
-
 		TrashBinOutline
-
 	} from 'flowbite-svelte-icons';
+	import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/core';
+	import { commonmark } from '@milkdown/preset-commonmark';
+	import { nord } from '@milkdown/theme-nord';
 	import { EStatus } from '$lib/parser';
-	import EventCard from '../event-card/event-card.svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
@@ -41,9 +41,26 @@
 	const statuses = Object.values(EStatus);
 	let statusIdx = -1;
 	$: statusIdx = statuses.indexOf(event?.status ?? '');
+
+	/** @param {HTMLElement} dom */
+	function editor(dom) {
+		// to obtain the editor instance we need to store a reference of the editor.
+		const MakeEditor = Editor.make()
+			.config((ctx) => {
+				ctx.set(rootCtx, dom);
+				ctx.set(editorViewOptionsCtx, { editable: () => false })
+				if (event?.description) {
+					ctx.set(defaultValueCtx, event.description);
+				}
+			})
+			.config(nord)
+			.use(commonmark)
+			.create();
+	}
+
 </script>
 
-<Modal bind:open dismissable={false}>
+<Modal bind:open dismissable={false} classDialog="z-[12000]" on:close={() => (open = false)}>
 	<svelte:fragment slot="header">
 		<div class="flex w-full">
 			<div class="flex-1 self-center">
@@ -119,6 +136,7 @@
 		{urgencyToString(event?.urgency, '|')}
 		{loadToString(event?.load)}
 	</p>
+	<div use:editor class="prose-sm" />
 	<svelte:fragment slot="footer">
 		<div class="flex w-full">
 			<div class="flex-1">

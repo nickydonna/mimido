@@ -24,7 +24,10 @@ export const actions = {
 		const originalText = /** @type {string} */ (data.get('originalText'));
 		const description = /** @type {string | undefined} */ (data.get('description'));
     
-    const eventData = parseTaskText(originalText);
+    const eventData = {
+      ...parseTaskText(originalText),
+      description,
+    };
     
     try {
       const valid = await locals.backend.validateEventData(eventData)
@@ -32,7 +35,7 @@ export const actions = {
         if (eventId) {
           await locals.backend.editEvent(eventId, valid)
         } else {
-          await locals.backend.createEvent({ ...valid, description });
+          await locals.backend.createEvent(valid);
         }
       } else {
         throw new Error('No valid object created');

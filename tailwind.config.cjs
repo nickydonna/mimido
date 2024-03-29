@@ -42,6 +42,7 @@ const config = {
 	},
 	plugins: [
 		require('flowbite/plugin'),
+		require('@tailwindcss/typography'),
 		function ({ matchUtilities, theme }) {
       matchUtilities(
         {

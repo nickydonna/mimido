@@ -1,13 +1,16 @@
 <script>
 	import FloatingLabelInput from 'flowbite-svelte/FloatingLabelInput.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
-	import Popover from 'flowbite-svelte/Popover.svelte';
-	import { Accordion, AccordionItem, Badge, Helper } from 'flowbite-svelte';
+	import { Accordion, AccordionItem, Badge, Helper, Label } from 'flowbite-svelte';
 
 	import { format, isSameDay } from 'date-fns/fp';
-	import { formatDuration, formatISO, formatRelative } from 'date-fns';
+	import { formatDuration, formatISO } from 'date-fns';
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
 	import { importanceToString, loadToString, urgencyToString } from '$lib/util';
+	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
+	import { commonmark } from '@milkdown/preset-commonmark';
+	import { nord } from '@milkdown/theme-nord';
+	import { listener, listenerCtx } from '@milkdown/plugin-listener';
 
 	import * as pkg from 'rrule';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
@@ -21,6 +24,7 @@
 	const originalText = form?.originalText ?? (data.event ? unparseTaskText(data.event) : ''); // Duplicate to avoid chainging the prop
 	let taskText = originalText;
 	const today = new Date();
+	let description = '';
 	/** @type {boolean} */
 	let editting;
 	/** @type {ReturnType<parseTaskText>}*/
@@ -28,6 +32,31 @@
 	$: {
 		taskInfo = parseTaskText(taskText, today);
 		editting = typeof data.event !== 'undefined';
+	}
+
+	/** @param {HTMLElement} dom */
+	function editor(dom) {
+		// to obtain the editor instance we need to store a reference of the editor.
+		const MakeEditor = Editor.make()
+			.config((ctx) => {
+				ctx.set(rootCtx, dom);
+				ctx.get(listenerCtx).markdownUpdated((ctx, md, preMd) => {
+					console.log(md);
+					description = md;
+				})
+				if (data.event?.description) {
+					ctx.set(defaultValueCtx, data.event.description);
+				}
+			})
+			.config(nord)
+			.use(commonmark)
+			.use(listener)
+			.create();
+		MakeEditor.then((editor) => {
+			// here you have access to the editor instance.
+			// const exampleContent = "# Hello World!";
+			// editor.action(replaceAll(exampleContent));
+		});
 	}
 
 	// TODO use current date?
@@ -48,19 +77,24 @@
 					The title is what remains after all other modifers have been parsed.
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
-					<span class="mr-1 font-semibold">Type:</span>To type the task, prefix with <code>@</code>, can be <code>Block</code>,
+					<span class="mr-1 font-semibold">Type:</span>To type the task, prefix with <code>@</code>,
+					can be <code>Block</code>,
 					<code>Event</code>, <code>Task</code> or <code>Remainder</code>
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
-				<span class="mr-1 font-semibold">Status:</span>
-					The status of task can be indicated by prefixing with <code>%</code>, can be <code>back</code>,
+					<span class="mr-1 font-semibold">Status:</span>
+					The status of task can be indicated by prefixing with <code>%</code>, can be
+					<code>back</code>,
 					<code>todo</code>, <code>doing</code> or <code>done</code>
-				<p class="mb-2 text-gray-600 dark:text-gray-400">
-					<span class="mr-1 font-semibold">Dates:</span>To set dates of a task/event. It will be parsed from the text in parenthesis. After the
-					date you can add a <code>|</code> and a recurrence pattern (check rrule.js).
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
-					Example: Go shopping (at 21 until 23 | every monday) -> Date: today 9pm until 23:00 [every week on Monday]
+					<span class="mr-1 font-semibold">Dates:</span>To set dates of a task/event. It will be
+					parsed from the text in parenthesis. After the date you can add a <code>|</code> and a recurrence
+					pattern (check rrule.js).
+				</p>
+				<p class="mb-2 text-gray-600 dark:text-gray-400">
+					Example: Go shopping (at 21 until 23 | every monday) -> Date: today 9pm until 23:00 [every
+					week on Monday]
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					<span class="mr-1 font-semibold">Tags:</span>To set tags just add <code>#</code> before a word.
@@ -68,8 +102,8 @@
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					<span class="mr-1 font-semibold">Importance:</span>
 					To set the importance of the task use <code>?</code> for less import or <code>!</code>
-					for more important ones. You can add up to 3 of either. <code>??</code> means
-					-2, and <code>!</code> means +1
+					for more important ones. You can add up to 3 of either. <code>??</code> means -2, and
+					<code>!</code> means +1
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					<span class="mr-1 font-semibold">Urgency:</span>
@@ -81,8 +115,8 @@
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					<span class="mr-1 font-semibold">Alarms:</span>
-					Alarms are set using a <code>*</code> followed by ISO 860 duration. 
-					For example *PT1H30M -> is alert me 1 hour 30 min before. And *P1DT1H is a day and an hour before
+					Alarms are set using a <code>*</code> followed by ISO 860 duration. For example *PT1H30M ->
+					is alert me 1 hour 30 min before. And *P1DT1H is a day and an hour before
 				</p>
 			</AccordionItem>
 		</Accordion>
@@ -110,8 +144,7 @@
 						</ul>
 					</Helper>
 				{/if}
-				<div class="mt-3 flex">
-					<div class="flex-1">
+				<div class="mt-3">
 						<div class="mb-1 flex text-lg">
 							<p class="mr-1 font-semibold">Title:</p>
 							<p>{taskInfo.title}</p>
@@ -169,10 +202,12 @@
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Alarms</div>
 									{#each taskInfo.alarms as alarm}
-										{formatDuration({...alarm.duration}, { format: ['days', 'hours', 'minutes']})} before | 
+										{formatDuration(
+											{ ...alarm.duration },
+											{ format: ['days', 'hours', 'minutes'] }
+										)} before |
 									{/each}
-									<div>
-									</div>
+									<div></div>
 								</div>
 							{/if}
 						</div>
@@ -189,7 +224,7 @@
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Urgency</div>
 									<div>
-  									{urgencyToString(taskInfo.urgency)}
+										{urgencyToString(taskInfo.urgency)}
 									</div>
 								</div>
 							{/if}
@@ -197,15 +232,18 @@
 								<div class="flex-0 px-1">
 									<div class="mb-1 border-b border-solid border-gray-400">Load</div>
 									<div>
-									  {loadToString(taskInfo.load)}
+										{loadToString(taskInfo.load)}
 									</div>
 								</div>
 							{/if}
 						</div>
-					</div>
-					<div class="flex-0">
-						<Button type="submit">{editting ? 'Update' : 'Create'}</Button>
-					</div>
+				</div>
+				<hr class="mt-3">
+				<Label for="description" class="text-gray-500 dark:text-gray-400 text-md block my-2">Description</Label>
+				<div use:editor class="prose-sm" />
+				<textarea name="description" class="hidden" bind:value={description} />
+				<div class="">
+					<Button type="submit">{editting ? 'Update' : 'Create'}</Button>
 				</div>
 			</form>
 		</div>
