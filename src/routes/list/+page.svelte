@@ -2,31 +2,23 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import DetailModal from '$lib/components/details-modal';
+	import { importanceToString, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
 	import {
 		Button,
-		Table,
-		TableBody,
-		TableBodyCell,
-		TableBodyRow,
-		TableHead,
-		TableHeadCell,
 		CloseButton,
 		Drawer,
 		Sidebar,
 		SidebarGroup,
 		SidebarItem,
 		SidebarWrapper,
-
-		Modal
-
+		Modal,
+		Card
 	} from 'flowbite-svelte';
 	import {
 		GridSolid,
 		MailBoxSolid,
 		BarsFromLeftOutline,
-
 		ExclamationCircleOutline
-
 	} from 'flowbite-svelte-icons';
 	import { sineIn } from 'svelte/easing';
 
@@ -55,14 +47,14 @@
 	};
 
 	let hideDrawer = true;
-  let spanClass = 'flex-1 ms-3 whitespace-nowrap';
+	let spanClass = 'flex-1 ms-3 whitespace-nowrap';
 	let transitionParams = {
 		x: -320,
 		duration: 200,
 		easing: sineIn
 	};
 
-  /** @typedef {import('$lib/parser').EStatus} EStatus */
+	/** @typedef {import('$lib/parser').EStatus} EStatus */
 	/** @param {CustomEvent<{ status: EStatus}>} event */
 	const handleStatusChange = async (event) => {
 		if (!selectedEvent) return;
@@ -127,22 +119,28 @@
 <Button on:click={() => (hideDrawer = false)}>
 	<BarsFromLeftOutline />
 </Button>
-<Table>
-	<TableHead>
-		<TableHeadCell>Type</TableHeadCell>
-		<TableHeadCell>Title</TableHeadCell>
-		<TableHeadCell>Status</TableHeadCell>
-	</TableHead>
-	<TableBody>
-		{#each data.events as event}
-			<TableBodyRow on:click={() => (selectedEvent = event)}>
-				<TableBodyCell>{event.type}</TableBodyCell>
-				<TableBodyCell>{event.title}</TableBodyCell>
-				<TableBodyCell>{event.status}</TableBodyCell>
-			</TableBodyRow>
-		{/each}
-	</TableBody>
-</Table>
+
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 mt-3">
+	{#each data.events as event}
+		<Card on:click={() => (selectedEvent = event)}>
+			<h5 class="mb-2 text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+				{event.title}
+			</h5>
+			{#if isTask(event) || isReminder(event)}
+			<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
+				{event.status}
+			</p>
+			{/if}
+			<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
+				{#if isTask(event) || isReminder(event)}
+					{importanceToString(event.importance, '|')}
+					{urgencyToString(event.urgency, '|')}
+					{loadToString(event.load)}
+				{/if}
+			</p>
+		</Card>
+	{/each}
+</div>
 
 <DetailModal
 	{loading}
