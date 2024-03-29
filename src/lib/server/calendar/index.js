@@ -337,8 +337,6 @@ export class CalendarBackend {
       }
 
       return exception ?? occurrenceEvent;
-
-
     }).filter(isDefined)
   }
 

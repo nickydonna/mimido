@@ -105,7 +105,7 @@
 	let timeCheck = (event, slotCheck) => {
 		if (!event.date) return false;
 
-		return isWithinInterval({ start: current, end: endOfDay(current)}, event.date);
+		return slotCheck(event.date)
 	};
 
 	/** 

@@ -110,7 +110,7 @@ export const timeStore = readable(new Date(), (set) => {
  * @returns {obj is NonNullable<T>}
  */
 export function isDefined(obj) {
-  return typeof obj === 'undefined' && obj !== null;
+  return typeof obj !== 'undefined' && obj !== null;
 }
 
 	/** 
