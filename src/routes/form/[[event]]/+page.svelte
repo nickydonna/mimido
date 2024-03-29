@@ -52,11 +52,6 @@
 			.use(commonmark)
 			.use(listener)
 			.create();
-		MakeEditor.then((editor) => {
-			// here you have access to the editor instance.
-			// const exampleContent = "# Hello World!";
-			// editor.action(replaceAll(exampleContent));
-		});
 	}
 
 	// TODO use current date?

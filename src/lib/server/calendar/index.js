@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
 import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
-import { endOfDay } from "date-fns";
+import { endOfDay, isAfter, isWithinInterval } from "date-fns";
 import yup from 'yup';
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
@@ -239,11 +239,9 @@ export class Backend {
       }
     });
 
-    // TODO Review intervalcheck
-    // const intervalCheck =
-    //   /** @param {TEventSchema} e  */
-    //   (e) => e.date && isWithinInterval({ start: from, end: to }, e.date)
 
+
+    // TODO Refactor this use better the ICAL recur exceptions
     // Calendar components can have many event components
     // Map all to a TEventSchema, filter them for in range and flat()
     return objects.map(e => {
@@ -251,7 +249,59 @@ export class Backend {
       const vevents = comp.getAllSubcomponents('vevent');
       if (vevents.length === 0) return;
       const parsed = vevents.map(e => this.fromVEvent(e))
-      return parsed.find(p => !!p.meta?.recurrenceId) ?? parsed[parsed.length - 1];
+
+      if (!parsed.some((p) => p.icalEvent.isRecurring())) {
+        return parsed[parsed.length - 1].event
+      }
+
+      /** @type {TEventSchema | undefined} */
+      let exception;
+      /** @type {TEventSchema | undefined} */
+      let occurrenceEvent;
+
+      for (let index = 0; index < parsed.length; index++) {
+        /** @type {ICAL.Time | undefined} */
+        let currentOccurence;
+        const element = parsed[index];
+
+        if (element.icalEvent.isRecurrenceException()) {
+          exception = element.event;
+        }
+        let iterator = new ICAL.RecurExpansion({
+          component: vevents[index],
+          dtstart: vevents[index].getFirstPropertyValue('dtstart')
+        });
+        // next is always an ICAL.Time or null
+        /** @type {ICAL.Time | null} */
+        let next = iterator.next()
+
+        while (next) {
+          const nextJS = next.toJSDate()
+          if (isAfter(nextJS, to)) {
+            break;
+          }
+          if (next && isWithinInterval(nextJS, { start: from, end: to })) {
+            console.log(element.event.title, nextJS)
+            currentOccurence = next
+            break;
+          }
+          next = iterator.next()
+        }
+
+        if (currentOccurence) {
+          // @ts-expect-error add types
+          const details = element.icalEvent.getOccurrenceDetails(currentOccurence);
+          occurrenceEvent = {
+            ...element.event,
+            date: details.startDate.toJSDate(),
+            endDate: details.endDate.toJSDate(),
+          }
+        }
+      }
+
+      return exception ?? occurrenceEvent;
+
+
     })
       .filter(
       /**
@@ -285,7 +335,7 @@ export class Backend {
     if (id.startsWith('vevent-')) {
       meta = { icalType: 'vevent' }
       const vevent = comp.getFirstSubcomponent('vevent');
-      if (vevent) (event = this.fromVEvent(vevent));
+      if (vevent) (event = this.fromVEvent(vevent).event);
     } else if (id.startsWith('vtodo-')) {
       meta = { icalType: 'vtodo' }
       const vtodo = comp.getFirstSubcomponent('vtodo');
@@ -421,7 +471,7 @@ export class Backend {
 
   /**
    * @param {ICAL.Component} vevent - vevent component from calendar
-   * @return {TEventSchema}
+   * @return {{ event: TEventSchema, icalEvent: ICAL.Event}}
    */
   fromVEvent(vevent) {
     const icalEvent = new ICAL.Event(vevent);
@@ -485,7 +535,7 @@ export class Backend {
       recurrenceId: icalEvent.recurrenceId?.toJSDate(),
     }
 
-    return {
+    const event = {
       eventId: /** @type {string} */ (icalEvent.uid),
       title: /** @type {string} */ (icalEvent.summary),
       description: /** @type {string | undefined} */ (icalEvent.description),
@@ -502,6 +552,8 @@ export class Backend {
       recur,
       meta,
     }
+
+    return { event, icalEvent }
   }  
 
   /**

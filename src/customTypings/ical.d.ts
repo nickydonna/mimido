@@ -55,6 +55,7 @@ declare module "ical.js" {
 
     public isRecurring(): boolean;
     public iterator(startTime?: Time): RecurExpansion;
+    public isRecurrenceException(): boolean;
   }
 
   export class Property {
@@ -129,6 +130,7 @@ declare module "ical.js" {
 
   export class RecurExpansion {
     public complete: boolean;
+    constructor({ component: Component, dtstart: Time })
 
     public next(): Time;
   }

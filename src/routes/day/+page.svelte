@@ -14,9 +14,7 @@
 	import {
 		AngleLeftOutline,
 		AngleRightOutline,
-		EditOutline,
 		ExclamationCircleOutline,
-		TrashBinOutline
 	} from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
 	import {
@@ -35,7 +33,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Modal } from 'flowbite-svelte';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
-	const { RRule, rrulestr } = pkg.default || pkg;
+	const { rrulestr } = pkg.default || pkg;
 
 	/** @enum {string} */
 	const EDefaultEventStyle = {
@@ -61,7 +59,6 @@
 	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
 	let timeBlocks;
 	let showingToday = false;
-
 	/** @type {Date} */
 	let currentTime;
 	/**
@@ -70,7 +67,6 @@
 	 */
 	let timeIndicator;
 	timeStore.subscribe((storeTime) => {
-		showingToday = isSameDay(storeTime, data.date);
 		currentTime = storeTime;
 		const neareastSlot = roundToNearestMinutes(storeTime, {
 			nearestTo: 15,
@@ -84,6 +80,7 @@
 	});
 
 	$: {
+		showingToday = isSameDay(new Date(), data.date);
 		current = startOfDay(data.date);
 		let start = setHours(8, current);
 		let end = setHours(23, current);
@@ -223,7 +220,7 @@
 		{#if showingToday}
 			<!-- Blur time before current slot -->
 			<div
-				class="blurred-time pointer-events-none "
+				class="blurred-time pointer-events-none"
 				style:z-index="10000"
 				style:grid-column="times / reminder"
 				style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
@@ -274,7 +271,7 @@
 			</div>
 		{/if}
 		{#each timeBlocks as { time, check }, j (time)}
-			<h2 class="time-slot text-sm text-center" style:grid-row={`time-${format('HHmm', time)}`}>
+			<h2 class="time-slot text-center text-sm" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
 			</h2>
 			{#each sortedEvents as [type, events], i}
@@ -289,7 +286,7 @@
 					<div
 						tabindex={i + j + k}
 						role="button"
-						class="{getEventCardClass(e)} group relative rounded-lg border p-2 shadow-2xl"
+						class="{getEventCardClass(e)} group relative rounded-lg border p-1 shadow-2xl"
 						class:m-1={type === EType.BLOCK}
 						class:m-2={type !== EType.BLOCK}
 						class:glass={type !== EType.BLOCK}
@@ -330,7 +327,7 @@
 	}
 
 	.blurred-time {
-		backdrop-filter: blur(1.5px);
+		backdrop-filter: blur(1px);
 	}
 	.card__bg-work {
 		background-position: center;

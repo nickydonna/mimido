@@ -19,7 +19,8 @@ const config = {
 			`border-${c}-600`,
 			`bg-polka-${c}-600`,
 			`text-${c}-600`
-		]).flat()
+		]).flat(),
+		"z-[11000]",
 	],
 	theme: {
 		extend: {
