@@ -110,7 +110,7 @@
 		<slot />
 	</div>
 	{#if data.token}
-		<BottomNav position="fixed" classInner="grid-cols-3" outerClass="z-[11000] w-full border-gray-200 dark:bg-gray-700 dark:border-gray-600">
+		<BottomNav position="fixed" classInner="grid-cols-3">
 			<BottomNavItem btnName="ListTask" href="/list?date={date}">
 				<RectangleListOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"

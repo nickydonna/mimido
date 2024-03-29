@@ -14,7 +14,7 @@
 	import {
 		AngleLeftOutline,
 		AngleRightOutline,
-		ExclamationCircleOutline,
+		ExclamationCircleOutline
 	} from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
 	import {
@@ -158,6 +158,7 @@
 		loading = false;
 		invalidateAll();
 	};
+	const modalZIndex = 40;
 </script>
 
 <div>
@@ -203,16 +204,19 @@
 
 	<div class="schedule">
 		<span
+			style:z-index={modalZIndex - 2}
 			class="track-slot text-center"
 			aria-hidden="true"
 			style="grid-column: event; grid-row: tracks;">Events</span
 		>
 		<span
+			style:z-index={modalZIndex - 2}
 			class="track-slot text-center"
 			aria-hidden="true"
 			style="grid-column: task; grid-row: tracks;">Tasks</span
 		>
 		<span
+			style:z-index={modalZIndex - 2}
 			class="track-slot text-center"
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
@@ -221,17 +225,26 @@
 			<!-- Blur time before current slot -->
 			<div
 				class="blurred-time pointer-events-none"
-				style:z-index="10000"
+				style:z-index={modalZIndex - 4}
 				style:grid-column="times / reminder"
 				style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
 					'HHmm',
 					timeIndicator.neareastSlot
 				)}"
 			/>
+			<!-- Blur percentage time of current slot -->
+			<div
+				class="pointer-events-none"
+				style:z-index={modalZIndex - 4}
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			>
+				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
+			</div>
 			<!-- Time indicator -->
 			<div
 				class="pointer-events-none"
-				style:z-index="10002"
+				style:z-index={modalZIndex - 3}
 				style:grid-column="times / reminder"
 				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
 			>
@@ -241,26 +254,10 @@
 					</span>
 				</div>
 			</div>
-			<!-- Blur percentage time of current slot -->
-			<div
-				class="pointer-events-none"
-				style:z-index="10001"
-				style:grid-column="times / reminder"
-				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
-			>
-				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
-			</div>
-			<!-- Blur percentage time of current slot -->
-			<div
-				class="pointer-events-none"
-				style:z-index="10001"
-				style:grid-column="times / reminder"
-				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
-			/>
 			<!-- Dotted line for current time -->
 			<div
 				class="pointer-events-none"
-				style:z-index="10001"
+				style:z-index={modalZIndex - 3}
 				style:grid-column="times / reminder"
 				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
 			>
@@ -270,7 +267,7 @@
 				/>
 			</div>
 		{/if}
-		{#each timeBlocks as { time, check }, j (time)}
+		{#each timeBlocks as { time, check } (time)}
 			<h2 class="time-slot text-center text-sm" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
 			</h2>
@@ -284,7 +281,7 @@
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
 					<div
-						tabindex={i + j + k}
+						tabindex={i * 10 + k}
 						role="button"
 						class="{getEventCardClass(e)} group relative rounded-lg border p-1 shadow-2xl"
 						class:m-1={type === EType.BLOCK}
@@ -292,7 +289,7 @@
 						class:glass={type !== EType.BLOCK}
 						style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
 						style:grid-row={getScheduleSlot(e)}
-						style:z-index={type === EType.BLOCK ? 0 : i + k}
+						style:z-index={type === EType.BLOCK ? 0 : k}
 						on:click={() => (selectedEvent = e)}
 						on:keypress={(event) => {
 							if (event.code === 'Enter') selectedEvent = e;
@@ -339,7 +336,6 @@
 		padding: 10px 5px 5px;
 		position: sticky;
 		top: 0;
-		z-index: 1000;
 		background-color: rgba(255, 255, 255, 0.9);
 	}
 

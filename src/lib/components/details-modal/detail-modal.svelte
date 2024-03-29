@@ -60,7 +60,7 @@
 
 </script>
 
-<Modal bind:open dismissable={false} classDialog="z-[12000]" on:close={() => (open = false)}>
+<Modal bind:open dismissable={false} on:close={() => (open = false)}>
 	<svelte:fragment slot="header">
 		<div class="flex w-full">
 			<div class="flex-1 self-center">
