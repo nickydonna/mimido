@@ -49,19 +49,18 @@ export function getRanking(event) {
   return urgency + load + importance;
 }
 
-/** @enum {string} */
-const EDefaultEventColor = {
-  [EType.BLOCK]: 'indigo',
-  [EType.EVENT]: 'green',
-  [EType.TASK]: 'pink',
-  [EType.REMINDER]: 'blue',
-}
-
 export const getEventColor = memoize(
   /**
    * @param {TAllTypes} event 
    */
   function (event) {
+    /** @enum {string} */
+    const EDefaultEventColor = {
+      [EType.BLOCK]: 'indigo',
+      [EType.EVENT]: 'green',
+      [EType.TASK]: 'pink',
+      [EType.REMINDER]: 'blue',
+    }
     const { tag, type } = event;
 
     const lcTags = tag.map(t => t.toLowerCase())
