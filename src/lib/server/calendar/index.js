@@ -287,7 +287,6 @@ export class CalendarBackend {
       const vevents = comp.getAllSubcomponents('vevent');
       if (vevents.length === 0) return;
       const parsed = vevents.map(e => this.fromVEvent(e))
-      console.log(parsed)
 
       if (!parsed.some((p) => p.icalEvent.isRecurring())) {
         return parsed[parsed.length - 1].event

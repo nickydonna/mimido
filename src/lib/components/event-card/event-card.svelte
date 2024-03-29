@@ -7,8 +7,8 @@
 	export let event;
 	const sizeClass =
 		differenceInMinutes(/** @type {Date} */ (event.date), /** @type {Date} */ (event.endDate)) < 16
-			? 'text-sm'
-			: 'text-md';
+			? 'text-xs'
+			: 'text-[0.6rem]';
 </script>
 
 <div class={sizeClass}>

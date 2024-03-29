@@ -31,6 +31,7 @@
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Modal } from 'flowbite-svelte';
+	import { inview } from 'svelte-inview';
 
 	/** @enum {string} */
 	const EDefaultEventStyle = {
@@ -166,6 +167,29 @@
 		invalidateAll();
 	};
 	const modalZIndex = 40;
+
+
+	let currentTimeInView = false;
+	/** @type {import('svelte-inview').Options}*/
+	const inviewOption = {
+		rootMargin: "-50px"
+	}
+	
+	/**
+	 * @param {CustomEvent<import('svelte-inview').ObserverEventDetails>} event
+	 */
+  const handleViewChange = ({ detail }) => {
+    currentTimeInView = detail.inView;
+  };
+	const scrollCurrentIntoView = () => {
+		const el = document.getElementById('current-time');
+		if (!el) return;
+
+		el.scrollIntoView({
+			block: 'center',
+      behavior: 'smooth',
+    });
+	}
 </script>
 
 <div>
@@ -248,6 +272,12 @@
 			>
 				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
 			</div>
+			{/if}
+			{#if !currentTimeInView}
+				<Button class="z-40 fixed end-6 bottom-[5rem]" on:click={scrollCurrentIntoView}>
+					Go to Current Time
+				</Button>
+			{/if}
 			<!-- Time indicator -->
 			<div
 				class="pointer-events-none"
@@ -263,6 +293,8 @@
 			</div>
 			<!-- Dotted line for current time -->
 			<div
+				use:inview={inviewOption} on:change={handleViewChange}
+				id="current-time"
 				class="pointer-events-none"
 				style:z-index={modalZIndex - 3}
 				style:grid-column="times / reminder"
@@ -273,9 +305,9 @@
 					class="relative w-full border-b-2 border-dotted border-gray-700"
 				/>
 			</div>
-		{/if}
+
 		{#each timeBlocks as { time, check } (time)}
-			<h2 class="time-slot text-center text-sm" style:grid-row={`time-${format('HHmm', time)}`}>
+			<h2 class="time-slot m-0.5 text-center text-xs" style:grid-row={`time-${format('HHmm', time)}`}>
 				{format('HH:mm', time)}
 			</h2>
 			{#each sortedEvents as [type, events], i}
@@ -290,9 +322,9 @@
 					<div
 						tabindex={i * 10 + k}
 						role="button"
-						class="{getEventCardClass(e)} group relative rounded-lg border p-1 shadow-2xl"
-						class:m-1={type === EType.BLOCK}
-						class:m-2={type !== EType.BLOCK}
+						class="{getEventCardClass(e)} group relative rounded-lg border p-0.5 shadow-2xl"
+						class:m-px={type === EType.BLOCK}
+						class:m-0.5={type !== EType.BLOCK}
 						class:glass={type !== EType.BLOCK}
 						style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
 						style:grid-row={getScheduleSlot(e)}
@@ -348,7 +380,6 @@
 
 	.time-slot {
 		grid-column: times;
-		padding: 0.4em 0.2em 0.4em 0;
 		margin-right: 0.5em;
 		border-right: 1px solid gray;
 	}
