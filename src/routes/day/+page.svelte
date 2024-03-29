@@ -26,14 +26,11 @@
 		startOfDay
 	} from 'date-fns';
 	import { enhance } from '$app/forms';
-	import * as pkg from 'rrule';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
 	import { getEventCardClass, isBlock, isEvent, isReminder, isTask, timeStore } from '$lib/util';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Modal } from 'flowbite-svelte';
-	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
-	const { rrulestr } = pkg.default || pkg;
 
 	/** @enum {string} */
 	const EDefaultEventStyle = {
@@ -334,7 +331,7 @@
 	}
 
 	.blurred-time {
-		backdrop-filter: blur(1px);
+		background-color: rgba(255, 255, 255, 0.4);
 	}
 	.card__bg-work {
 		background-position: center;

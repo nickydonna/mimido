@@ -256,11 +256,11 @@ export class CalendarBackend {
 
   /**
    * 
-   * @param {Date} [day] 
+   * @param {Date} day 
    */
   async listDayEvent(day) {
-    const from = startOfDay(day ?? (new Date()))
-    const to = endOfDay(from)
+    const from = startOfDay(day)
+    const to = addMinutes(1, endOfDay(day))
     return this.listEvents(from, to);
   }
 
@@ -287,6 +287,7 @@ export class CalendarBackend {
       const vevents = comp.getAllSubcomponents('vevent');
       if (vevents.length === 0) return;
       const parsed = vevents.map(e => this.fromVEvent(e))
+      console.log(parsed)
 
       if (!parsed.some((p) => p.icalEvent.isRecurring())) {
         return parsed[parsed.length - 1].event
@@ -727,4 +728,3 @@ export async function getBackend(user) {
   return backends[key]
 
 }
-
