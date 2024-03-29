@@ -1,11 +1,11 @@
 /** @typedef {import('../$types').Actions} Actions */
-/** @typedef {import('$lib/server/calendar').TBaseSchema} TBaseSchema */
+/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 import { fail } from '@sveltejs/kit';
 import { parseISO } from 'date-fns/fp';
 
 
-/** @type {import('./$types').PageServerLoad<{ date: Date, events: TBaseSchema[] }>} */
+/** @type {import('./$types').PageServerLoad<{ date: Date, events: TAllTypesWithId[] }>} */
 export const load = async ({ locals, url }) => {
 	const queryDate = url.searchParams.get('date');
 	const date = queryDate ? parseISO(queryDate) : new Date();

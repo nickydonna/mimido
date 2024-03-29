@@ -28,7 +28,7 @@
 	import { enhance } from '$app/forms';
 	import * as pkg from 'rrule';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
-	import { getEventCardClass, timeStore } from '$lib/util';
+	import { getEventCardClass, isBlock, isEvent, isReminder, isTask, timeStore } from '$lib/util';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Modal } from 'flowbite-svelte';
@@ -43,12 +43,12 @@
 		[EType.REMINDER]: 'bg-red-400 border-red-600'
 	};
 
-	/** @typedef {import('$lib/server/calendar').TBaseSchema} TBaseSchema */
+	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	/** @type {TBaseSchema | undefined} */
+	/** @type {TAllTypesWithId | undefined} */
 	let selectedEvent;
 	/** @type {string | undefined} */
 	let idOfDeleting;
@@ -98,28 +98,38 @@
 	}
 
 	/**
-	 * @param {TBaseSchema} event
-	 * @param {(d: Date) => boolean} timeCheck
+	 * @param {TAllTypesWithId} event
+	 * @param {(d: Date) => boolean} slotCheck
 	 * @returns {boolean}
 	 */
-	let timeCheck = (event, timeCheck) => {
+	let timeCheck = (event, slotCheck) => {
 		if (!event.date) return false;
 
-		let recurRule = event.recur ? rrulestr(event.recur) : undefined;
-		let checkDates = recurRule?.between(current, endOfDay(current)) ?? [];
-		checkDates = [...checkDates, event.date];
-		return checkDates.some(timeCheck);
+		return isWithinInterval({ start: current, end: endOfDay(current)}, event.date);
 	};
 
-	/** @type {Array<[EType, TBaseSchema[]]>} */
+	/** 
+	 * @template {import('$lib/server/calendar').TAllTypes} T
+	 * @typedef {import('$lib/server/calendar').WithId<T>} WithId
+	 */
+	/** @typedef {import('$lib/server/calendar').TBlockSchema} TBlockSchema */
+	/** @typedef {import('$lib/server/calendar').TTaskSchema} TTaskSchema */
+	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
+	/** @typedef {import('$lib/server/calendar').TReminderSchema} TReminderSchema */
+
+	/** 
+	 * @type {Array<
+	 * 	[EType, Array<TAllTypesWithId>]
+	 * >}
+	 */
 	let sortedEvents;
 
 	$: {
 		sortedEvents = [
-			[EType.BLOCK, data.events.filter((e) => e.type === EType.BLOCK)],
-			[EType.EVENT, data.events.filter((e) => e.type === EType.EVENT)],
-			[EType.TASK, data.events.filter((e) => e.type === EType.TASK)],
-			[EType.REMINDER, data.events.filter((e) => e.type === EType.REMINDER)]
+			[EType.BLOCK, data.events.filter(isBlock)],
+			[EType.EVENT, data.events.filter(isEvent)],
+			[EType.TASK, data.events.filter(isTask)],
+			[EType.REMINDER, data.events.filter(isReminder)],
 		];
 	}
 
@@ -134,7 +144,7 @@
 		};
 	};
 
-	/** @param {TBaseSchema} e */
+	/** @param {TAllTypesWithId} e */
 	function getScheduleSlot(e) {
 		if (!e.date) return '';
 		let endTime = e.endDate ?? addMinutes(15, e.date);
@@ -153,7 +163,7 @@
 			body: JSON.stringify({ status: event.detail.status })
 		});
 
-		selectedEvent = /** @type {TBaseSchema} */ (await res.json());
+		selectedEvent = /** @type {TAllTypesWithId} */ (await res.json());
 		// TODO manage error
 		loading = false;
 		invalidateAll();

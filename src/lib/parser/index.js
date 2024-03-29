@@ -1,9 +1,11 @@
+import { isBlock, isReminder, isTask } from '$lib/util';
 import { parseRRule, tryParseTextForRRule } from '$lib/utils/rrule';
 import * as chrono from 'chrono-node';
 import { isSameDay } from 'date-fns';
 import { format } from 'date-fns/fp';
 
-/** @typedef {import('$lib/server/calendar').ParsedEventSchema} ParsedEventSchema */
+/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
+/** @typedef {import('$lib/server/calendar').TAllTypes} TAllTypes */
 /** @typedef {import('$lib/server/calendar').TAlarm} TAlarm */
 
 /** @enum {string} */
@@ -39,7 +41,7 @@ const dateRE = /(^| )\((?<match>.*)\)( |$)/;
  * Parses text and transforms it into {@link TBaseSchema} 
  * @param {string} str 
  * @param {Date} [ref] 
- * @returns {ParsedEventSchema}
+ * @returns {TAllTypes}
  */
 export function parseTaskText(str, ref = new Date()) {
   let title = str + '';
@@ -164,7 +166,7 @@ export function parseTaskText(str, ref = new Date()) {
 /**
  * Takes an event and transforms it into an string so it can be editted
  * This way we avoid issues with relative dates in text
- * @param {ParsedEventSchema} event
+ * @param {TAllTypesWithId} event
  * @return {string}
  */
 export function unparseTaskText(event) {
@@ -174,14 +176,16 @@ export function unparseTaskText(event) {
     endDate,
     recur,
     type,
-    status,
-    importance,
-    urgency,
-    load,
     tag,
     alarms,
   } = event;
+
   let text = title
+
+  if (isReminder(event) || isTask(event)) {
+    text += ` %${event.status}`;
+  }
+
   if (date) {
     text += ` (${format('MMM dd HH:mm', date)}`
     if (endDate) {
@@ -213,6 +217,10 @@ export function unparseTaskText(event) {
   text += ` @${ type } %${ status }`;
 
   tag.forEach(t => (text += ` #${t}`))
+
+  if (isBlock(event)) return text;
+
+  const { importance, urgency, load } = event;
 
   if (importance !== 0) {
     const symbol = importance > 0 ? '!' : '?';

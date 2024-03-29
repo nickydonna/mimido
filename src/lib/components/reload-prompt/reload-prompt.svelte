@@ -1,12 +1,10 @@
 <script lang="ts">
-   // @ts-expect-error
 	import { useRegisterSW } from 'virtual:pwa-register/svelte'
 	const {
 		needRefresh,
 		updateServiceWorker,
 		offlineReady
 	} = useRegisterSW({
-   // @ts-expect-error
 		onRegistered(r) {
 		// uncomment following code if you want check for updates
 		// r && setInterval(() => {
@@ -15,7 +13,6 @@
 		// }, 20000 /* 20s for testing purposes */)
 			console.log(`SW Registered: ${r}`)
 		},
-   // @ts-expect-error
 		onRegisterError(error) {
 			console.log('SW registration error', error)
 		},

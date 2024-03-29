@@ -3,6 +3,7 @@ import { EType } from "./parser";
 import memoize from 'just-memoize';
 
 /** @typedef {import('$lib/server/calendar').TAllTypes} TAllTypes */
+/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 const IMPORTANCE_STRINGS = ['Sub-Zero', 'Very Low', 'Low', undefined, 'Mid', 'High', 'Very High']
 const URGENCY_STRINGS = [undefined, 'Soon', 'Next Up', 'Why are you not doing it']
@@ -113,38 +114,83 @@ export function isDefined(obj) {
   return typeof obj === 'undefined' && obj !== null;
 }
 
+	/** 
+	 * @template {import('$lib/server/calendar').TAllTypes} T
+	 * @typedef {import('$lib/server/calendar').WithId<T>} WithId
+	 */
 /** @typedef {import('$lib/server/calendar').TBlockSchema} TBlockSchema */
 /** @typedef {import('$lib/server/calendar').TTaskSchema} TTaskSchema */
 /** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 /** @typedef {import('$lib/server/calendar').TReminderSchema} TReminderSchema */
 
+
 /**
+ * @overload
+ * @param {TAllTypesWithId | undefined} obj 
+ * @returns {obj is NonNullable<WithId<TBlockSchema>>}
+ */
+/**
+ * @overload
  * @param {TAllTypes | undefined} obj 
  * @returns {obj is NonNullable<TBlockSchema>}
+ */
+/**
+ * @param {TAllTypes | TAllTypesWithId  | undefined} obj 
+ * @returns {boolean} 
  */
 export function isBlock(obj) {
   return isDefined(obj) && obj.type === EType.BLOCK
 }
 
 /**
+ * @overload
+ * @param {TAllTypesWithId | undefined} obj 
+ * @returns {obj is NonNullable<WithId<TTaskSchema>>} 
+ */
+/**
+ * @overload
  * @param {TAllTypes | undefined} obj 
  * @returns {obj is NonNullable<TTaskSchema>} 
+ */
+/**
+ * @param {TAllTypesWithId | TAllTypes | undefined} obj 
+ * @returns {boolean}
  */
 export function isTask(obj) {
   return isDefined(obj) && obj.type === EType.TASK
 }
 
 /**
+ * @overload
+ * @param {TAllTypesWithId | undefined} obj 
+ * @returns {obj is NonNullable<WithId<TReminderSchema>>}
+ */
+/**
+ * @overload
  * @param {TAllTypes | undefined} obj 
  * @returns {obj is NonNullable<TReminderSchema>}
+ */
+/**
+ * @param {TAllTypes | TAllTypesWithId | undefined} obj 
+ * @returns {boolean}
  */
 export function isReminder(obj) {
   return isDefined(obj) && obj.type === EType.REMINDER
 }
 
 /**
+ * @overload
+ * @param {TAllTypesWithId | TAllTypes | undefined} obj 
+ * @returns {obj is NonNullable<WithId<TEventSchema>>} 
+ */
+/**
+ * @overload
  * @param {TAllTypes | undefined} obj 
  * @returns {obj is NonNullable<TEventSchema>} 
+ */
+/**
+ * @param {TAllTypes | TAllTypesWithId | undefined} obj 
+ & @returns {boolean}
  */
 export function isEvent(obj) {
   return isDefined(obj) && obj.type === EType.EVENT

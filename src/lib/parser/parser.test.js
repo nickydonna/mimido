@@ -4,7 +4,7 @@ import { EType, parseTaskText } from '.';
 import { startOfDay, addWeeks, subWeeks, setSeconds, setHours, setMinutes, startOfHour } from "date-fns/fp";
 import { startOfWeek, startOfTomorrow  } from "date-fns";
 
-/** @typedef {import(".").ParsedEventSchema} ParsedEventSchema */
+/** @typedef {import(".").TAllTypes} TAllTypes */
 
 const baseInfo = {
   tag: [],
@@ -15,7 +15,7 @@ const baseInfo = {
   recur: undefined
 }
 
-/** @type {Array<[string, Date, Omit<ParsedEventSchema, 'originalText'>]>} */
+/** @type {Array<[string, Date, Omit<TAllTypes, 'originalText'>]>} */
 const testCases = [
   [
     "Meeting (tomorrow 12:30-14:30) #work @event",
@@ -27,6 +27,7 @@ const testCases = [
       date: setHours(12, setMinutes(30, startOfTomorrow())),
       endDate: setHours(14, setMinutes(30, startOfTomorrow())),
       tag: ['work'],
+      // @ts-expect-error - Just testing
       status: 'back',
     },
   ], [
@@ -39,6 +40,7 @@ const testCases = [
       date: startOfHour(setHours(9, (addWeeks(1, new Date())))),
       endDate: undefined,
       tag: ['personal'],
+      // @ts-expect-error - Just testing
       status: 'back',
     }
   ], [
@@ -51,6 +53,7 @@ const testCases = [
       date: startOfHour(setHours(10, startOfWeek(new Date(), { weekStartsOn: 1 }))),
       endDate: setSeconds(0, setMinutes(30, setHours(12, startOfDay(startOfWeek(new Date(), { weekStartsOn: 1 }))))),
       tag: ['mimi'],
+      // @ts-expect-error - Just testing
       status: 'back',
       importance: -2,
     }
@@ -65,6 +68,7 @@ const testCases = [
       date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
       endDate: undefined, 
       tag: ['mimi', 'asdf'],
+      // @ts-expect-error - Just testing
       status: 'back',
       urgency: 2,
     }
@@ -79,6 +83,7 @@ const testCases = [
       date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
       endDate: undefined, 
       tag: ['mimi2'],
+      // @ts-expect-error - Just testing
       load: 3,
       status: 'done',
     }
@@ -89,6 +94,7 @@ const testCases = [
       ...baseInfo,
       title: 'work',
       type: EType.BLOCK,
+      // @ts-expect-error - Just testing
       status: 'back',
       // When no time, chrone set the middle of the day as date
       date: setMinutes(30, setHours(9, startOfDay(new Date()))),

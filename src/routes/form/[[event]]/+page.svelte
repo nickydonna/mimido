@@ -6,13 +6,21 @@
 	import { format, isSameDay } from 'date-fns/fp';
 	import { formatDuration, formatISO } from 'date-fns';
 	import { parseTaskText, unparseTaskText } from '$lib/parser';
-	import { importanceToString, loadToString, urgencyToString } from '$lib/util';
+	import {
+		importanceToString,
+		isBlock,
+		isReminder,
+		isTask,
+		loadToString,
+		urgencyToString
+	} from '$lib/util';
 	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
 	import { commonmark } from '@milkdown/preset-commonmark';
 	import { nord } from '@milkdown/theme-nord';
 	import { listener, listenerCtx } from '@milkdown/plugin-listener';
 
 	import * as pkg from 'rrule';
+	import { isRedirect } from '@sveltejs/kit';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
@@ -43,7 +51,7 @@
 				ctx.get(listenerCtx).markdownUpdated((ctx, md, preMd) => {
 					console.log(md);
 					description = md;
-				})
+				});
 				if (data.event?.description) {
 					ctx.set(defaultValueCtx, data.event.description);
 				}
@@ -140,72 +148,73 @@
 					</Helper>
 				{/if}
 				<div class="mt-3">
-						<div class="mb-1 flex text-lg">
-							<p class="mr-1 font-semibold">Title:</p>
-							<p>{taskInfo.title}</p>
+					<div class="mb-1 flex text-lg">
+						<p class="mr-1 font-semibold">Title:</p>
+						<p>{taskInfo.title}</p>
+					</div>
+					{#if taskInfo.tag.length > 0}
+						<div class="mb-1 flex">
+							<p class="mr-1 font-semibold">Tags: {' '}</p>
+							{#each taskInfo.tag as t (t)}
+								<Badge rounded class="mr-1" color="purple">{t}</Badge>
+							{/each}
 						</div>
-						{#if taskInfo.tag.length > 0}
-							<div class="mb-1 flex">
-								<p class="mr-1 font-semibold">Tags: {' '}</p>
-								{#each taskInfo.tag as t (t)}
-									<Badge rounded class="mr-1" color="purple">{t}</Badge>
-								{/each}
+					{/if}
+					<div class="mt-3 flex">
+						<div class="flex-0 px-1">
+							<div class="mb-1 border-b border-solid border-green-500">Type</div>
+							<div>
+								@{taskInfo.type}
 							</div>
-						{/if}
-						<div class="mt-3 flex">
-							<div class="flex-0 px-1">
-								<div class="mb-1 border-b border-solid border-green-500">Type</div>
-								<div>
-									@{taskInfo.type}
-								</div>
-							</div>
+						</div>
+						{#if isTask(taskInfo) || isReminder(taskInfo)}
 							<div class="flex-0 px-1">
 								<div class="mb-1 border-b border-solid border-gray-400">Status</div>
 								<div>
 									%{taskInfo.status}
 								</div>
 							</div>
-							{#if taskInfo.date}
-								<div class="flex-0 px-1">
-									<div class="mb-1 border-b border-solid border-gray-400">From</div>
-									<div>
-										{format('dd/MM/yy HH:mm', taskInfo.date)}
-									</div>
+						{/if}
+						{#if taskInfo.date}
+							<div class="flex-0 px-1">
+								<div class="mb-1 border-b border-solid border-gray-400">From</div>
+								<div>
+									{format('dd/MM/yy HH:mm', taskInfo.date)}
 								</div>
-							{/if}
-							{#if taskInfo.endDate}
-								<div class="flex-0 px-1">
-									<div class="mb-1 border-b border-solid border-gray-400">Until</div>
-									<div>
-										{#if taskInfo.date && !isSameDay(taskInfo.endDate, taskInfo.date)}
-											{format('dd/MM/yy HH:mm', taskInfo.endDate)}
-										{:else}
-											{format('HH:mm', taskInfo.endDate)}
-										{/if}
-									</div>
+							</div>
+						{/if}
+						{#if taskInfo.endDate}
+							<div class="flex-0 px-1">
+								<div class="mb-1 border-b border-solid border-gray-400">Until</div>
+								<div>
+									{#if taskInfo.date && !isSameDay(taskInfo.endDate, taskInfo.date)}
+										{format('dd/MM/yy HH:mm', taskInfo.endDate)}
+									{:else}
+										{format('HH:mm', taskInfo.endDate)}
+									{/if}
 								</div>
-							{/if}
-							{#if taskInfo.recur}
-								<div class="flex-0 px-1">
-									<div class="mb-1 border-b border-solid border-gray-400">Recur</div>
-									<div>
-										{RRule.fromString(taskInfo.recur).toText()}
-									</div>
+							</div>
+						{/if}
+						{#if taskInfo.recur}
+							<div class="flex-0 px-1">
+								<div class="mb-1 border-b border-solid border-gray-400">Recur</div>
+								<div>
+									{RRule.fromString(taskInfo.recur).toText()}
 								</div>
-							{/if}
-							{#if taskInfo.alarms.length > 0}
-								<div class="flex-0 px-1">
-									<div class="mb-1 border-b border-solid border-gray-400">Alarms</div>
-									{#each taskInfo.alarms as alarm}
-										{formatDuration(
-											{ ...alarm.duration },
-											{ format: ['days', 'hours', 'minutes'] }
-										)} before |
-									{/each}
-									<div></div>
-								</div>
-							{/if}
-						</div>
+							</div>
+						{/if}
+						{#if taskInfo.alarms.length > 0}
+							<div class="flex-0 px-1">
+								<div class="mb-1 border-b border-solid border-gray-400">Alarms</div>
+								{#each taskInfo.alarms as alarm}
+									{formatDuration({ ...alarm.duration }, { format: ['days', 'hours', 'minutes'] })} before
+									|
+								{/each}
+								<div></div>
+							</div>
+						{/if}
+					</div>
+					{#if !isBlock(taskInfo)}
 						<div class="flex">
 							{#if taskInfo.importance != 0}
 								<div class="flex-0 px-1">
@@ -232,9 +241,12 @@
 								</div>
 							{/if}
 						</div>
+					{/if}
 				</div>
-				<hr class="mt-3">
-				<Label for="description" class="text-gray-500 dark:text-gray-400 text-md block my-2">Description</Label>
+				<hr class="mt-3" />
+				<Label for="description" class="text-md my-2 block text-gray-500 dark:text-gray-400"
+					>Description</Label
+				>
 				<div use:editor class="prose-sm" />
 				<textarea name="description" class="hidden" bind:value={description} />
 				<div class="">

@@ -267,6 +267,7 @@ export class CalendarBackend {
   /**
    * @param {Date} from
    * @param {Date} to
+   * @returns {Promise<TAllTypesWithId[]>}
    */
   async listEvents(from, to) {
     const calendar = await this.getCalendar();
@@ -277,8 +278,6 @@ export class CalendarBackend {
         end: formatISO(to), 
       }
     });
-
-
 
     // TODO Refactor this use better the ICAL recur exceptions
     // Calendar components can have many event components
@@ -293,9 +292,9 @@ export class CalendarBackend {
         return parsed[parsed.length - 1].event
       }
 
-      /** @type {TAllTypes | undefined} */
+      /** @type {TAllTypesWithId | undefined} */
       let exception;
-      /** @type {TAllTypes | undefined} */
+      /** @type {TAllTypesWithId | undefined} */
       let occurrenceEvent;
 
       for (let index = 0; index < parsed.length; index++) {
@@ -379,7 +378,7 @@ export class CalendarBackend {
 
   /**
    * 
-   * @param {ParsedEventSchema} data 
+   * @param {TAllTypes} data 
    * @return {Promise<TAllTypes>}
    */
   async validateEventData(data) {
@@ -511,7 +510,7 @@ export class CalendarBackend {
 
   /**
    * @param {ICAL.Component} vevent - vevent component from calendar
-   * @return {{ event: TAllTypes, icalEvent: ICAL.Event, meta: TEventMeta}}
+   * @return {{ event: TAllTypesWithId, icalEvent: ICAL.Event, meta: TEventMeta}}
    */
   fromVEvent(vevent) {
     const icalEvent = new ICAL.Event(vevent);

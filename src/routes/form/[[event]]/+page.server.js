@@ -2,9 +2,9 @@ import { parseTaskText } from '$lib/parser';
 import { redirect, fail } from '@sveltejs/kit';
 import yup from 'yup';
 
-/** @typedef {import('$lib/server/calendar').TAllTypes} TAllTypes */
+/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
-/** @type {import('./$types').PageServerLoad<{event?: TAllTypes }>} */
+/** @type {import('./$types').PageServerLoad<{event?: TAllTypesWithId }>} */
 export const load = async ({ locals, params }) => {
   const eventId = params.event;
 
