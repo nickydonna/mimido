@@ -44,7 +44,7 @@
 	/** @type {number | undefined }*/
 	let statusIdx = undefined;
 	$: {
-		if (event && isTask(event) && isReminder(event)) {
+		if (event && (isTask(event) || isReminder(event))) {
 			status = event.status;
 			statusIdx = statuses.indexOf(event.status);
 		}
@@ -84,7 +84,7 @@
 						</Button>
 						<Button
 							disabled={loading}
-							on:click={() => statusIdx && onStatusChange(statuses[statusIdx - 1])}
+							on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx - 1])}
 							aria-label="Move to {statuses[statusIdx - 1]}"
 						>
 							<AngleLeftOutline class="me-2 h-4 w-4" />
@@ -94,7 +94,7 @@
 					{#if status !== EStatus.DONE}
 						<Button
 							disabled={loading}
-							on:click={() => statusIdx && onStatusChange(statuses[statusIdx + 1])}
+							on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx + 1])}
 							aria-label="Move to {statuses[statusIdx + 1]}"
 						>
 							<AngleRightOutline class="me-2 h-4 w-4" />

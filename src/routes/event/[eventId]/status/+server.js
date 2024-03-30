@@ -7,7 +7,7 @@ export async function PUT({ request, params, locals }) {
 	const { status } = /** @type {{ status: EStatus }} */ (await request.json());
 
 	await locals.backend.updateStatus(eventId, status);
-	const event = await locals.backend.getEvent(eventId);
+	const event = (await locals.backend.getEvent(eventId)).event;
 
 	return json(event, { status: 202 });
 }

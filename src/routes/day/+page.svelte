@@ -33,14 +33,6 @@
 	import { Modal } from 'flowbite-svelte';
 	import { inview } from 'svelte-inview';
 
-	/** @enum {string} */
-	const EDefaultEventStyle = {
-		[EType.BLOCK]: 'bg-polka-indigo-600 border-indigo-600',
-		[EType.EVENT]: 'bg-green-400 border-green-600',
-		[EType.TASK]: 'bg-pink-400 border-pink-600',
-		[EType.REMINDER]: 'bg-red-400 border-red-600'
-	};
-
 	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
 	/** @type {import('./$types').PageData} */
