@@ -20,7 +20,7 @@
 	import { listener, listenerCtx } from '@milkdown/plugin-listener';
 
 	import * as pkg from 'rrule';
-	import { isRedirect } from '@sveltejs/kit';
+	import { enhance } from '$app/forms';
 	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
 	const { RRule } = pkg.default || pkg;
 
@@ -125,7 +125,7 @@
 		</Accordion>
 
 		<div>
-			<form method="POST" class="mt-2 flex-1">
+			<form method="POST" class="mt-2 flex-1" use:enhance>
 				<FloatingLabelInput
 					id="original_text"
 					name="originalText"

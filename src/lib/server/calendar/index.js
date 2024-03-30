@@ -92,7 +92,11 @@ const baseSchema = yup.object({
   recur: yup.string().test(
     'is-recur',
     str => `${str.path} is not a valid RRule`,
-    value => !!value && isValidRRule(value),
+    value => {
+      // Do no validation on empty string
+      if (!value || value.length === 0) return true
+      return isValidRRule(value)
+    },
   ), 
   lastDone: yup.date(),
   alarms: yup.array().of(alarmSchema).required(), 
