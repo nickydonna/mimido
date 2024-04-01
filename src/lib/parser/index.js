@@ -181,6 +181,7 @@ export function unparseTaskText(event) {
   } = event;
 
   let text = title
+  text += ` @${type}`;
 
   if (isReminder(event) || isTask(event)) {
     text += ` %${event.status}`;
@@ -214,7 +215,6 @@ export function unparseTaskText(event) {
       text += durText
     })
   }
-  text += ` @${ type } %${ status }`;
 
   tag.forEach(t => (text += ` #${t}`))
 
