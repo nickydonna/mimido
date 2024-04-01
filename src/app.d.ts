@@ -7,7 +7,7 @@ import type { Session } from 'svelte-kit-cookie-session';
 import type { StringMappingType } from 'typescript';
 
 interface GoogleCalendarAccess {
-	type: 'google',
+	provider: 'google',
 	accessToken: string,
 	refreshToken: string,
 }

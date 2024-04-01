@@ -7,6 +7,7 @@ import { endOfDay, isAfter, isWithinInterval } from "date-fns";
 import yup from 'yup';
 import { isValidRRule } from "$lib/utils/rrule";
 import { isBlock, isDefined, isReminder, isTask } from "$lib/util";
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "$env/static/private";
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
 /**
@@ -166,44 +167,89 @@ const taskSchema = rankingFields
  * Result of the parsed event from the parsing, without id and optional meta
  */
 
+/**
+ * @typedef {App.Locals['user'] & { type: 'basic'}} BasicAuth
+ */
+/**
+ * @typedef {Object} OAuth
+ * @prop {'oauth'} type
+ * @prop {string} accessToken
+ * @prop {string} refreshToken
+ * @prop {'google'} provider
+ */
+
 export class CalendarBackend {
 
   /**
-   * @param { App.Locals['user']} user - User data to auth to the server
+   * @param {BasicAuth | OAuth} auth
    */
-  constructor(user) {
+  constructor(auth) {
     /** @private */
-    this.user = user;
-    /** @private */
-    this.client = new DAVClient({
-      serverUrl: user.server,
-      credentials: {
-        username: user.email,
-        password: user.password,
-      },
-      authMethod: 'Basic',
-      defaultAccountType: 'caldav',
-    });
-    /** 
-     * @private
-     * @type {Promise<void>}
-     * Used to only log to servers once 
-     */
-    this.logged = this.client.login();
-    /**
-     * @private
-     * @type {DAVCalendar | undefined}
-     */
-    this.calendar = undefined;
+    this.auth = auth;
+
+    if (auth.type === 'basic') {
+      /** @private */
+      this.client = new DAVClient({
+        serverUrl: auth.server,
+        credentials: {
+          username: auth.email,
+          password: auth.password,
+        },
+        authMethod: 'Basic',
+        defaultAccountType: 'caldav',
+      });
+      /** 
+       * @private
+       * @type {Promise<void>}
+       * Used to only log to servers once 
+       */
+      this.logged = this.client.login();
+      /**
+       * @private
+       * @type {DAVCalendar | undefined}
+       */
+      this.calendar = undefined;
+    } else {
+      /** @private */
+      this.client = new DAVClient({
+        serverUrl: 'https://apidata.googleusercontent.com/caldav/v2/',
+        credentials: {
+          ...auth,
+          tokenUrl: 'https://accounts.google.com/o/oauth2/token',
+          clientId: GOOGLE_CLIENT_ID,
+          clientSecret: GOOGLE_CLIENT_SECRET,
+        },
+        authMethod: 'Oauth',
+        defaultAccountType: 'caldav',
+      });
+      /** 
+       * @private
+       * @type {Promise<void>}
+       * Used to only log to servers once 
+       */
+      this.logged = this.client.login();
+      /**
+       * @private
+       * @type {DAVCalendar | undefined}
+       */
+      this.calendar = undefined;
+    }
   }
 
   async getCalendar() {
     if (this.calendar) return this.calendar
     await this.logged;
     const calendars = await this.client.fetchCalendars();
+    let calendar;
 
-    this.calendar = calendars.find(c => c.displayName === this.user.calendar)
-    if (!this.calendar) throw new Error(`No Calendar with name ${this.user.calendar}`);
+    if (this.auth.type === 'basic') {
+      // @ts-expect-error Fix type constraing
+      calendar = calendars.find(c => c.displayName === this.auth.calendar)
+    } else {
+      calendar = calendars[0];
+    }
+    this.calendar = calendar;
+    if (!this.calendar) throw new Error(`No Calendar found`);
     return this.calendar;
   }
 
@@ -724,6 +770,7 @@ export async function getBackend(user) {
   const key = hashUser(user);
 
   if (!backends[key]) {
+    // @ts-ignore
     const back = new CalendarBackend(user);
     await back.check();
     backends[key] = back;

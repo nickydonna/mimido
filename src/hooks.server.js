@@ -19,6 +19,7 @@ export const handle = sequence(sessionHandler, async ({ resolve, event }) => {
     return resolve(event)
   }
 
-  event.locals.backend = await getBackend(user);
+  // @ts-expect-error type constrain
+  event.locals.backend = await getBackend({ ...user, type: 'basic' });
   return resolve(event);
 });

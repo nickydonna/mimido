@@ -21,12 +21,12 @@ export const actions = {
 		const password = /** @type {string} */ (data.get('password'));
 		const server = /** @type {string} */ (data.get('server'));
     const calendar = /** @type {string} */ (data.get('calendar'));
-    const user = { email, password, server, calendar};
-    
-    const back = new CalendarBackend(user);
+    const auth = { email, password, server, calendar, type: 'basic' }
+    // @ts-expect-error fix type
+    const back = new CalendarBackend(auth);
     try {
       await back.check();
-      await locals.session.set({ user, calendars: [] })
+      await locals.session.set({ user: auth, calendars: [] })
     } catch (e) {
       console.log(e);
       return error(500, e instanceof Error ? e.message : "")
@@ -40,7 +40,7 @@ export const actions = {
     const payload = /** @type {typeof locals.session.data} */ (jwt.verify(token, SESSION_KEY));
     console.log(payload)
     
-    const back = new CalendarBackend(payload.user);
+    const back = new CalendarBackend({ type: 'basic', ...payload.user });
     try {
       await back.check();
       await locals.session.set(payload)
