@@ -237,19 +237,19 @@
 	<div class="schedule">
 		<span
 			style:z-index={modalZIndex - 2}
-			class="track-slot text-center"
+			class="block sticky top-0 p-1 pt-2 text-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 antialiased"
 			aria-hidden="true"
 			style="grid-column: event; grid-row: tracks;">Events</span
 		>
 		<span
 			style:z-index={modalZIndex - 2}
-			class="track-slot text-center"
+			class="block sticky top-0 p-1 pt-2 text-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 antialiased"
 			aria-hidden="true"
 			style="grid-column: task; grid-row: tracks;">Tasks</span
 		>
 		<span
 			style:z-index={modalZIndex - 2}
-			class="track-slot text-center"
+			class="block sticky top-0 p-1 pt-2 text-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 antialiased"
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
@@ -364,20 +364,13 @@
 	}
 
 	.blurred-time {
-		background-color: rgba(255, 255, 255, 0.4);
+		background-color: rgba(0, 0, 0, 0.4);
 	}
 	.card__bg-work {
 		background-position: center;
 		background-image: url('$lib/assets/work.jpg');
 	}
 	/** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
-	.track-slot {
-		display: block;
-		padding: 10px 5px 5px;
-		position: sticky;
-		top: 0;
-		background-color: rgba(255, 255, 255, 0.9);
-	}
 
 	.time-slot {
 		grid-column: times;

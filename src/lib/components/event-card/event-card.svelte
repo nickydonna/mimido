@@ -11,7 +11,7 @@
 			: 'text-[0.6rem]';
 </script>
 
-<div class={sizeClass}>
+<div class="text-gray-600 dark:text-gray-800 {sizeClass}">
 	<p >
 		{event.title}
 		{#if event.recur}
