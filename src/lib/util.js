@@ -85,8 +85,8 @@ export const getEventCardClass = memoize(
 
     const color = getEventColor(event)
     return isBlock
-      ? `${opacity} bg-polka-${color}-600 border-${color}-600`
-      : `${opacity} bg-${color}-400 border-${color}-600`;
+      ? `${opacity} bg-polka-${color}-800 border-${color}-900`
+      : `${opacity} bg-${color}-600 border-${color}-900`;
   }
 )
 

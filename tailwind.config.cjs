@@ -15,9 +15,9 @@ const config = {
 	darkMode: 'class',
 	safelist: [
 		...includeColors.map(c => [
-			`bg-${c}-400`,
-			`border-${c}-600`,
-			`bg-polka-${c}-600`,
+			`bg-${c}-600`,
+			`border-${c}-900`,
+			`bg-polka-${c}-800`,
 			`text-${c}-600`
 		]).flat(),
 		"z-[11000]",

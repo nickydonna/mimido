@@ -360,11 +360,12 @@
 		box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 		backdrop-filter: blur(1.5px);
 		-webkit-backdrop-filter: blur(1.5px);
-		border: 1px solid rgba(255, 255, 255, 0.3);
 	}
 
 	.blurred-time {
-		background-color: rgba(0, 0, 0, 0.4);
+		/* background-color: rgba(0, 0, 0, 0.4); */
+		background: rgb(0,0,0, 0.4);
+		background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 100%);
 	}
 	.card__bg-work {
 		background-position: center;
