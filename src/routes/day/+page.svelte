@@ -22,6 +22,7 @@
 		formatISO,
 		getMinutes,
 		isSameDay,
+		isSameMinute,
 		roundToNearestMinutes,
 		startOfDay
 	} from 'date-fns';
@@ -38,8 +39,6 @@
 	/** @type {import('./$types').PageData} */
 	export let data;
 	
-	console.log(data.otherEvents);
-
 	/** @type {TAllTypesWithId | undefined} */
 	let selectedEvent;
 	/** @type {string | undefined} */
@@ -115,11 +114,10 @@
 	 * >}
 	 */
 	let sortedEvents;
-
 	$: {
 		sortedEvents = [
 			[EType.BLOCK, data.events.filter(isBlock)],
-			[EType.EVENT, data.events.filter(isEvent)],
+			[EType.EVENT, [...data.events.filter(isEvent), ...data.externalEvents]],
 			[EType.TASK, data.events.filter(isTask)],
 			[EType.REMINDER, data.events.filter(isReminder)],
 		];
@@ -136,13 +134,22 @@
 		};
 	};
 
-	/** @param {TAllTypesWithId} e */
+	/**
+	 * Give a time slot find the begin and end time grid slot
+	 * if endTime is null, add 15 min to the start time
+	 * if the time is not in a 15 min slot, move it to the nearest before
+	 * if when moving start and end are the same, move the end 15 min later
+	 * @param {TAllTypesWithId} e
+	 */
 	function getScheduleSlot(e) {
 		if (!e.date) return '';
+		let startDate = roundToNearestMinutes(e.date, { nearestTo: 15, roundingMethod: 'floor' });
 		let endTime = e.endDate ?? addMinutes(15, e.date);
-		//
 		endTime = roundToNearestMinutes(endTime, { nearestTo: 15, roundingMethod: 'floor' });
-		return `time-${format('HHmm', e.date)} / time-${format('HHmm', endTime)}`;
+		if (isSameMinute(startDate, endTime)) {
+			endTime = addMinutes(15, startDate);
+		}
+		return `time-${format('HHmm', startDate)} / time-${format('HHmm', endTime)}`;
 	}
 
 	/** @typedef {import('$lib/parser').EStatus} EStatus */

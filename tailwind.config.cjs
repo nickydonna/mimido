@@ -4,7 +4,7 @@ const Color = require('color');
 const lighten = (clr, val) => Color(clr).lighten(val).rgb().string()
 
 const includeColors = [
-	'indigo', 'blue', 'red', 'yellow', 'cyan',
+	'indigo', 'blue', 'red', 'yellow', 'cyan', 'green',
 	'emerald', 'green', 'teal', 'sky', 'violet', 'rose', 'teal',
 	'amber', 'fuchsia'
 ];

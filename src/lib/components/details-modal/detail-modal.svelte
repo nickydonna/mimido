@@ -1,7 +1,6 @@
 <script>
 	import { Badge, Button, ButtonGroup, Modal } from 'flowbite-svelte';
 	import { createEventDispatcher } from 'svelte';
-	import * as pkg from 'rrule';
 	import { formatDuration } from 'date-fns';
 	import { getEventColor, importanceToString, isBlock, isDefined, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
 	import {
@@ -15,8 +14,7 @@
 	import { commonmark } from '@milkdown/preset-commonmark';
 	import { nord } from '@milkdown/theme-nord';
 	import { EStatus } from '$lib/parser';
-	// @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
-	const { RRule } = pkg.default || pkg;
+	import { rruleToText } from '$lib/utils/rrule';
 
 	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
@@ -127,7 +125,7 @@
 			<div class="flex-0 px-1">
 				<div class="mb-1 border-b border-solid border-gray-400">Recur</div>
 				<div>
-					{RRule.fromString(event.recur).toText()}
+					{rruleToText(event.recur)}
 				</div>
 			</div>
 		{/if}

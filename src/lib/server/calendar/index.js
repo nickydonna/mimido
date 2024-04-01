@@ -70,7 +70,7 @@ const alarmSchema = yup.object({
  * @prop {Array<TAlarm>} alarms
  * @prop {string} [recur]
  * @prop {Date} [lastDone] - Date used when recurring task/reminder to indicated when it was last set to done
- * @prop {TEventMeta} meta
+ * @prop {string} [externalName] - Exists if the events are from another calendar
  */
 
 // eslint-disable-next-line no-useless-escape
@@ -100,7 +100,8 @@ const baseSchema = yup.object({
     },
   ), 
   lastDone: yup.date(),
-  alarms: yup.array().of(alarmSchema).required(), 
+  alarms: yup.array().of(alarmSchema).required(),
+  externalName: yup.string(),
 });
 
 /**
@@ -168,26 +169,41 @@ const taskSchema = rankingFields
  */
 
 /**
- * @typedef {App.Locals['user'] & { type: 'basic'}} BasicAuth
+ * @typedef AuthInfo
+ * @prop {'basic' | 'oauth'} type
+ */
+
+/**
+ * @typedef {import("../../../app").User & AuthInfo} BasicAuth
  */
 /**
- * @typedef {Object} OAuth
- * @prop {'oauth'} type
+ * @typedef {AuthInfo} OAuth
  * @prop {string} accessToken
  * @prop {string} refreshToken
  * @prop {'google'} provider
  */
 
+/** 
+ * @param {AuthInfo} auth 
+ * @return {auth is BasicAuth}
+ */
+function isBasicAuth(auth) {
+  return auth.type === 'basic';
+}
+
 export class CalendarBackend {
 
   /**
    * @param {BasicAuth | OAuth} auth
+   * @param {boolean} [displayOnly=false] If the calendar is only for display
    */
-  constructor(auth) {
+  constructor(auth, displayOnly = false) {
     /** @private */
     this.auth = auth;
+    /** @private */
+    this.displayOnly = displayOnly;
 
-    if (auth.type === 'basic') {
+    if (isBasicAuth(auth)) {
       /** @private */
       this.client = new DAVClient({
         serverUrl: auth.server,
@@ -236,29 +252,43 @@ export class CalendarBackend {
     }
   }
 
-  async getCalendar() {
-    if (this.calendar) return this.calendar
+  async getCalendars() {
+    if (this.calendars) return this.calendars
     await this.logged;
-    const calendars = await this.client.fetchCalendars();
-    let calendar;
 
-    if (this.auth.type === 'basic') {
-      // @ts-expect-error Fix type constraing
-      calendar = calendars.find(c => c.displayName === this.auth.calendar)
+    this.calendars = await this.client.fetchCalendars();
+    return this.calendars;
+  }
+
+  /**
+   * 
+   * @param {string} [calendarName] 
+   * @returns 
+   */
+  async getCalendar(calendarName) {
+    if (this.calendar) return this.calendar
+    const calendars = await this.getCalendars();
+    const auth = this.auth;
+    let calendar;
+    if (calendarName) {
+      calendar = calendars.find(c => c.displayName === calendarName)
+    } else if (isBasicAuth(auth)) {
+      calendar = calendars.find(c => c.displayName === auth.calendar)
     } else {
       calendar = calendars[0];
     }
-    this.calendar = calendar;
-    if (!this.calendar) throw new Error(`No Calendar found`);
-    return this.calendar;
+
+    if (!calendar) throw new Error(`No Calendar found`);
+    return calendar;
   }
 
   /**
    * Check the connection to the server and if the calendar exists
+   * @param {string} [calendarName]
    */
-  async check() {
+  async check(calendarName) {
     await this.logged;
-    await this.getCalendar();
+    await this.getCalendar(calendarName);
   }
 
   /**
@@ -307,44 +337,54 @@ export class CalendarBackend {
   /**
    * 
    * @param {Date} day 
+   * @param {string} [calendar]
    */
-  async listDayEvent(day) {
+  async listDayEvent(day, calendar) {
     const from = startOfDay(day)
     const to = addMinutes(1, endOfDay(day))
-    return this.listEvents(from, to);
+    return this.listEvents(from, to, calendar);
+  }
+
+  /**
+   * 
+   * List the events for an external event
+   * This will be forced into an EType.EVENT and add a tag
+   * @param {Date} day 
+   * @param {string} calendar
+   */
+  async listExternalDayEvents(day, calendar) {
+    const events = await this.listDayEvent(day, calendar);
+    return events.map(e => ({
+      ...e,
+      type: EType.EVENT,
+      externalName: calendar,
+    }))
+
   }
 
   /**
    * @param {Date} from
    * @param {Date} to
+   * @param {string} [calendarName]
    * @returns {Promise<TAllTypesWithId[]>}
    */
-  async listEvents(from, to) {
-    const calendar = await this.getCalendar();
+  async listEvents(from, to, calendarName) {
+    const calendar = await this.getCalendar(calendarName);
     const objects = await this.client.fetchCalendarObjects({
-      calendar: calendar,
-      timeRange: {
-        start: formatISO(from),
-        end: formatISO(to), 
-      }
-    });
-
-    // TODO Refactor this use better the ICAL recur exceptions
-    // Calendar components can have many event components
-    // Map all to a TBaseSchema, filter them for in range and flat()
+        calendar: calendar,
+        timeRange: {
+          start: formatISO(from),
+          end: formatISO(to),
+        }
+      });
+       
     return objects.map(e => {
       const comp = ICAL.Component.fromString(e.data);
       const vevents = comp.getAllSubcomponents('vevent');
+      const tz = comp.getFirstSubcomponent('vtimezone');
+
       if (vevents.length === 0) return;
       const parsed = vevents.map(e => this.fromVEvent(e))
-
-      if (!parsed.some((p) => p.icalEvent.isRecurring())) {
-        return parsed[parsed.length - 1].event
-      }
-
-      /** @type {TAllTypesWithId | undefined} */
-      let exception;
-      /** @type {TAllTypesWithId | undefined} */
       let occurrenceEvent;
 
       for (let index = 0; index < parsed.length; index++) {
@@ -352,9 +392,6 @@ export class CalendarBackend {
         let currentOccurence;
         const element = parsed[index];
 
-        if (element.icalEvent.isRecurrenceException()) {
-          exception = element.event;
-        }
         let iterator = new ICAL.RecurExpansion({
           component: vevents[index],
           dtstart: vevents[index].getFirstPropertyValue('dtstart')
@@ -362,9 +399,9 @@ export class CalendarBackend {
         // next is always an ICAL.Time or null
         /** @type {ICAL.Time | null} */
         let next = iterator.next()
-
         while (next) {
           const nextJS = next.toJSDate()
+
           if (isAfter(nextJS, to)) {
             break;
           }
@@ -378,15 +415,29 @@ export class CalendarBackend {
         if (currentOccurence) {
           // @ts-expect-error add types
           const details = element.icalEvent.getOccurrenceDetails(currentOccurence);
+          
+          let startDate = details.startDate
+          let endDate = details.endDate
+          
+          if (tz && calendarName) {
+            // For some reason timezone are not parsed correctly sometimes
+            // Maybe when there are multiple timezones
+            // We override the tz with the base one
+            const baseTz = new ICAL.Timezone(tz); 
+
+            startDate.zone = baseTz;
+            endDate.zone = baseTz;
+          }
+        
           occurrenceEvent = {
             ...element.event,
-            date: details.startDate.toJSDate(),
-            endDate: details.endDate.toJSDate(),
+            date: startDate.toJSDate(),
+            endDate: endDate.toJSDate(),
           }
         }
       }
 
-      return exception ?? occurrenceEvent;
+      return occurrenceEvent
     }).filter(isDefined)
   }
 
@@ -544,7 +595,7 @@ export class CalendarBackend {
         description,
         alarms: [],
         title,
-        type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
+        type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EType.TASK,
         tag,
         status: vtodo.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
         originalText: vtodo.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,

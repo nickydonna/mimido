@@ -6,10 +6,26 @@ import type { CalendarBackend } from "$lib/server/calendar";
 import type { Session } from 'svelte-kit-cookie-session';
 import type { StringMappingType } from 'typescript';
 
-interface GoogleCalendarAccess {
+interface CalendarAccess {
+	type: 'oauth' | 'extend'
+	provider: 'parent' | 'google'
+}
+
+interface GoogleCalendarAccess extends CalendarAccess {
+	type: 'oauth',
 	provider: 'google',
 	accessToken: string,
 	refreshToken: string,
+}
+
+/**
+ * Used to reuse the same credentials but query another calendar
+ */
+interface ExtendCalendarAccess extends CalendarAccess {
+	type: 'extend',
+	provider: 'parent',
+	name: string,
+
 }
 
 interface User {
@@ -21,7 +37,7 @@ interface User {
 
 interface SessionData {
 	user: User,
-	calendars: Array<GoogleCalendarAccess>
+	calendars: Array<ExtendCalendarAccess | GoogleCalendarAccess>
 };
 
 

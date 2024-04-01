@@ -73,3 +73,10 @@ export function tryParseTextForRRule(text) {
     return undefined;
   }
 }
+
+/** 
+ * @param {string} rrule
+ */
+export function rruleToText(rrule) {
+  return tryParseRRule(rrule)?.toText()
+}

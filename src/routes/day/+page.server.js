@@ -1,26 +1,29 @@
 /** @typedef {import('../$types').Actions} Actions */
 /** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
-import { CalendarBackend } from '$lib/server/calendar';
 import { fail } from '@sveltejs/kit';
 import { parseISO } from 'date-fns/fp';
 
 
-/** @type {import('./$types').PageServerLoad<{ date: Date, events: TAllTypesWithId[], otherEvents: TAllTypesWithId[] }>} */
+/** @type {import('./$types').PageServerLoad<{ date: Date, events: TAllTypesWithId[], externalEvents: TAllTypesWithId[] }>} */
 export const load = async ({ locals, url }) => {
 	const queryDate = url.searchParams.get('date');
 	const date = queryDate ? parseISO(queryDate) : new Date();
 
 	const { backend } = locals;
 	const events = backend.listDayEvent(date);
-	const otherEvents = Promise.all(locals.session.data.calendars.map(c => {
-		const back = new CalendarBackend({ type: 'oauth', ...c });
-		return back.listDayEvent(date);
+	const externalEvents = Promise.all(locals.session.data.calendars.map(c => {
+		if (c.type === 'extend') {
+			return backend.listExternalDayEvents(date, c.name)
+		} else {
+			// support google and other
+			return [];
+		}
 	}))
 
 	return {
 		date,
-		otherEvents: (await otherEvents).flat(),
+		externalEvents: (await externalEvents).flat(),
 		events: await events,
 	};
 };

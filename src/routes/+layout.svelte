@@ -79,7 +79,7 @@
 	<div class="mb-16">
 		<slot />
 	</div>
-	{#if data.token}
+	{#if data.session.user}
 		<BottomNav position="fixed" classInner="grid-cols-3">
 			<BottomNavItem btnName="ListTask" href="/list?date={date}">
 				<RectangleListOutline

@@ -1,5 +1,6 @@
 <script>
-	import { Card, Dropdown, DropdownItem, Avatar, Button, Modal, Input, Popover } from 'flowbite-svelte';
+	import { enhance } from '$app/forms';
+	import { Card, Dropdown, DropdownItem, Avatar, Button, Modal, Input, Popover, Label } from 'flowbite-svelte';
 	import { DotsHorizontalOutline, FileCopyAltOutline } from 'flowbite-svelte-icons';
 	import { copy } from 'svelte-copy';
 
@@ -25,6 +26,11 @@
 
 <div class="mt-4">
   <Button href={data.googleUrl}>Add Google Calendar (view events only)</Button>
+	<form action="?/addCalendarView" method="POST" use:enhance>
+		<Label>Add another calendar to view from your account.</Label>
+		<Input placeholder="Calendar name" name="calendarName" type="text"></Input>
+		<Button type="submit">Add</Button>
+	</form>
 </div>
 
 <Modal title="Access Token" bind:open={showTokenModal} autoclose>
