@@ -26,6 +26,7 @@ export const load = async ({ url, locals }) => {
     accessToken: access_token,
     refreshToken: refresh_token,
     provider: 'google',
+    type: 'oauth',
   }
 
   const { user } = locals.session.data;
