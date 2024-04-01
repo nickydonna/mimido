@@ -72,39 +72,9 @@
 			>
 		</NavBrand>
 		<NavHamburger />
-		{#if data.token}
-			<NavUl>
-				<NavLi on:click={() => (authModal = true)}>Export Auth</NavLi>
-			</NavUl>
-			<Modal title="Access Token" bind:open={authModal} autoclose>
-				<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
-					Copy this token, and use it on any other platform to copy login.
-				</p>
-				<p class="text-lg font-bold">DO NOT SHARE THIS!!!!</p>
-				<Input type="text" value={data.token} class="select-all">
-					<button
-						slot="right"
-						use:copy={data.token}
-						class="pointer-events-auto"
-						offset="30"
-						id="copy-token"
-					>
-						<FileCopyAltOutline />
-					</button>
-				</Input>
-				<Popover
-					class="w-64 text-sm font-light "
-					title="Copied"
-					triggeredBy="#copy-token"
-					trigger="click"
-				>
-					Paste in a new browser in the import token to login.
-				</Popover>
-				<svelte:fragment slot="footer">
-					<Button color="alternative" on:click={() => (authModal = false)}>Close</Button>
-				</svelte:fragment>
-			</Modal>
-		{/if}
+		<NavUl>
+			<NavLi href="/account">Account</NavLi>
+		</NavUl>
 	</Navbar>
 	<div class="mb-16">
 		<slot />
