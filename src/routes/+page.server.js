@@ -37,14 +37,16 @@ export const actions = {
     const data = await request.formData();
 		const token = /** @type {string} */ (data.get('token'));
 
-    const payload = /** @type {App.Locals['user']} */ (jwt.verify(token, SESSION_KEY));
+    const payload = /** @type {typeof locals.session.data} */ (jwt.verify(token, SESSION_KEY));
+    console.log(payload)
     
-    const back = new CalendarBackend(payload);
+    const back = new CalendarBackend(payload.user);
     try {
       await back.check();
-      await locals.session.set({ user: payload, calendars: [] })
+      await locals.session.set(payload)
  
     } catch (e) {
+      console.log(e);
       return error(500, e instanceof Error ? e.message : "")
     }
     throw redirect(303, '/day');  }
