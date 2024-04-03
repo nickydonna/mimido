@@ -6,7 +6,7 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
-			strategies: 'injectManifest'
+			strategies: 'generateSW'
 		})
 	],
 	test: {
