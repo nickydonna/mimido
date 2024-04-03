@@ -1,8 +1,16 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import DetailModal from '$lib/components/details-modal';
-	import { importanceToString, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
+	import {
+		importanceToString,
+		isDefined,
+		isReminder,
+		isTask,
+		loadToString,
+		urgencyToString
+	} from '$lib/util';
 	import {
 		Button,
 		CloseButton,
@@ -18,7 +26,10 @@
 		GridSolid,
 		MailBoxSolid,
 		BarsFromLeftOutline,
-		ExclamationCircleOutline
+		ExclamationCircleOutline,
+
+		CloseOutline
+
 	} from 'flowbite-svelte-icons';
 	import { sineIn } from 'svelte/easing';
 
@@ -33,8 +44,21 @@
 	let idOfDeleting;
 	let showDelete = false;
 	let loading = false;
+	/** @type {string[]} */
+	let tags = [];
+	/** @type {string | undefined} */
+	let tagFilter;
+	let events = data.events;
+
 	$: {
+		tags = [...new Set(data.events.map((e) => e.tag).flat())];
 		showDelete = !!idOfDeleting;
+		tagFilter = $page.url.searchParams.get('tag') ?? undefined;
+		if (isDefined(tagFilter)) {
+			events = data.events.filter((e) => e.tag.includes(/** @type {string} */ (tagFilter)));
+		} else {
+			events = data.events;
+		}
 	}
 
 	/** @type {import('./$types').SubmitFunction} */
@@ -69,6 +93,18 @@
 		loading = false;
 		invalidateAll();
 	};
+
+	/** @param {string} [tag] */
+	function setTag(tag) {
+		let query = new URLSearchParams($page.url.searchParams.toString());
+		if (tag) {
+			query.set('tag', tag);
+		} else {
+			query.delete('tag');
+		}
+		hideDrawer = true;
+		goto(`?${query.toString()}`);
+	}
 </script>
 
 <Drawer transitionType="fly" {transitionParams} bind:hidden={hideDrawer} id="sidebar1">
@@ -112,24 +148,40 @@
 					</svelte:fragment>
 				</SidebarItem>
 			</SidebarGroup>
+			<SidebarGroup border>
+				{#each tags as tag (tag)}
+					<SidebarItem
+						on:click={() => setTag(tag)}
+						label={tag}
+					></SidebarItem>
+				{/each}
+			</SidebarGroup>
 		</SidebarWrapper>
 	</Sidebar>
 </Drawer>
 
-<Button on:click={() => (hideDrawer = false)}>
-	<BarsFromLeftOutline />
-</Button>
-
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 mt-3">
-	{#each data.events as event}
+<div class="flex">
+	<Button on:click={() => (hideDrawer = false)}>
+		<BarsFromLeftOutline />
+		Menu
+	</Button>
+	{#if tagFilter}
+		<Button class="ml-2" color="alternative" on:click={() => setTag()}>
+			Filtering by: {tagFilter}
+			<CloseOutline />
+		</Button>
+	{/if}
+</div>
+<div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+	{#each events as event}
 		<Card on:click={() => (selectedEvent = event)}>
 			<h5 class="mb-2 text-lg font-bold tracking-tight text-gray-900 dark:text-white">
 				{event.title}
 			</h5>
 			{#if isTask(event) || isReminder(event)}
-			<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
-				{event.status}
-			</p>
+				<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
+					{event.status}
+				</p>
 			{/if}
 			<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
 				{#if isTask(event) || isReminder(event)}
