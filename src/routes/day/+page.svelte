@@ -38,7 +38,7 @@
 
 	/** @type {import('./$types').PageData} */
 	export let data;
-	
+
 	/** @type {TAllTypesWithId | undefined} */
 	let selectedEvent;
 	/** @type {string | undefined} */
@@ -96,10 +96,10 @@
 	let timeCheck = (event, slotCheck) => {
 		if (!event.date) return false;
 
-		return slotCheck(event.date)
+		return slotCheck(event.date);
 	};
 
-	/** 
+	/**
 	 * @template {import('$lib/server/calendar').TAllTypes} T
 	 * @typedef {import('$lib/server/calendar').WithId<T>} WithId
 	 */
@@ -108,7 +108,7 @@
 	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
 	/** @typedef {import('$lib/server/calendar').TReminderSchema} TReminderSchema */
 
-	/** 
+	/**
 	 * @type {Array<
 	 * 	[EType, Array<TAllTypesWithId>]
 	 * >}
@@ -119,7 +119,7 @@
 			[EType.BLOCK, data.events.filter(isBlock)],
 			[EType.EVENT, [...data.events.filter(isEvent), ...data.externalEvents]],
 			[EType.TASK, data.events.filter(isTask)],
-			[EType.REMINDER, data.events.filter(isReminder)],
+			[EType.REMINDER, data.events.filter(isReminder)]
 		];
 	}
 
@@ -169,28 +169,27 @@
 	};
 	const modalZIndex = 40;
 
-
 	let currentTimeInView = false;
 	/** @type {import('svelte-inview').Options}*/
 	const inviewOption = {
-		rootMargin: "-50px"
-	}
-	
+		rootMargin: '-50px'
+	};
+
 	/**
 	 * @param {CustomEvent<import('svelte-inview').ObserverEventDetails>} event
 	 */
-  const handleViewChange = ({ detail }) => {
-    currentTimeInView = detail.inView;
-  };
+	const handleViewChange = ({ detail }) => {
+		currentTimeInView = detail.inView;
+	};
 	const scrollCurrentIntoView = () => {
 		const el = document.getElementById('current-time');
 		if (!el) return;
 
 		el.scrollIntoView({
 			block: 'center',
-      behavior: 'smooth',
-    });
-	}
+			behavior: 'smooth'
+		});
+	};
 </script>
 
 <div>
@@ -237,19 +236,19 @@
 	<div class="schedule">
 		<span
 			style:z-index={modalZIndex - 2}
-			class="block sticky top-0 p-1 pt-2 text-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 antialiased"
+			class="sticky top-0 block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
 			aria-hidden="true"
 			style="grid-column: event; grid-row: tracks;">Events</span
 		>
 		<span
 			style:z-index={modalZIndex - 2}
-			class="block sticky top-0 p-1 pt-2 text-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 antialiased"
+			class="sticky top-0 block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
 			aria-hidden="true"
 			style="grid-column: task; grid-row: tracks;">Tasks</span
 		>
 		<span
 			style:z-index={modalZIndex - 2}
-			class="block sticky top-0 p-1 pt-2 text-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 antialiased"
+			class="sticky top-0 block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
@@ -273,42 +272,46 @@
 			>
 				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
 			</div>
-			{/if}
-			{#if !currentTimeInView}
-				<Button class="z-40 fixed end-6 bottom-[5rem]" on:click={scrollCurrentIntoView}>
-					Go to Current Time
-				</Button>
-			{/if}
-			<!-- Time indicator -->
-			<div
-				class="pointer-events-none"
-				style:z-index={modalZIndex - 3}
-				style:grid-column="times / reminder"
-				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
-			>
-				<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
-					<span class="relative px-2">
-						{format('HH:mm', currentTime)}
-					</span>
-				</div>
+		{/if}
+		{#if !currentTimeInView}
+			<Button class="fixed bottom-[5rem] end-6 z-40" on:click={scrollCurrentIntoView}>
+				Go to Current Time
+			</Button>
+		{/if}
+		<!-- Time indicator -->
+		<div
+			class="pointer-events-none"
+			style:z-index={modalZIndex - 3}
+			style:grid-column="times / reminder"
+			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+		>
+			<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
+				<span class="relative px-2">
+					{format('HH:mm', currentTime)}
+				</span>
 			</div>
-			<!-- Dotted line for current time -->
+		</div>
+		<!-- Dotted line for current time -->
+		<div
+			use:inview={inviewOption}
+			on:change={handleViewChange}
+			id="current-time"
+			class="pointer-events-none"
+			style:z-index={modalZIndex - 3}
+			style:grid-column="times / reminder"
+			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+		>
 			<div
-				use:inview={inviewOption} on:change={handleViewChange}
-				id="current-time"
-				class="pointer-events-none"
-				style:z-index={modalZIndex - 3}
-				style:grid-column="times / reminder"
-				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
-			>
-				<div
-					style:top="{timeIndicator.offset}%"
-					class="relative w-full border-b-2 border-dotted border-gray-700"
-				/>
-			</div>
+				style:top="{timeIndicator.offset}%"
+				class="relative w-full border-b-2 border-dotted border-gray-700"
+			/>
+		</div>
 
 		{#each timeBlocks as { time, check } (time)}
-			<h2 class="time-slot m-0.5 text-center text-xs" style:grid-row={`time-${format('HHmm', time)}`}>
+			<h2
+				class="time-slot m-0.5 text-center text-xs"
+				style:grid-row={`time-${format('HHmm', time)}`}
+			>
 				{format('HH:mm', time)}
 			</h2>
 			{#each sortedEvents as [type, events], i}
@@ -364,8 +367,15 @@
 
 	.blurred-time {
 		/* background-color: rgba(0, 0, 0, 0.4); */
-		background: rgb(0,0,0, 0.4);
-		background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 100%);
+		/* background: rgb(0, 0, 0, 0.4); */
+		/* background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 100%); */
+		background: repeating-linear-gradient(
+			45deg,
+			rgba(0, 0, 0, 0.2),
+			rgba(0, 0, 0, 0.2) 10px,
+			rgba(0, 0, 0, 0.3) 10px,
+			rgba(0, 0, 0, 0.3) 20px
+		);
 	}
 	.card__bg-work {
 		background-position: center;

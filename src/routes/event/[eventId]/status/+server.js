@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 
 /** @typedef {import('$lib/server/calendar').EStatus} EStatus */
 
+/** @type {import('./$types').RequestHandler} */
 export async function PUT({ request, params, locals }) {
   const { eventId } = params;
 	const { status } = /** @type {{ status: EStatus }} */ (await request.json());

@@ -237,10 +237,10 @@ const DURATION_LETTERS = /([PDWHMTS]{1,1})/;
 
 /**
  * Copied from https://kewisch.github.io/ical.js/api/duration.js.html#line46 
- * @param {string} aStr 
+ * @param {string} aStr A ISO 8601 duration string
  * @returns {import('$lib/server/calendar').TAlarm}
  */
-function alarmFromString(aStr) {
+export function alarmFromString(aStr) {
   let pos = 0;
   let dict = Object.create(null);
   let chunks = 0;
