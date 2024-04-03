@@ -166,7 +166,7 @@ export function parseTaskText(str, ref = new Date()) {
 /**
  * Takes an event and transforms it into an string so it can be editted
  * This way we avoid issues with relative dates in text
- * @param {TAllTypesWithId} event
+ * @param {TAllTypes} event
  * @return {string}
  */
 export function unparseTaskText(event) {

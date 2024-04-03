@@ -58,9 +58,12 @@
 	/** @type {{ name: string, value: string}[]} */
 	let alarmsValue = [];
 	let useAI = true;
+	let taskTextAi = '';
 	$: {
 		if (!useAI) {
 			taskInfo = parseTaskText(taskText, today);
+		} else {
+			taskText = unparseTaskText(taskInfo);	
 		}
 		editting = typeof data.event !== 'undefined';
 		alarmsValue = taskInfo.alarms.map((alarm) => ({
@@ -89,10 +92,7 @@
 			.create();
 	}
 
-	// TODO use current date?
-	let dateStr = formatISO(today);
 
-	let taskTextAi = '';
 	let parsing = false;
 
 	const prompt = async () => {
