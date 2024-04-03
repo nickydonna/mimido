@@ -30,7 +30,6 @@
 
 	import { enhance } from '$app/forms';
 	import { rruleToText } from '$lib/utils/rrule';
-	import { parseDate } from 'chrono-node';
 	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
 
 	/** @type {import('./$types').PageData}*/
@@ -45,7 +44,7 @@
 		form?.originalText ??
 		(data.event
 			? unparseTaskText(data.event)
-			: 'hello (tomorrow at 15-16 | every day) *PT1H30M !!!');
+			: '');
 	let taskText = originalText;
 	const today = new Date();
 	let description = '';
@@ -57,7 +56,7 @@
 	// Task information
 	/** @type {{ name: string, value: string}[]} */
 	let alarmsValue = [];
-	let useAI = true;
+	let useAI = false;
 	let taskTextAi = '';
 	$: {
 		if (!useAI) {
