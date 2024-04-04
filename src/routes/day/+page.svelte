@@ -18,7 +18,6 @@
 	} from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index';
 	import {
-		endOfDay,
 		formatISO,
 		getMinutes,
 		isSameDay,

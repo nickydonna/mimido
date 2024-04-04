@@ -5,13 +5,8 @@
 	import DetailModal from '$lib/components/details-modal';
 	import { EStatus } from '$lib/parser';
 	import {
-		importanceToString,
 		isDefined,
 		isDone,
-		isReminder,
-		isTask,
-		loadToString,
-		urgencyToString
 	} from '$lib/util';
 	import {
 		Button,
@@ -22,7 +17,6 @@
 		SidebarItem,
 		SidebarWrapper,
 		Modal,
-		Card,
 		Table,
 		TableBody,
 		TableBodyCell,

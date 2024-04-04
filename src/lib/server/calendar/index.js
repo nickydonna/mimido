@@ -8,6 +8,7 @@ import yup from 'yup';
 import { isValidRRule } from "$lib/utils/rrule";
 import { isBlock, isDefined, isReminder, isTask } from "$lib/util";
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "$env/static/private";
+import registerAllTz from "./timezones";
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
 /**
@@ -287,7 +288,8 @@ export class CalendarBackend {
    * @param {string} [calendarName]
    */
   async check(calendarName) {
-    await this.logged;
+    registerAllTz();
+    await this.logged,
     await this.getCalendar(calendarName);
   }
 
@@ -381,7 +383,6 @@ export class CalendarBackend {
     return objects.map(e => {
       const comp = ICAL.Component.fromString(e.data);
       const vevents = comp.getAllSubcomponents('vevent');
-      const tz = comp.getFirstSubcomponent('vtimezone');
 
       if (vevents.length === 0) return;
       const parsed = vevents.map(e => this.fromVEvent(e))
@@ -391,9 +392,10 @@ export class CalendarBackend {
         /** @type {ICAL.Time | undefined} */
         let currentOccurence;
         const element = parsed[index];
+        const vevent = vevents[index];
 
         let iterator = new ICAL.RecurExpansion({
-          component: vevents[index],
+          component: vevent,
           dtstart: vevents[index].getFirstPropertyValue('dtstart')
         });
         // next is always an ICAL.Time or null
@@ -418,17 +420,7 @@ export class CalendarBackend {
           
           let startDate = details.startDate
           let endDate = details.endDate
-          
-          if (tz && calendarName) {
-            // For some reason timezone are not parsed correctly sometimes
-            // Maybe when there are multiple timezones
-            // We override the tz with the base one
-            const baseTz = new ICAL.Timezone(tz); 
 
-            startDate.zone = baseTz;
-            endDate.zone = baseTz;
-          }
-        
           occurrenceEvent = {
             ...element.event,
             date: startDate.toJSDate(),

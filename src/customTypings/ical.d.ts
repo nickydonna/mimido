@@ -158,6 +158,8 @@ declare module "ical.js" {
   export class TimezoneService {
     static public get(tzid: string): Timezone | null;
     static public has(tzid: string): boolean;
+
+    static public register(zone: Timezone | Component);
     static public register(tzid: string, zone: Timezone | Component);
     static public remove(tzid: string): Timezone | null;
   }
