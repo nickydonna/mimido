@@ -61,9 +61,9 @@ export const getEventColor = memoize(
       [EType.TASK]: 'pink',
       [EType.REMINDER]: 'blue',
     }
-    const { tag, type } = event;
+    const { tags, type } = event;
 
-    const lcTags = tag.map(t => t.toLowerCase())
+    const lcTags = tags.map(t => t.toLowerCase())
     const colorTag = lcTags.find(t => t.startsWith('c:'));
     return colorTag?.replace('c:', '') ?? EDefaultEventColor[type];
   }
@@ -74,10 +74,10 @@ export const getEventCardClass = memoize(
    * @param {TAllTypes} event 
    */
   function (event) {
-    const { tag, type } = event;
+    const { tags, type } = event;
     const isBlock = type === EType.BLOCK;
     const opacity = !isBlock ? 'bg-opacity-45' : '';
-    const lcTags = tag.map(t => t.toLowerCase())
+    const lcTags = tags.map(t => t.toLowerCase())
     const bgTag = lcTags.find(t => t.startsWith('bg:'))
     if (bgTag) {
       return `card__bg-${bgTag.replace('bg:', '')}`

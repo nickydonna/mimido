@@ -54,26 +54,6 @@ const alarmSchema = yup.object({
 
 /** @typedef {InferType<typeof alarmSchema>} TAlarm */
 
-/**
- * @typedef {Object} TBaseSchema
- * @prop {string} eventId
- * @prop {string} originalText 			
- * @prop {string} title
- * @prop {EType} type
- * @prop {Date} [date]
- * @prop {string} [description]
- * @prop {Date} [endDate]
- * @prop {string[]} tag 
- * @prop {EStatus} status
- * @prop {number} importance
- * @prop {number} urgency
- * @prop {number} load
- * @prop {Array<TAlarm>} alarms
- * @prop {string} [recur]
- * @prop {Date} [lastDone] - Date used when recurring task/reminder to indicated when it was last set to done
- * @prop {string} [externalName] - Exists if the events are from another calendar
- */
-
 // eslint-disable-next-line no-useless-escape
 const typeRE = new RegExp(Object.values(EType).join('|'));
 // eslint-disable-next-line no-useless-escape
@@ -90,7 +70,7 @@ const baseSchema = yup.object({
   date: yup.date(),
   endDate: yup.date(),
   description: yup.string(),
-  tag: yup.array().of(yup.string().required()).required(),
+  tags: yup.array().of(yup.string().required()).required(),
   recur: yup.string().test(
     'is-recur',
     str => `${str.path} is not a valid RRule`,
@@ -163,11 +143,6 @@ const taskSchema = rankingFields
  */
 
 /** @typedef {WithId<TReminderSchema> | WithId<TTaskSchema> | WithId<TBlockSchema> | WithId<TEventSchema> } TAllTypesWithId */
-
-/** 
- * @typedef {Omit<TBaseSchema, 'eventId' | 'meta'> & { meta?: TEventMeta }} ParsedEventSchema
- * Result of the parsed event from the parsing, without id and optional meta
- */
 
 /**
  * @typedef AuthInfo
@@ -550,7 +525,7 @@ export class CalendarBackend {
 
   /**
    * @private
-   * @param {string | TBaseSchema} eventOrId 
+   * @param {string | TAllTypesWithId} eventOrId 
    * @returns {Promise<string>} 
    */
   async getEventUrl(eventOrId) {
@@ -578,7 +553,7 @@ export class CalendarBackend {
     importance = Number.isFinite(importance) ? importance : 0;
     const description = vtodo.getFirstPropertyValue('description');
 
-    const tag = this.parseTags(vtodo);
+    const tags = this.parseTags(vtodo);
 
     return {
       event: {
@@ -587,7 +562,7 @@ export class CalendarBackend {
         alarms: [],
         title,
         type: vtodo.getFirstPropertyValue(CustomPropName.TYPE) ?? EType.TASK,
-        tag,
+        tags: tags,
         status: vtodo.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
         originalText: vtodo.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
         urgency,
@@ -616,7 +591,7 @@ export class CalendarBackend {
     }
 
     let rrule = vevent.getFirstPropertyValue('rrule');
-    /** @type {TBaseSchema['recur']} */
+    /** @type {TAllTypes['recur']} */
     let recur;
 
     if (rrule) {
@@ -656,7 +631,7 @@ export class CalendarBackend {
       
     }
     
-    const tag = this.parseTags(vevent);
+    const tags = this.parseTags(vevent);
 
     /** @type {TEventMeta} */
     const meta = {
@@ -671,7 +646,7 @@ export class CalendarBackend {
       date,
       endDate,
       type: vevent.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
-      tag, 
+      tags, 
       status: vevent.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
       originalText: vevent.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
       urgency,
@@ -700,8 +675,8 @@ export class CalendarBackend {
   }
 
   /**
-   * Transform an {@link TBaseSchema} into a {@link ICAL.Component} for sending
-   * If {@link TBaseSchema#eventId} is not defined, one will be created
+   * Transform an {@link TAllTypes} into a {@link ICAL.Component} for sending
+   * If {@link TAllTypesWithId#eventId} is not defined, one will be created
    * @param {TAllTypes} eventData
    * @param {string} [eventId]
    * @returns {{ id: string, component: ICAL.Component, meta: TEventMeta }}
@@ -716,7 +691,7 @@ export class CalendarBackend {
       recur,
       originalText,
       type,
-      tag,
+      tags,
     } = eventData;
     var component = new ICAL.Component(['vcalendar', [], []]);
     component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
@@ -777,9 +752,9 @@ export class CalendarBackend {
     vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, originalText);
     vcomponent.addPropertyWithValue(CustomPropName.TYPE, type ?? EType.EVENT);
 
-    if (tag.length > 0) {
-      vcomponent.addPropertyWithValue('categories', tag.map(t => t.replace(':', '\\:')).join(',')),
-      vcomponent.addPropertyWithValue(CustomPropName.TAG, tag.join(','));
+    if (tags.length > 0) {
+      vcomponent.addPropertyWithValue('categories', tags.map(t => t.replace(':', '\\:')).join(',')),
+      vcomponent.addPropertyWithValue(CustomPropName.TAG, tags.join(','));
     }
     
     if (!isBlock(eventData)) { 

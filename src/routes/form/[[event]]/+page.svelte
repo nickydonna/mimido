@@ -256,14 +256,14 @@
 							disabled
 						></FloatingLabelInput>
 					</div>
-					{#if taskInfo.tag.length > 0}
+					{#if taskInfo.tags.length > 0}
 						<Label>
 							#Tags:
 							<MultiSelect
 								class="mt-2"
 								disabled
-								items={taskInfo.tag.map((t) => ({ value: t, name: t }))}
-								value={taskInfo.tag}
+								items={taskInfo.tags.map((t) => ({ value: t, name: t }))}
+								value={taskInfo.tags}
 								size="md"
 							/>
 						</Label>

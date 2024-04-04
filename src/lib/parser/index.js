@@ -38,7 +38,7 @@ const nImportanceRE = /( |^)(?<match>\?{1,3})( |$)/;
 const dateRE = /(^| )\((?<match>.*)\)( |$)/;
 
 /**
- * Parses text and transforms it into {@link TBaseSchema} 
+ * Parses text and transforms it into {@link TAllTypes} 
  * @param {string} str 
  * @param {Date} [ref] 
  * @returns {TAllTypes}
@@ -49,7 +49,7 @@ export function parseTaskText(str, ref = new Date()) {
   let date;
   let endDate;
   /** @type {string[]} */
-  let tag = [];
+  let tags = [];
   let status = EStatus.BACK;
   let importance = 0;
   let load = 0;
@@ -64,7 +64,7 @@ export function parseTaskText(str, ref = new Date()) {
     tagMatch.forEach(m => {
       title = title.replace(m, ' ');
     })
-    tag = tagMatch.map(t => t.replace('#', '').trim());
+    tags = tagMatch.map(t => t.replace('#', '').trim());
   }
 
   const typeMatch = title.match(typeRE);
@@ -153,7 +153,7 @@ export function parseTaskText(str, ref = new Date()) {
     type,
     date,
     endDate,
-    tag,
+    tags,
     load,
     status,
     importance,
@@ -176,7 +176,7 @@ export function unparseTaskText(event) {
     endDate,
     recur,
     type,
-    tag,
+    tags,
     alarms,
   } = event;
 
@@ -216,7 +216,7 @@ export function unparseTaskText(event) {
     })
   }
 
-  tag.forEach(t => (text += ` #${t}`))
+  tags.forEach(t => (text += ` #${t}`))
 
   if (isBlock(event)) return text;
 

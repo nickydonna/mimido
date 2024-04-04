@@ -111,10 +111,10 @@
 		</div>
 	</svelte:fragment>
 	<div>
-		{#if event?.tag && event.tag.length > 0}
+		{#if event?.tags && event.tags.length > 0}
 			<div class="mb-1 flex">
 				<p class="mr-1 font-semibold">Tags: {' '}</p>
-				{#each event.tag as t (t)}
+				{#each event.tags as t (t)}
 					<Badge rounded class="mr-1" color="purple">{t}</Badge>
 				{/each}
 			</div>

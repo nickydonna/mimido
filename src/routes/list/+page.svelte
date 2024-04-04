@@ -55,11 +55,11 @@
 	let groupedEvents 
 
 	$: {
-		tags = [...new Set(data.events.map((e) => e.tag).flat())];
+		tags = [...new Set(data.events.map((e) => e.tags).flat())];
 		showDelete = !!idOfDeleting;
 		tagFilter = $page.url.searchParams.get('tag') ?? undefined;
 		if (isDefined(tagFilter)) {
-			events = data.events.filter((e) => e.tag.includes(/** @type {string} */ (tagFilter)));
+			events = data.events.filter((e) => e.tags.includes(/** @type {string} */ (tagFilter)));
 		} else {
 			events = data.events;
 		}

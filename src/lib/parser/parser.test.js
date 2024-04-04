@@ -26,7 +26,7 @@ const testCases = [
       type: 'event',
       date: setHours(12, setMinutes(30, startOfTomorrow())),
       endDate: setHours(14, setMinutes(30, startOfTomorrow())),
-      tag: ['work'],
+      tags: ['work'],
       // @ts-expect-error - Just testing
       status: 'back',
     },
@@ -39,7 +39,7 @@ const testCases = [
       type: 'block',
       date: startOfHour(setHours(9, (addWeeks(1, new Date())))),
       endDate: undefined,
-      tag: ['personal'],
+      tags: ['personal'],
       // @ts-expect-error - Just testing
       status: 'back',
     }
@@ -52,7 +52,7 @@ const testCases = [
       type: 'reminder',
       date: startOfHour(setHours(10, startOfWeek(new Date(), { weekStartsOn: 1 }))),
       endDate: setSeconds(0, setMinutes(30, setHours(12, startOfDay(startOfWeek(new Date(), { weekStartsOn: 1 }))))),
-      tag: ['mimi'],
+      tags: ['mimi'],
       // @ts-expect-error - Just testing
       status: 'back',
       importance: -2,
@@ -67,7 +67,7 @@ const testCases = [
       // When no time, chrone set the middle of the day as date
       date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
       endDate: undefined, 
-      tag: ['mimi', 'asdf'],
+      tags: ['mimi', 'asdf'],
       // @ts-expect-error - Just testing
       status: 'back',
       urgency: 2,
@@ -82,7 +82,7 @@ const testCases = [
       // When no time, chrone set the middle of the day as date
       date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
       endDate: undefined, 
-      tag: ['mimi2'],
+      tags: ['mimi2'],
       // @ts-expect-error - Just testing
       load: 3,
       status: 'done',
