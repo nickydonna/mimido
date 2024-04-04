@@ -578,8 +578,7 @@ export class CalendarBackend {
     importance = Number.isFinite(importance) ? importance : 0;
     const description = vtodo.getFirstPropertyValue('description');
 
-    const tagProp = vtodo.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
-    const tag = tagProp.length > 0 ? tagProp.split(',') : []
+    const tag = this.parseTags(vtodo);
 
     return {
       event: {
@@ -656,8 +655,8 @@ export class CalendarBackend {
         })
       
     }
-    const tagProp = vevent.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
-    const tag = tagProp.length > 0 ? tagProp.split(',') : []
+    
+    const tag = this.parseTags(vevent);
 
     /** @type {TEventMeta} */
     const meta = {
@@ -683,7 +682,22 @@ export class CalendarBackend {
     }
 
     return { event, icalEvent, meta }
-  }  
+  }
+
+  /**
+   * @private
+   * @param {ICAL.Component} comp
+   */
+  parseTags(comp) {
+    const categories = comp
+      .getAllProperties('categories')
+      .map(v => v.getFirstValue().replace('\\:', ':'));
+    
+    if (categories) return categories;
+
+    const tagProp = comp.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
+    return tagProp.length > 0 ? tagProp.split(',') : []
+  }
 
   /**
    * Transform an {@link TBaseSchema} into a {@link ICAL.Component} for sending
@@ -764,6 +778,7 @@ export class CalendarBackend {
     vcomponent.addPropertyWithValue(CustomPropName.TYPE, type ?? EType.EVENT);
 
     if (tag.length > 0) {
+      vcomponent.addPropertyWithValue('categories', tag.map(t => t.replace(':', '\\:')).join(',')),
       vcomponent.addPropertyWithValue(CustomPropName.TAG, tag.join(','));
     }
     
