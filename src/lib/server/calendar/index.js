@@ -263,7 +263,7 @@ export class CalendarBackend {
    * @param {string} [calendarName]
    */
   async check(calendarName) {
-    registerAllTz();
+    await registerAllTz();
     await this.logged,
     await this.getCalendar(calendarName);
   }
@@ -668,7 +668,7 @@ export class CalendarBackend {
       .getAllProperties('categories')
       .map(v => v.getFirstValue().replace('\\:', ':'));
     
-    if (categories) return categories;
+    if (categories.length > 0) return categories;
 
     const tagProp = comp.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
     return tagProp.length > 0 ? tagProp.split(',') : []

@@ -113,10 +113,10 @@ export function isDefined(obj) {
   return typeof obj !== 'undefined' && obj !== null;
 }
 
-	/** 
-	 * @template {import('$lib/server/calendar').TAllTypes} T
-	 * @typedef {import('$lib/server/calendar').WithId<T>} WithId
-	 */
+/** 
+ * @template {import('$lib/server/calendar').TAllTypes} T
+ * @typedef {import('$lib/server/calendar').WithId<T>} WithId
+ */
 /** @typedef {import('$lib/server/calendar').TBlockSchema} TBlockSchema */
 /** @typedef {import('$lib/server/calendar').TTaskSchema} TTaskSchema */
 /** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */

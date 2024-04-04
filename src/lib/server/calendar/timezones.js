@@ -1,71 +1,43 @@
 import ICAL from 'ical.js'
+import fs from 'node:fs';
+import path from 'path';
 
-/**
- * Tuple with timezone info (tzid, tzinfo)
- * @typedef {[string, string]} TzTuple
- */
 
-/** @type {TzTuple} */
-const laTz = [
-  "America/Los_Angeles",
-  `
-BEGIN:VCALENDAR
-PRODID:-//tzurl.org//NONSGML Olson 2012h//EN
-VERSION:2.0
-BEGIN:VTIMEZONE
-TZID:America/Los_Angeles
-X-LIC-LOCATION:America/Los_Angeles
-BEGIN:DAYLIGHT
-TZOFFSETFROM:-0800
-TZOFFSETTO:-0700
-TZNAME:PDT
-DTSTART:19700308T020000
-RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
-END:DAYLIGHT
-BEGIN:STANDARD
-TZOFFSETFROM:-0700
-TZOFFSETTO:-0800
-TZNAME:PST
-DTSTART:19701101T020000
-RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
-END:STANDARD
-END:VTIMEZONE
-END:VCALENDAR
-  `
-]
-
-/** @type {TzTuple} */
-const baTz = [
-  "America/Argentina/Buenos_Aires",
-  `
-BEGIN:VCALENDAR
-PRODID:-//tzurl.org//NONSGML Olson 2012h//EN
-VERSION:2.0
-BEGIN:VTIMEZONE
-TZID:America/Argentina/Buenos_Aires
-BEGIN:STANDARD
-DTSTART:19700101T000000
-TZOFFSETFROM:-0300
-TZOFFSETTO:-0300
-END:STANDARD
-END:VTIMEZONE
-END:VCALENDAR
-  `
-]
-
-/** @param {TzTuple} tzInfo */
+/** @param {string} tzInfo */
 function registerTz(tzInfo) {
-  if (ICAL.TimezoneService.has(tzInfo[0])) return;
-  const parsed = ICAL.parse(tzInfo[1]);
+  const parsed = ICAL.parse(tzInfo);
   const comp = new ICAL.Component(parsed);
   let vtimezone = comp.getFirstSubcomponent('vtimezone');
   if (!vtimezone) throw new Error('Could not find vtimezone');
   ICAL.TimezoneService.register(vtimezone);
 }
 
+const directoryPath = path.join('src/lib/server/calendar/zoneinfo');
 
-const tzs = [baTz, laTz];
+/**
+ * @param {string} dir
+ * @returns {string[]}
+ */
+function throughDirectory(dir) {
+  const objs = fs.readdirSync(dir)
+  console.log(objs)
+  
+  return objs.map(file => {
+    const absolute = path.join(dir, file);
+    // console.log(absolute, dir, file)
+    if (fs.statSync(absolute).isDirectory()) return throughDirectory(absolute);
+    else return [absolute];
+  }).flat()
+}
+
+/** @type {Promise<void[]> | undefined} */
+let loaded;
 
 export default function registerAllTz() {
-  tzs.forEach(tz => registerTz(tz));
+  if (loaded) return loaded;
+  const tzs = throughDirectory(directoryPath).filter(f => f.endsWith('ics'))
+  loaded = Promise.all(tzs.map(async tz => {
+    const file = await fs.promises.readFile(tz, 'utf8');
+    registerTz(file)
+  }));
 };
