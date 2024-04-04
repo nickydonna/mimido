@@ -20,7 +20,13 @@
 		SidebarItem,
 		SidebarWrapper,
 		Modal,
-		Card
+		Card,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
 	} from 'flowbite-svelte';
 	import {
 		GridSolid,
@@ -160,7 +166,7 @@
 	</Sidebar>
 </Drawer>
 
-<div class="flex">
+<div class="flex mb-4">
 	<Button on:click={() => (hideDrawer = false)}>
 		<BarsFromLeftOutline />
 		Menu
@@ -172,27 +178,22 @@
 		</Button>
 	{/if}
 </div>
-<div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-	{#each events as event}
-		<Card on:click={() => (selectedEvent = event)}>
-			<h5 class="mb-2 text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-				{event.title}
-			</h5>
-			{#if isTask(event) || isReminder(event)}
-				<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
-					{event.status}
-				</p>
-			{/if}
-			<p class="font-normal leading-tight text-gray-700 dark:text-gray-400">
-				{#if isTask(event) || isReminder(event)}
-					{importanceToString(event.importance, '|')}
-					{urgencyToString(event.urgency, '|')}
-					{loadToString(event.load)}
-				{/if}
-			</p>
-		</Card>
-	{/each}
-</div>
+<Table hoverable>
+  <TableHead>
+    <TableHeadCell>Title</TableHeadCell>
+    <TableHeadCell>Type</TableHeadCell>
+    <TableHeadCell>Status</TableHeadCell>
+  </TableHead>
+  <TableBody>
+		{#each events as event}
+			<TableBodyRow class="cursor-pointer" on:click={() => (selectedEvent = event)}>
+				<TableBodyCell>{event.title}</TableBodyCell>
+				<TableBodyCell>{event.type}</TableBodyCell>
+				<TableBodyCell>{event.status}</TableBodyCell>
+			</TableBodyRow>
+		{/each}
+  </TableBody>
+</Table>
 
 <DetailModal
 	{loading}
