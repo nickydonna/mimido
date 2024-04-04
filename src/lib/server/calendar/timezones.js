@@ -37,7 +37,8 @@ export default function registerAllTz() {
   if (loaded) return loaded;
   const tzs = throughDirectory(directoryPath).filter(f => f.endsWith('ics'))
   loaded = Promise.all(tzs.map(async tz => {
-    const file = await fs.promises.readFile(tz, 'utf8');
+    // Remove prefix for TZ id
+    const file = (await fs.promises.readFile(tz, 'utf8')).replace('/citadel.org/20240317_1/', '');
     registerTz(file)
   }));
 };
