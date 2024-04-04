@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import DetailModal from '$lib/components/details-modal';
+	import { EStatus } from '$lib/parser';
 	import {
 		importanceToString,
 		isDefined,
@@ -56,6 +57,8 @@
 	/** @type {string | undefined} */
 	let tagFilter;
 	let events = data.events;
+	/** @type {Array<[EStatus, TAllTypesWithId[]]>} */
+	let groupedEvents 
 
 	$: {
 		tags = [...new Set(data.events.map((e) => e.tag).flat())];
@@ -66,6 +69,13 @@
 		} else {
 			events = data.events;
 		}
+		groupedEvents = [
+			[EStatus.DOING, events.filter((e) => e.status === EStatus.DOING)],
+			[EStatus.TODO, events.filter((e) => e.status === EStatus.TODO)],
+			[EStatus.DONE, events.filter((e) => e.status === EStatus.DONE)],
+			[EStatus.BACK, events.filter((e) => e.status === EStatus.BACK)],
+			
+		]
 	}
 
 	/** @type {import('./$types').SubmitFunction} */
@@ -95,7 +105,9 @@
 			body: JSON.stringify({ status: event.detail.status })
 		});
 
-		selectedEvent = /** @type {TAllTypesWithId} */ (await res.json());
+		const updatedEvent = /** @type {TAllTypesWithId} */ (await res.json());
+		events = /** @type {typeof events} */ (events.map((e) => (e.eventId === updatedEvent.eventId ? updatedEvent : e)));
+		selectedEvent = updatedEvent;
 		// TODO manage error
 		loading = false;
 		invalidateAll();
@@ -182,16 +194,21 @@
 <Table hoverable>
   <TableHead>
     <TableHeadCell>Title</TableHeadCell>
-    <TableHeadCell>Type</TableHeadCell>
-    <TableHeadCell>Status</TableHeadCell>
   </TableHead>
   <TableBody>
-		{#each events as event}
-			<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}" on:click={() => (selectedEvent = event)}>
-				<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.title}</TableBodyCell>
-				<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.type}</TableBodyCell>
-				<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.status}</TableBodyCell>
-			</TableBodyRow>
+		{#each groupedEvents as [status, events]}
+			{#if events.length > 0}
+				<TableBodyRow color="purple">
+					<TableBodyCell class="text-lg">
+						{status.toUpperCase()}
+					</TableBodyCell>
+				</TableBodyRow> 
+			{/if}
+			{#each events as event}
+				<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}" on:click={() => (selectedEvent = event)}>
+					<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.title}</TableBodyCell>
+				</TableBodyRow>
+			{/each}
 		{/each}
   </TableBody>
 </Table>
