@@ -6,7 +6,7 @@ const lighten = (clr, val) => Color(clr).lighten(val).rgb().string()
 const includeColors = [
 	'indigo', 'blue', 'red', 'yellow', 'cyan', 'green',
 	'emerald', 'green', 'teal', 'sky', 'violet', 'rose', 'teal',
-	'amber', 'fuchsia'
+	'amber', 'fuchsia', 'pink'
 ];
 
 /** @type {import('tailwindcss').Config}*/

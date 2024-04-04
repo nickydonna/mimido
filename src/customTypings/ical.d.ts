@@ -65,6 +65,7 @@ declare module "ical.js" {
     constructor(jCal: any[] | string, parent?: Component);
 
     public getFirstValue<T = any>(): T;
+    public getFirstParameter<T = any>(name?: string): T;
     public getValues<T = any>(): T[];
 
     public setParameter(name: string, value: string | string[]): void;

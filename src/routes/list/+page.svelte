@@ -6,6 +6,7 @@
 	import {
 		importanceToString,
 		isDefined,
+		isDone,
 		isReminder,
 		isTask,
 		loadToString,
@@ -186,10 +187,10 @@
   </TableHead>
   <TableBody>
 		{#each events as event}
-			<TableBodyRow class="cursor-pointer" on:click={() => (selectedEvent = event)}>
-				<TableBodyCell>{event.title}</TableBodyCell>
-				<TableBodyCell>{event.type}</TableBodyCell>
-				<TableBodyCell>{event.status}</TableBodyCell>
+			<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}" on:click={() => (selectedEvent = event)}>
+				<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.title}</TableBodyCell>
+				<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.type}</TableBodyCell>
+				<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.status}</TableBodyCell>
 			</TableBodyRow>
 		{/each}
   </TableBody>

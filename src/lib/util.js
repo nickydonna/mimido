@@ -1,5 +1,5 @@
 import { readable } from "svelte/store";
-import { EType } from "./parser";
+import { EStatus, EType } from "./parser";
 import memoize from 'just-memoize';
 
 /** @typedef {import('$lib/server/calendar').TAllTypes} TAllTypes */
@@ -189,8 +189,16 @@ export function isReminder(obj) {
  */
 /**
  * @param {TAllTypes | TAllTypesWithId | undefined} obj 
- & @returns {boolean}
+ * @returns {boolean}
  */
 export function isEvent(obj) {
   return isDefined(obj) && obj.type === EType.EVENT
+}
+
+/**
+ * @param {TAllTypes} event 
+ * @returns {boolean}
+ */
+export function isDone(event) {
+  return (isTask(event) || isReminder(event)) && event.status === EStatus.DONE
 }

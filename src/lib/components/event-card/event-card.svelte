@@ -1,5 +1,5 @@
 <script>
-	import { importanceToString, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
+	import { importanceToString, isDone, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
 	import { differenceInMinutes, formatDuration } from 'date-fns';
 	import { ArrowsRepeatOutline, BellActiveAltOutline } from 'flowbite-svelte-icons';
 
@@ -11,9 +11,19 @@
 			: 'text-[0.6rem]';
 </script>
 
-<div class="text-gray-600 dark:text-gray-300 {sizeClass}">
-	<p >
-		{event.title}
+<div 
+	class:line-through={isDone(event)}
+	class:text-gray-400={isDone(event)}
+	class:text-gray-300={!isDone(event)}
+	class="{sizeClass}"
+>
+	<p>
+		<span
+			class:line-through={isDone(event)}
+			class:text-gray-400={isDone(event)}
+		>
+			{event.title}
+		</span>
 		{#if event.recur}
 			<ArrowsRepeatOutline class="inline-block" />
 		{/if}
@@ -21,7 +31,7 @@
 			<BellActiveAltOutline class="inline-block" />
 		{/if}
 	</p>
-	{#if isTask(event) || isReminder(event)}
+	{#if (isTask(event) || isReminder(event)) && !isDone(event)}
 		{importanceToString(event.importance, '|')}
 		{urgencyToString(event.urgency, '|')}
 		{loadToString(event.load)}
