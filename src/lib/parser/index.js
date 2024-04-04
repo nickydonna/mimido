@@ -224,7 +224,7 @@ export function unparseTaskText(event) {
 
   if (importance !== 0) {
     const symbol = importance > 0 ? '!' : '?';
-    text += ` ${symbol.repeat(importance)}`
+    text += ` ${symbol.repeat(Math.abs(importance))}`
   }
 
   if (load > 0) text += ` ${'$'.repeat(load)}`

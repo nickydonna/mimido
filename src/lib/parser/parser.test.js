@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { EType, parseTaskText } from '.';
+import { EType, parseTaskText, unparseTaskText } from '.';
 
 import { startOfDay, addWeeks, subWeeks, setSeconds, setHours, setMinutes, startOfHour } from "date-fns/fp";
 import { startOfWeek, startOfTomorrow  } from "date-fns";
@@ -7,7 +7,7 @@ import { startOfWeek, startOfTomorrow  } from "date-fns";
 /** @typedef {import(".").TAllTypes} TAllTypes */
 
 const baseInfo = {
-  tag: [],
+  tags: [],
   load: 0,
   urgency: 0,
   importance: 0,
@@ -110,4 +110,16 @@ describe('Task Test Parser', () => {
       expect(parseTaskText(txt, date)).toEqual({ ...result, originalText: txt })
     })
   })
+})
+
+describe('Unparse Task', () => {
+   testCases.forEach(([txt,, result]) => {
+    it(`Un Parses "${txt}"`, () => {
+      /** @type {TAllTypes} */
+      const task = /** @type {TAllTypes} */ ({ ...result, originalText: txt });
+      const unparsed = unparseTaskText(task);
+      const parse = parseTaskText(unparsed);
+      expect(parse).toEqual({ ...result, originalText: parse.originalText })
+    })
+  }) 
 })
