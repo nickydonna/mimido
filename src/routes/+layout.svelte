@@ -5,7 +5,6 @@
 		RectangleListOutline,
 		CalendarEditOutline,
 		PlusOutline,
-		FileCopyAltOutline
 	} from 'flowbite-svelte-icons';
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
@@ -16,8 +15,6 @@
 	import NavHamburger from 'flowbite-svelte/NavHamburger.svelte';
 	import { formatISO } from 'date-fns/fp';
 	import { page } from '$app/stores';
-	import { copy } from 'svelte-copy';
-	import { Button, Modal, Input, Popover } from 'flowbite-svelte';
 	import { pwaAssetsHead } from 'virtual:pwa-assets/head';
 
 	// @ts-expect-error virtual import
@@ -52,7 +49,6 @@
 	/** @type {string} */
 	let date;
 	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date());
-	let authModal = false;
 </script>
 
 <svelte:head>
@@ -62,6 +58,7 @@
 	{#each pwaAssetsHead.links as link}
 		<link {...link} />
 	{/each}
+
 	{@html webManifest}
 </svelte:head>
 

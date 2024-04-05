@@ -1,7 +1,11 @@
 import ICAL from 'ical.js'
-import fs from 'node:fs';
-import path from 'path';
 
+/** @type {Record<string, string>} */
+const tzFiles = import.meta.glob('@zoneinfo/**/*.ics', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+}); // Import all
 
 /** @param {string} tzInfo */
 function registerTz(tzInfo) {
@@ -12,33 +16,10 @@ function registerTz(tzInfo) {
   ICAL.TimezoneService.register(vtimezone);
 }
 
-const directoryPath = path.join('src/lib/server/calendar/zoneinfo');
-
-/**
- * @param {string} dir
- * @returns {string[]}
- */
-function throughDirectory(dir) {
-  const objs = fs.readdirSync(dir)
-  console.log(objs)
-  
-  return objs.map(file => {
-    const absolute = path.join(dir, file);
-    // console.log(absolute, dir, file)
-    if (fs.statSync(absolute).isDirectory()) return throughDirectory(absolute);
-    else return [absolute];
-  }).flat()
-}
-
 /** @type {Promise<void[]> | undefined} */
 let loaded;
 
 export default function registerAllTz() {
   if (loaded) return loaded;
-  const tzs = throughDirectory(directoryPath).filter(f => f.endsWith('ics'))
-  loaded = Promise.all(tzs.map(async tz => {
-    // Remove prefix for TZ id
-    const file = (await fs.promises.readFile(tz, 'utf8')).replace('/citadel.org/20240317_1/', '');
-    registerTz(file)
-  }));
+  loaded = Promise.resolve(Object.values(tzFiles).map(registerTz))
 };
