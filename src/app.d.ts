@@ -37,7 +37,7 @@ interface User {
 
 interface SessionData {
 	user: User,
-	calendars: Array<ExtendCalendarAccess | GoogleCalendarAccess>
+	calendars: Array<ExtendCalendarAccess>
 };
 
 

@@ -25,7 +25,7 @@
 </script>
 
 {#if toast}
-	<div class="pwa-toast" role="alert">
+	<div class="pwa-toast" role="alert" style:z-index="50000">
 		<div class="message">
 			{#if $offlineReady}
 				<span>

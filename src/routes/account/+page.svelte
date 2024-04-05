@@ -1,8 +1,21 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Card, Dropdown, DropdownItem, Avatar, Button, Modal, Input, Popover, Label } from 'flowbite-svelte';
+	import {
+		Card,
+		Dropdown,
+		DropdownItem,
+		Avatar,
+		Button,
+		Modal,
+		Input,
+		Popover,
+		Label,
+		Table,
+		TableBody, TableBodyCell, TableBodyRow
+	} from 'flowbite-svelte';
 	import { DotsHorizontalOutline, FileCopyAltOutline } from 'flowbite-svelte-icons';
 	import { copy } from 'svelte-copy';
+	import frog from '$lib/assets/frog-avatar.jpg';
 
   /** @type {import('./$types').PageData} */
   export let data; 
@@ -18,20 +31,39 @@
 		</Dropdown>
 	</div>
 	<div class="flex flex-col items-center pb-4">
-		<Avatar size="lg" src="/images/profile-picture-3.webp" />
+		<Avatar size="lg" src={frog} />
 		<h5 class="mb-1 text-xl font-medium text-gray-900 dark:text-white">Mimi</h5>
 		<span class="text-sm text-gray-500 dark:text-gray-400">A Mimi</span>
 	</div>
 </Card>
 
 <div class="mt-4">
-  <Button href={data.googleUrl}>Add Google Calendar (view events only)</Button>
 	<form action="?/addCalendarView" method="POST" use:enhance>
-		<Label>Add another calendar to view from your account.</Label>
-		<Input placeholder="Calendar name" name="calendarName" type="text"></Input>
-		<Button type="submit">Add</Button>
+		<Label class="text-lg my-2">Add another calendar to view from your account.</Label>
+		<div class="flex">
+			<Input placeholder="Calendar name" class="flex-1 mr-2" name="calendarName" type="text"></Input>
+			<Button type="submit">Add</Button>
+		</div>
 	</form>
 </div>
+
+<Table class="mt-3">
+	<caption class="border-b border-gray-400 p-5 text-lg font-semibold text-left text-gray-900 bg-white dark:text-white dark:bg-gray-800">
+		Added Calendars
+	</caption>
+	<TableBody>
+		<TableBodyRow>
+			{#each data.session.calendars as cal}
+				<TableBodyCell>
+					{cal.type}
+				</TableBodyCell>
+				<TableBodyCell>
+					{cal.name}
+				</TableBodyCell>
+			{/each}
+		</TableBodyRow>
+	</TableBody>
+</Table>
 
 <Modal title="Access Token" bind:open={showTokenModal} autoclose>
 	<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">

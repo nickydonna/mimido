@@ -4,7 +4,7 @@
 	import {
 		RectangleListOutline,
 		CalendarEditOutline,
-		PlusOutline,
+		PlusOutline, UserOutline
 	} from 'flowbite-svelte-icons';
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
@@ -63,33 +63,28 @@
 </svelte:head>
 
 <div class="container mx-auto h-full">
-	<Navbar>
-		<NavBrand href="/">
-			<span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">MimiDo</span
-			>
-		</NavBrand>
-		<NavHamburger />
-		<NavUl>
-			<NavLi href="/account">Account</NavLi>
-		</NavUl>
-	</Navbar>
-	<div class="mb-16">
+	<div class="mt-6 mb-16">
 		<slot />
 	</div>
 	{#if data.session.user}
-		<BottomNav position="fixed" classInner="grid-cols-3">
-			<BottomNavItem btnName="ListTask" href="/list?date={date}">
+		<BottomNav position="fixed" classInner="grid-cols-4">
+			<BottomNavItem btnName="Tasks" href="/list?date={date}">
 				<RectangleListOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-			<BottomNavItem btnName="CalenderView" href="/day?date={date}">
+			<BottomNavItem btnName="Day" href="/day?date={date}">
 				<CalendarEditOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
 			<BottomNavItem btnName="Add" href="/form?date={date}">
 				<PlusOutline
+					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+				/>
+			</BottomNavItem>
+			<BottomNavItem btnName="Account" href="/account">
+				<UserOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
