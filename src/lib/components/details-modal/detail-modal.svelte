@@ -15,6 +15,7 @@
 	import { nord } from '@milkdown/theme-nord';
 	import { EStatus } from '$lib/parser';
 	import { rruleToText } from '$lib/utils/rrule';
+	import { selectedEvent } from '$lib/stores.js';
 
 	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
 
@@ -51,7 +52,7 @@
 	/** @param {HTMLElement} dom */
 	function editor(dom) {
 		// to obtain the editor instance we need to store a reference of the editor.
-		const MakeEditor = Editor.make()
+		Editor.make()
 			.config((ctx) => {
 				ctx.set(rootCtx, dom);
 				ctx.set(editorViewOptionsCtx, { editable: () => false })
@@ -161,9 +162,17 @@
 			</div>
 			<div>
 				<Button disabled={loading} on:click={onClose}>Close</Button>
-				<Button disabled={loading} href="/form/{event?.eventId}" class="mr-2" color="alternative"
-					>Edit</Button
-				>
+				<Button
+					disabled={loading}
+					on:click={() => {
+						event && selectedEvent.set(event);
+						onClose();
+					}}
+					class="mr-2"
+					color="alternative"
+					>
+						Edit
+					</Button>
 			</div>
 		</div>
 	</svelte:fragment>

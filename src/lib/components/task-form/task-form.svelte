@@ -8,17 +8,17 @@
 		Input,
 		Label,
 		MultiSelect,
-		Select,
+		Select, Spinner,
 		Toggle
 	} from 'flowbite-svelte';
 
-	import { formatISODuration }  from 'date-fns/fp';
-	import { addDays, differenceInDays, formatDuration, parseISO, startOfDay } from 'date-fns';
+	import { formatISODuration } from 'date-fns/fp';
+	import { formatDuration, parseISO } from 'date-fns';
 	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser';
 	import {
 		isBlock,
 		isReminder,
-		isTask,
+		isTask
 	} from '$lib/util';
 	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
 	import { commonmark } from '@milkdown/preset-commonmark';
@@ -28,44 +28,56 @@
 	import { enhance } from '$app/forms';
 	import { rruleToText } from '$lib/utils/rrule';
 	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
+	import { createEventDispatcher } from 'svelte';
 
-	/** @type {import('./$types').PageData}*/
-	export let data;
-	/** @type {import('./$types').ActionData} */
-	export let form;
+	/** @typedef {import('$lib/server/calendar/index.js').TAllTypesWithId} TAllTypesWithId */
+
+	/** @type {TAllTypesWithId | undefined} */
+	export let event = undefined;
 
 	const typeOptions = Object.values(EType).map((type) => ({ value: type, name: type }));
 	const statusOptions = Object.values(EStatus).map((type) => ({ value: type, name: type }));
 
-	const originalText =
-		form?.originalText ??
-		(data.event
-			? unparseTaskText(data.event)
-			: '');
-	let taskText = originalText;
 	const today = new Date();
+	const originalText = event	? unparseTaskText(event) : '';
+
+	/**
+	 * @type {import('svelte').EventDispatcher<{ success: null}>}
+	 */
+	const dispatch = createEventDispatcher();
+	const onSuccess = () => dispatch('success');
+
+	let taskText = originalText;
 	let description = '';
 	/** @type {boolean} */
-	let editting;
+	let editting = false;
+	let upserting = false;
 	/** @type {ReturnType<parseTaskText>}*/
-	// get the default
 	let taskInfo = parseTaskText('');
-	// Task information
-	/** @type {{ name: string, value: string}[]} */
-	let alarmsValue = [];
+
+	// AI Variables
 	let useAI = false;
 	let taskTextAi = '';
+	let parsing = false;
+
+	// Form variables
+	/** @type {{ name: string, value: string}[]} */
+	let alarmsValue = []
+	/** @type {string[] | undefined} */
+	let errors
+	let formAction = '/form'
 	$: {
 		if (!useAI) {
 			taskInfo = parseTaskText(taskText, today);
 		} else {
-			taskText = unparseTaskText(taskInfo);	
+			taskText = unparseTaskText(taskInfo);
 		}
-		editting = typeof data.event !== 'undefined';
+		editting = typeof event !== 'undefined';
 		alarmsValue = taskInfo.alarms.map((alarm) => ({
 			name: `${formatDuration({ ...alarm.duration }, { format: ['days', 'hours', 'minutes'] })} before`,
 			value: formatISODuration(alarm.duration)
 		}));
+		formAction = editting ? `/form/${event?.eventId}` : '/form';
 	}
 
 	/** @param {HTMLElement} dom */
@@ -78,8 +90,8 @@
 					console.log(md);
 					description = md;
 				});
-				if (data.event?.description) {
-					ctx.set(defaultValueCtx, data.event.description);
+				if (event?.description) {
+					ctx.set(defaultValueCtx, event.description);
 				}
 			})
 			.config(nord)
@@ -88,9 +100,7 @@
 			.create();
 	}
 
-
-	let parsing = false;
-
+	/** Get the prompt result */
 	const prompt = async () => {
 		parsing = true;
 		const res = fetch('/parse', {
@@ -100,23 +110,18 @@
 			},
 			body: JSON.stringify({
 				prompt: taskTextAi,
-				offset: new Date().getTimezoneOffset(),
+				offset: new Date().getTimezoneOffset()
 			})
 		});
 		const json = await res.then((res) => res.json());
 		taskInfo = {
 			...json,
 			date: json.date ? parseISO(json.date) : undefined,
-			endDate: json.endDate ? parseISO(json.endDate) : undefined,
-		}
+			endDate: json.endDate ? parseISO(json.endDate) : undefined
+		};
 
 		parsing = false;
 	};
-	let date = startOfDay("2023-10-04T14:00:00-03:00");
-	let now = startOfDay("2023-10-03T18:25:00Z");
-	let d = new Date();
-	const diff = differenceInDays(d, now);
-	console.log(addDays(date, diff));
 </script>
 
 <div class="flex h-full w-full flex-row items-center align-middle">
@@ -178,7 +183,19 @@
 		</Accordion>
 
 		<div>
-			<form method="POST" class="mt-2" use:enhance>
+			<form method="POST" action={formAction} class="mt-2" use:enhance={() => {
+				upserting = true;
+				return async ({ update, result }) => {
+					if (result.type === 'failure') {
+						upserting = false
+						errors = /** @type {string[]} */ (result.data?.errors ?? [])
+					} else if (result.type === 'success') {
+						await update()
+						upserting = false
+						onSuccess()
+					}
+				}
+			}}>
 				<div class="flex">
 					<div class="mr-2 flex-1">
 						{#if useAI}
@@ -192,7 +209,7 @@
 									label="Type your event"
 									required
 									autofocus
-									disabled={parsing}
+									disabled={parsing || upserting}
 									bind:value={taskTextAi}
 								>
 									<button
@@ -212,6 +229,7 @@
 							</Label>
 						{:else}
 							<FloatingLabelInput
+								disable={upserting}
 								id="original_text"
 								name="originalText"
 								type="text"
@@ -231,11 +249,11 @@
 						bind:checked={useAI}
 					></Toggle>
 				</div>
-				{#if form?.errors}
+				{#if errors}
 					<Helper class="pt-2 text-red-950">
 						Please fix the following errors
 						<ul class="list-disc">
-							{#each form.errors as e}
+							{#each errors as e}
 								<li>{e}</li>
 							{/each}
 						</ul>
@@ -400,7 +418,12 @@
 				<div use:editor class="prose-sm" />
 				<textarea name="description" class="hidden" bind:value={description} />
 				<div class="">
-					<Button type="submit">{editting ? 'Update' : 'Create'}</Button>
+					<Button type="submit" disabled={upserting}>
+						{#if upserting}
+							<Spinner class="me-3" size="4" />
+						{/if}
+						{editting ? 'Update' : 'Create'}
+					</Button>
 				</div>
 			</form>
 		</div>

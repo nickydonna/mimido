@@ -4,22 +4,22 @@
 	import {
 		RectangleListOutline,
 		CalendarEditOutline,
-		PlusOutline, UserOutline
+		PlusOutline, UserOutline, CloseOutline
 	} from 'flowbite-svelte-icons';
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
-	import Navbar from 'flowbite-svelte/Navbar.svelte';
-	import NavBrand from 'flowbite-svelte/NavBrand.svelte';
-	import NavLi from 'flowbite-svelte/NavLi.svelte';
-	import NavUl from 'flowbite-svelte/NavUl.svelte';
-	import NavHamburger from 'flowbite-svelte/NavHamburger.svelte';
+
+	import { sineIn } from 'svelte/easing';
 	import { formatISO } from 'date-fns/fp';
 	import { page } from '$app/stores';
 	import { pwaAssetsHead } from 'virtual:pwa-assets/head';
+	import { onMount } from 'svelte';
+	import { Drawer } from 'flowbite-svelte';
+	import TaskForm from '$lib/components/task-form/index.js';
+	import { selectedEvent } from '$lib/stores.js';
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
-	import { onMount } from 'svelte';
 
 	onMount(async () => {
 		if (pwaInfo) {
@@ -40,11 +40,29 @@
 			});
 		}
 	});
+	let transitionParams = {
+		y: 320,
+		duration: 200,
+		easing: sineIn
+	};
+	let hideUpsertDrawer = true;
 
 	$: webManifest = pwaInfo ? pwaInfo.webManifest.linkTag : '';
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
+	$: {
+		if ($selectedEvent) {
+			hideUpsertDrawer = false;
+		}
+	}
+
+	function closeDrawer() {
+		if ($selectedEvent) {
+			selectedEvent.set(undefined)
+		}
+		hideUpsertDrawer = true;
+	}
 
 	/** @type {string} */
 	let date;
@@ -66,31 +84,49 @@
 	<div class="mt-6 mb-16">
 		<slot />
 	</div>
-	{#if data.session.user}
-		<BottomNav position="fixed" classInner="grid-cols-4">
-			<BottomNavItem btnName="Tasks" href="/list?date={date}">
-				<RectangleListOutline
-					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
-				/>
-			</BottomNavItem>
-			<BottomNavItem btnName="Day" href="/day?date={date}">
-				<CalendarEditOutline
-					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
-				/>
-			</BottomNavItem>
-			<BottomNavItem btnName="Add" href="/form?date={date}">
+</div>
+{#if data.session.user}
+	<Drawer
+		transitionType="fly"
+		placement="bottom"
+		{transitionParams}
+		width="w-full"
+		bottomOffset="bottom-8"
+		bind:hidden={hideUpsertDrawer}
+	>
+		<TaskForm event={$selectedEvent} on:success={closeDrawer} />
+	</Drawer>
+	<BottomNav position="fixed" classInner="grid-cols-4">
+		<BottomNavItem btnName="Tasks" href="/list?date={date}">
+			<RectangleListOutline
+				class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+			/>
+		</BottomNavItem>
+		<BottomNavItem btnName="Day" href="/day?date={date}">
+			<CalendarEditOutline
+				class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+			/>
+		</BottomNavItem>
+		{#if hideUpsertDrawer}
+			<BottomNavItem btnName="Add" on:click={() => (hideUpsertDrawer = false)}>
 				<PlusOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-			<BottomNavItem btnName="Account" href="/account">
-				<UserOutline
+		{:else}
+			<BottomNavItem btnName="Close" on:click={closeDrawer}>
+				<CloseOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-		</BottomNav>
-	{/if}
-</div>
+		{/if}
+		<BottomNavItem btnName="Account" href="/account">
+			<UserOutline
+				class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+			/>
+		</BottomNavItem>
+	</BottomNav>
+{/if}
 
 {#await import('$lib/components/reload-prompt') then { default: ReloadPrompt }}
 	<ReloadPrompt />

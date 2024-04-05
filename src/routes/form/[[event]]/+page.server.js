@@ -1,5 +1,5 @@
 import { parseTaskText } from '$lib/parser';
-import { redirect, fail } from '@sveltejs/kit';
+import { fail, json } from '@sveltejs/kit';
 import yup from 'yup';
 
 /** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
@@ -18,6 +18,7 @@ export const load = async ({ locals, params }) => {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  // TOD return new event
   default: async ({ request, locals, params }) => {
     const eventId = params.event; 
     const data = await request.formData();
@@ -28,14 +29,16 @@ export const actions = {
       ...parseTaskText(originalText),
       description,
     };
-    
+
+    let result;
+
     try {
       const valid = await locals.backend.validateEventData(eventData)
       if (valid) {
         if (eventId) {
-          await locals.backend.editEvent(eventId, valid)
+           result = await locals.backend.editEvent(eventId, valid)
         } else {
-          await locals.backend.createEvent(valid);
+           result = await locals.backend.createEvent(valid);
         }
       } else {
         throw new Error('No valid object created');
@@ -44,10 +47,12 @@ export const actions = {
       if (e instanceof yup.ValidationError) {
         return fail(400, { originalText, description, errors: e.errors })
       }
-      console.log(e);
       throw e;
     }
+    const fetchRes = await locals.backend.getEvent(result.id);
+
+    return { success: true, event: fetchRes.event }
    
-    throw redirect(303, `/day`)
+
   }
 }

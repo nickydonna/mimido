@@ -281,7 +281,7 @@ export class CalendarBackend {
       filename: `${id}.ics`,
       iCalString: component.toString(),
     });
-    return result;
+    return { id, result };
   }
 
   async listTodos() {
@@ -472,7 +472,7 @@ export class CalendarBackend {
     const { component, id: newId } = this.toComponent(eventData, id);
 
     // If event changed type, destroy and recreate
-    if (meta.icalType != meta.icalType) {
+    if (meta.icalType !== meta.icalType) {
       await this.deleteEvent(id)
       const result = await this.client.createCalendarObject({
         calendar: await this.getCalendar(),
@@ -488,7 +488,7 @@ export class CalendarBackend {
         data: component.toString()
       }
     })
-    return result
+    return { id, result }
   }
 
   /**
