@@ -1,25 +1,36 @@
 import { getBackend } from "$lib/server/calendar";
+import { verifyToken } from "$lib/server/cognito";
+import { UserModel } from "$lib/server/db";
 import { redirect } from "@sveltejs/kit";
-import { SESSION_SECRET } from '$env/static/private';
-import { handleSession } from "svelte-kit-cookie-session";
-import { sequence } from "@sveltejs/kit/hooks";
 
-const unProtectedRoutes = ['/', '/sign-in', '/sign-up'];
+const unProtectedRoutes = ['/', '/cognito', '/sign-in', '/sign-up'];
 
-const sessionHandler = handleSession({
-	secret: SESSION_SECRET
-});
+export const handle = async ({ resolve, event }) => {
+  event.locals.loggedIn = false;
+  const token = event.cookies.get('token');
+  const refresh = event.cookies.get('refresh_token');
 
-export const handle = sequence(sessionHandler, async ({ resolve, event }) => {
-  const { user } = event.locals.session.data;
-  if (!user) {
+  if (!token || !refresh) {
     if (!unProtectedRoutes.includes(event.url.pathname)) {
       throw redirect(303, '/');
     }
     return resolve(event)
   }
+  try {
+    const payload = await verifyToken(token, refresh);
+    event.locals.loggedIn = true;
+    event.locals.calendars = [];
 
-  // @ts-expect-error type constrain
-  event.locals.backend = await getBackend({ ...user, type: 'basic' });
-  return resolve(event);
-});
+    const user = await UserModel.get({ username: payload.username })
+    event.locals.user = user;
+    if (user.main) {
+      event.locals.backend = await getBackend(user);
+    }
+
+    return resolve(event);
+  } catch (e) {
+    console.log(e)
+  }
+
+  
+}

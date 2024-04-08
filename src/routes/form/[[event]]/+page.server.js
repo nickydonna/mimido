@@ -1,5 +1,5 @@
 import { parseTaskText } from '$lib/parser';
-import { fail, json } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import yup from 'yup';
 
 /** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
@@ -30,6 +30,7 @@ export const actions = {
       description,
     };
 
+    /** @type {{ id: string }} */
     let result;
 
     try {

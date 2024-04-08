@@ -12,7 +12,7 @@ export const load = async ({ locals, url }) => {
 
 	const { backend } = locals;
 	const events = backend.listDayEvent(date);
-	const externalEvents = Promise.all(locals.session.data.calendars.map(c => {
+	const externalEvents = Promise.all(locals.calendars.map(c => {
 		if (c.type === 'extend') {
 			return backend.listExternalDayEvents(date, c.name)
 		} else {

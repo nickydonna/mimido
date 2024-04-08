@@ -85,7 +85,7 @@
 		<slot />
 	</div>
 </div>
-{#if data.session.user}
+{#if data.loggedIn}
 	<Drawer
 		transitionType="fly"
 		placement="bottom"

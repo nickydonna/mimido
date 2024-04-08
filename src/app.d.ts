@@ -5,6 +5,7 @@ import 'vite-plugin-pwa/pwa-assets';
 import type { CalendarBackend } from "$lib/server/calendar";
 import type { Session } from 'svelte-kit-cookie-session';
 import type { StringMappingType } from 'typescript';
+import type { User } from '$lib/server/db';
 
 interface CalendarAccess {
 	type: 'oauth' | 'extend'
@@ -28,30 +29,30 @@ interface ExtendCalendarAccess extends CalendarAccess {
 
 }
 
-interface User {
+interface UserCalendar {
 	email: string,
 	password: string,
 	calendar: string,
 	server: string,
 }
 
-interface SessionData {
-	user: User,
-	calendars: Array<ExtendCalendarAccess>
-};
-
+interface CognitoToken {
+	access_token: string,
+	id_token: string,
+	refresh_token: string,
+	token_type: 'Bearer',
+	expires_in: number
+}
 
 // for information about these interfaces
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			session: Session<SessionData>;
-			user: { email: string, password: string, calendar: string, server: string}
+			loggedIn: boolean;
+			user: User,
 			backend: CalendarBackend,
-		}
-		interface PageData {
-			session: SessionData;
+			calendars: Array<ExtendCalendarAccess>
 		}
 		// interface PageData {}
 		// interface PageState {}
@@ -60,6 +61,8 @@ declare global {
 }
 
 export {
-	User,
+	UserCalendar,
 	GoogleCalendarAccess,
+	CognitoToken,
+	ExtendCalendarAccess
 };

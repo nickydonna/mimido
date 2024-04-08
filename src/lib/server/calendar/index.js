@@ -1,5 +1,4 @@
 import { DAVClient, DAVNamespaceShort } from "tsdav";
-import { createHash } from 'node:crypto';
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
 import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
@@ -7,7 +6,6 @@ import { endOfDay, isAfter, isWithinInterval } from "date-fns";
 import yup from 'yup';
 import { isValidRRule } from "$lib/utils/rrule";
 import { isBlock, isDefined, isReminder, isTask } from "$lib/util";
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "$env/static/private";
 import registerAllTz from "./timezones";
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
@@ -144,33 +142,10 @@ const taskSchema = rankingFields
 
 /** @typedef {WithId<TReminderSchema> | WithId<TTaskSchema> | WithId<TBlockSchema> | WithId<TEventSchema> } TAllTypesWithId */
 
-/**
- * @typedef AuthInfo
- * @prop {'basic' | 'oauth'} type
- */
-
-/**
- * @typedef {import("../../../app").User & AuthInfo} BasicAuth
- */
-/**
- * @typedef {AuthInfo} OAuth
- * @prop {string} accessToken
- * @prop {string} refreshToken
- * @prop {'google'} provider
- */
-
-/** 
- * @param {AuthInfo} auth 
- * @return {auth is BasicAuth}
- */
-function isBasicAuth(auth) {
-  return auth.type === 'basic';
-}
-
 export class CalendarBackend {
 
   /**
-   * @param {BasicAuth | OAuth} auth
+   * @param {import("../../../app").UserCalendar} auth
    * @param {boolean} [displayOnly=false] If the calendar is only for display
    */
   constructor(auth, displayOnly = false) {
@@ -179,7 +154,7 @@ export class CalendarBackend {
     /** @private */
     this.displayOnly = displayOnly;
 
-    if (isBasicAuth(auth)) {
+    // if (isBasicAuth(auth)) {
       /** @private */
       this.client = new DAVClient({
         serverUrl: auth.server,
@@ -201,31 +176,31 @@ export class CalendarBackend {
        * @type {DAVCalendar | undefined}
        */
       this.calendar = undefined;
-    } else {
-      /** @private */
-      this.client = new DAVClient({
-        serverUrl: 'https://apidata.googleusercontent.com/caldav/v2/',
-        credentials: {
-          ...auth,
-          tokenUrl: 'https://accounts.google.com/o/oauth2/token',
-          clientId: GOOGLE_CLIENT_ID,
-          clientSecret: GOOGLE_CLIENT_SECRET,
-        },
-        authMethod: 'Oauth',
-        defaultAccountType: 'caldav',
-      });
-      /** 
-       * @private
-       * @type {Promise<void>}
-       * Used to only log to servers once 
-       */
-      this.logged = this.client.login();
-      /**
-       * @private
-       * @type {DAVCalendar | undefined}
-       */
-      this.calendar = undefined;
-    }
+    // } else {
+    //   /** @private */
+    //   this.client = new DAVClient({
+    //     serverUrl: 'https://apidata.googleusercontent.com/caldav/v2/',
+    //     credentials: {
+    //       ...auth,
+    //       tokenUrl: 'https://accounts.google.com/o/oauth2/token',
+    //       clientId: GOOGLE_CLIENT_ID,
+    //       clientSecret: GOOGLE_CLIENT_SECRET,
+    //     },
+    //     authMethod: 'Oauth',
+    //     defaultAccountType: 'caldav',
+    //   });
+    //   /** 
+    //    * @private
+    //    * @type {Promise<void>}
+    //    * Used to only log to servers once 
+    //    */
+    //   this.logged = this.client.login();
+    //   /**
+    //    * @private
+    //    * @type {DAVCalendar | undefined}
+    //    */
+    //   this.calendar = undefined;
+    // }
   }
 
   async getCalendars() {
@@ -248,11 +223,10 @@ export class CalendarBackend {
     let calendar;
     if (calendarName) {
       calendar = calendars.find(c => c.displayName === calendarName)
-    } else if (isBasicAuth(auth)) {
-      calendar = calendars.find(c => c.displayName === auth.calendar)
     } else {
-      calendar = calendars[0];
+      calendar = calendars.find(c => c.displayName === auth.calendar)
     }
+    
 
     if (!calendar) throw new Error(`No Calendar found`);
     return calendar;
@@ -479,7 +453,7 @@ export class CalendarBackend {
         filename: `${newId}.ics`,
         iCalString: component.toString(),
       });
-      return result;
+      return { id, result };
     }
 
     const result = await this.client.updateCalendarObject({
@@ -788,26 +762,15 @@ const CustomPropName = {
 /** @type {Record<string, CalendarBackend>} */
 const backends = {};
 
-/** @param {App.Locals['user']} user */
-function hashUser(user) {
-  const hash = createHash('sha256');
-  hash.update(user.email);
-  hash.update(user.calendar);
-  hash.update(user.server);
-  return hash.digest('hex');
-
-}
-
-/** @param {App.Locals['user']} user */
+/** @param {import('../db').User} user */
 export async function getBackend(user) {
-  const key = hashUser(user);
 
-  if (!backends[key]) {
+  if (!backends[user.username]) {
     // @ts-ignore
-    const back = new CalendarBackend(user);
+    const back = new CalendarBackend(user.main);
     await back.check();
-    backends[key] = back;
+    backends[user.username] = back;
   }
-  return backends[key]
+  return backends[user.username]
 
 }

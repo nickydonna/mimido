@@ -53,7 +53,7 @@
 	</caption>
 	<TableBody>
 		<TableBodyRow>
-			{#each data.session.calendars as cal}
+			{#each data.calendars as cal}
 				<TableBodyCell>
 					{cal.type}
 				</TableBodyCell>
@@ -70,7 +70,7 @@
 		Copy this token, and use it on any other platform to copy login.
 	</p>
 	<p class="text-lg font-bold">DO NOT SHARE THIS!!!!</p>
-	<Input type="text" value={data.token} class="select-all">
+	<!-- <Input type="text" value={data.token} class="select-all">
 		<button
 			slot="right"
 			use:copy={data.token}
@@ -80,7 +80,7 @@
 		>
 			<FileCopyAltOutline />
 		</button>
-	</Input>
+	</Input> -->
 	<Popover
 		class="w-64 text-sm font-light "
 		title="Copied"

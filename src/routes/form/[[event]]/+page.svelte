@@ -75,7 +75,6 @@
 			.config((ctx) => {
 				ctx.set(rootCtx, dom);
 				ctx.get(listenerCtx).markdownUpdated((ctx, md) => {
-					console.log(md);
 					description = md;
 				});
 				if (data.event?.description) {
@@ -112,11 +111,6 @@
 
 		parsing = false;
 	};
-	let date = startOfDay("2023-10-04T14:00:00-03:00");
-	let now = startOfDay("2023-10-03T18:25:00Z");
-	let d = new Date();
-	const diff = differenceInDays(d, now);
-	console.log(addDays(date, diff));
 </script>
 
 <div class="flex h-full w-full flex-row items-center align-middle">

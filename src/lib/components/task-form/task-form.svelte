@@ -87,7 +87,6 @@
 			.config((ctx) => {
 				ctx.set(rootCtx, dom);
 				ctx.get(listenerCtx).markdownUpdated((ctx, md) => {
-					console.log(md);
 					description = md;
 				});
 				if (event?.description) {
