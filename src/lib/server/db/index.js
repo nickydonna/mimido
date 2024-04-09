@@ -1,19 +1,22 @@
+import { REAL_DYNAMO } from '$env/static/private';
 import { EStatus, EType } from '$lib/parser';
 import dynamoose from 'dynamoose';
 import { Item } from 'dynamoose/dist/Item';
 
 // // Create new DynamoDB instance
-// const ddb = new dynamoose.aws.ddb.DynamoDB({
-//     "credentials": {
-//         "accessKeyId": "AKID",
-//         "secretAccessKey": "SECRET"
-//     },
-//     "region": "us-east-1"
-// });
-
-// // Set DynamoDB instance to the Dynamoose DDB instance
-// dynamoose.aws.ddb.set(ddb);
-dynamoose.aws.ddb.local();
+if (REAL_DYNAMO === 'true') {
+  const ddb = new dynamoose.aws.ddb.DynamoDB({
+    "credentials": {
+      "accessKeyId": "AKID",
+      "secretAccessKey": "SECRET"
+    },
+    "region": "us-east-1"
+  });
+  // Set DynamoDB instance to the Dynamoose DDB instance
+  dynamoose.aws.ddb.set(ddb);
+} else {
+  dynamoose.aws.ddb.local();
+}
 
 
 export class User extends Item {
