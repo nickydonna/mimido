@@ -1,8 +1,8 @@
 import { DAVClient, DAVNamespaceShort } from "tsdav";
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
-import { add, addMinutes, startOfDay } from "date-fns/fp";
-import { endOfDay, isAfter, isWithinInterval } from "date-fns";
+import { add, addMinutes, startOfDay, isWithinInterval } from "date-fns/fp";
+import { endOfDay, isAfter } from "date-fns";
 import yup from 'yup';
 import { isValidRRule } from "$lib/utils/rrule";
 import { isBlock, isDefined, isReminder, isTask } from "$lib/util";
@@ -458,6 +458,7 @@ export class CalendarBackend {
     if (vevents.length === 0) return;
     const parsed = vevents.map(e => this.fromVEvent(e))
     let occurrenceEvent;
+    const isBetween = isWithinInterval({ start: from, end: to })
 
     for (let index = 0; index < parsed.length; index++) {
       /** @type {ICAL.Time | undefined} */
@@ -465,9 +466,18 @@ export class CalendarBackend {
       const element = parsed[index];
       const vevent = vevents[index];
 
+      if (
+        element.icalEvent.isRecurrenceException()
+        && element.event.date &&
+        isBetween(element.event.date)
+      ) {
+        occurrenceEvent = element.event;
+        break;
+      }
+
       let iterator = new ICAL.RecurExpansion({
         component: vevent,
-        dtstart: vevents[index].getFirstPropertyValue('dtstart')
+        dtstart: vevent.getFirstPropertyValue('dtstart')
       });
       // next is always an ICAL.Time or null
       /** @type {ICAL.Time | null} */
@@ -478,7 +488,7 @@ export class CalendarBackend {
         if (isAfter(nextJS, to)) {
           break;
         }
-        if (next && isWithinInterval(nextJS, { start: from, end: to })) {
+        if (next && isBetween(nextJS)) {
           currentOccurence = next
           break;
         }

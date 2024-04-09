@@ -9,12 +9,15 @@
 		Table,
 		TableBody,
 		TableBodyCell,
-		TableBodyRow
+		TableBodyRow,
+		Spinner
 	} from 'flowbite-svelte';
 	import frog from '$lib/assets/frog-avatar.jpg';
+	import { invalidateAll } from '$app/navigation';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
+	let syncing = false;
 </script>
 
 <Card padding="sm" class="mx-auto">
@@ -22,6 +25,22 @@
 		<Avatar size="lg" src={frog} />
 		<h5 class="mb-1 text-xl font-medium text-gray-900 dark:text-white">Mimi</h5>
 		<span class="text-sm text-gray-500 dark:text-gray-400">A Mimi</span>
+		<div class="mt-4 flex space-x-3 lg:mt-6 rtl:space-x-reverse">
+			<form action="?/resync" method="POST" use:enhance={() => {
+				syncing = true;
+				return () => {
+					syncing = false;
+					invalidateAll();
+				}
+			}}> 
+				<Button color="light" class="dark:text-white" disabled={syncing} type="submit">
+					{#if syncing}
+						<Spinner class="me-3" size="4" />
+					{/if}
+					Resync
+				</Button>
+			</form>
+		</div>
 	</div>
 </Card>
 {#if !data.main}

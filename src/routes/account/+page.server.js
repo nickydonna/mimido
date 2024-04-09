@@ -40,5 +40,13 @@ export const actions = {
       }]
     await locals.user.save();
     throw redirect(302, '/day')
+  },
+  resync: async ({ locals }) => {
+    const { backend } = locals;
+	  await backend.initialSync(true);
+	  await Promise.all(locals.user.calendars.map(async c => 
+			backend.initialSync(false, c.name)
+	  ))
+    return { ok: true }
   }
 }
