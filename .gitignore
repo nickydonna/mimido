@@ -29,5 +29,4 @@ amplify-gradle-config.json
 amplifytools.xcconfig
 .secret-*
 **.sample
-.idea
-docker/dynamodb/shared-local-instance.db
+#amplify-do-not-edit-end
