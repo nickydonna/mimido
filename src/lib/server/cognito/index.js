@@ -13,7 +13,7 @@ export function getCognitoUIUrl() {
 	// Replace with actual URL
 	params.set('redirect_uri', `http://${DOMAIN}/cognito`)
 	return 'https://'
-		+ COGNITO_POOL_ID
+		+ COGNITO_UI_ID
 		+ '.auth.us-east-1.amazoncognito.com/oauth2/authorize?'
 		+ params.toString()
 }
