@@ -29,4 +29,5 @@ amplify-gradle-config.json
 amplifytools.xcconfig
 .secret-*
 **.sample
+docker/dynamodb/dd
 .idea
