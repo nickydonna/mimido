@@ -22,6 +22,8 @@ export class User extends Item {
   auth = 'basic'
   /** @type {import('../../../app').UserCalendar} */
   main = { email: '', password: '', server: '', calendar: ''}
+  /** @type {Array<import('../../../app').ExtendCalendarAccess>} */
+  calendars = [];
 }
 
 export const UserModel =
@@ -41,5 +43,18 @@ export const UserModel =
         password: { type: String, required: true },
         email: { type: String, required: true },
       }
+    },
+    calendars: {
+      type: Array,
+      schema: [{
+        type: Object,
+        schema: {
+          provider: { type: String, enum: ['parent'], required: true },
+          type: { type: String, enum: ['extend'], required: true },
+          name: { type: String, required: true },
+        }
+      }],
+      required: true,
+      default: [],
     }
   })));

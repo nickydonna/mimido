@@ -22,7 +22,6 @@ export const handle = async ({  resolve, event,  }) => {
     event.cookies.set('token', newToken, {path: '/'})
   }
   event.locals.loggedIn = true;
-  event.locals.calendars = [];
 
   const user = await UserModel.get({ username: payload.username })
   event.locals.user = user;

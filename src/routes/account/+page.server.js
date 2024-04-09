@@ -1,9 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
 import { CalendarBackend } from '$lib/server/calendar';
 
-/** @type {import('./$types').PageServerLoad<{ calendars: import('../../app').ExtendCalendarAccess[]  }>} */
+/** @type {import('./$types').PageServerLoad} */
 export const load = async ({ locals }) => {
-  return { calendars: locals.calendars } 
+  return { main: locals.user.main, calendars: locals.user.calendars } 
 }
 
 /** @type {import('@sveltejs/kit').Actions} */
@@ -31,17 +31,14 @@ export const actions = {
     const calendarName = /** @type {string} */ (data.get('calendarName'));
 
     await locals.backend.check(calendarName);
-
-    // await locals.session.set({
-    //   ...locals.session.data,
-    //   // Replace for now
-    //   calendars: [{
-    //     provider: 'parent',
-    //     type: 'extend',
-    //     name: calendarName,
-    //   }]
-    // })
-
+    const calendars = locals.user.calendars ?? [];
+    locals.user.calendars = [
+      ...calendars, {
+        provider: 'parent',
+        type: 'extend',
+        name: calendarName,
+      }]
+    await locals.user.save();
     throw redirect(302, '/day')
   }
 }

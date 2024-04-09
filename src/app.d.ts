@@ -52,7 +52,6 @@ declare global {
 			loggedIn: boolean;
 			user: User,
 			backend: CalendarBackend,
-			calendars: Array<ExtendCalendarAccess>
 		}
 		// interface PageData {}
 		// interface PageState {}
