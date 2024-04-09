@@ -68,15 +68,19 @@ const verifier = CognitoJwtVerifier.create({
 
 /**
  * @param {string} token
- * @param {string} refresh
+ * @param {string} [refresh]
+ * @return {Promise<{ newToken?: string, payload: import('aws-jwt-verify/jwt-model').CognitoAccessTokenPayload}>}
  */
 export async function verifyToken(token, refresh) {
 	try {
-		return verifier.verify(token);
+		const payload = await verifier.verify(token);
+		return { payload };
 	} catch (e) {
-		if (e instanceof JwtExpiredError) {
+		if (e instanceof JwtExpiredError && refresh) {
+			console.log('Token expired, refreshing')
 			const newToken = await refreshToken(refresh);
-			return verifyToken(newToken.access_token, refresh);
+			const { payload } = await verifyToken(newToken.access_token);
+			return { payload, newToken: newToken.access_token }
 		}
 		throw new Error('Token is invalid', { cause: e })
 	}

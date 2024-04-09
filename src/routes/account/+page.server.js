@@ -8,13 +8,13 @@ export const load = async ({ locals }) => {
 
 /** @type {import('@sveltejs/kit').Actions} */
 export const actions = {
-  setMainCalendar: async({ request, locals }) => {
+  setCalendar: async({ request, locals }) => {
 		const data = await request.formData();
 		const email = /** @type {string} */ (data.get('email'));
 		const password = /** @type {string} */ (data.get('password'));
 		const server = /** @type {string} */ (data.get('server'));
     const calendar = /** @type {string} */ (data.get('calendar'));
-    const auth = { email, password, server, calendar, type: 'basic' }
+    const auth = { email, password, server, calendar}
     const back = new CalendarBackend(auth);
     try {
       await back.check();

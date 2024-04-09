@@ -16,7 +16,7 @@ export const load = async ({ url, cookies }) => {
   cookies.set('refresh_token', token.refresh_token, {
     path: '/'
   });
-  const payload = await verifyToken(token.access_token, token.refresh_token);
+  const { payload } = await verifyToken(token.access_token, token.refresh_token);
 
   const results = await UserModel.query("username").eq(payload.username).exec()
   if (results.length === 0) {
