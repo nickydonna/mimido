@@ -1,18 +1,24 @@
 import { DAVClient, DAVNamespaceShort } from "tsdav";
 import ICAL from 'ical.js'
 import { v4 } from "uuid";
-import { add, addMinutes, formatISO, startOfDay } from "date-fns/fp";
+import { add, addMinutes, startOfDay } from "date-fns/fp";
 import { endOfDay, isAfter, isWithinInterval } from "date-fns";
 import yup from 'yup';
 import { isValidRRule } from "$lib/utils/rrule";
 import { isBlock, isDefined, isReminder, isTask } from "$lib/util";
 import registerAllTz from "./timezones";
+import { alarmSchema } from "./alarmSchema";
+import { CalendarObjectModel, UserModel } from "../db";
 
 /** @typedef {import('tsdav').DAVCalendar} DAVCalendar */
+/** @typedef {import('tsdav').DAVObject} DAVObject */
+
 /**
  * @template {import("yup").ISchema<any, any>} T
  * @typedef {import('yup').InferType<T>} InferType
  */
+
+/** @typedef {import('./alarmSchema').TAlarm} TAlarm */
 
 /** @enum {string} */
 export const EType = {
@@ -35,22 +41,6 @@ export const EStatus = {
  * @prop {'vtodo' | 'vevent'} icalType
  * @prop {Date} [recurrenceId]
  */
-
-const alarmSchema = yup.object({
-  related: yup.string().matches(/START/).required(),
-  isNegative: yup.boolean().required(),
-  duration: yup.object({
-    years: yup.number(),
-    months: yup.number(),
-    weeks: yup.number(),
-    days: yup.number(),
-    hours: yup.number(),
-    minutes: yup.number(),
-    seconds: yup.number(),
-  }).required()
-}).required()
-
-/** @typedef {InferType<typeof alarmSchema>} TAlarm */
 
 // eslint-disable-next-line no-useless-escape
 const typeRE = new RegExp(Object.values(EType).join('|'));
@@ -142,13 +132,31 @@ const taskSchema = rankingFields
 
 /** @typedef {WithId<TReminderSchema> | WithId<TTaskSchema> | WithId<TBlockSchema> | WithId<TEventSchema> } TAllTypesWithId */
 
+/**
+ * @template T
+ * @param {Array<T>} array 
+ * @param {number} chunkSize 
+ * @returns {Array<Array<T>>}
+ */
+function chunkArray(array, chunkSize) {
+  return array.reduce((resultArray, item, index) => { 
+      const chunkIndex = Math.floor(index/chunkSize)
+      if(!resultArray[chunkIndex]) { resultArray[chunkIndex] = [] }
+      resultArray[chunkIndex].push(item)
+      return resultArray
+    }, /** @type {Array<Array<T>>} */([]))
+}
+
 export class CalendarBackend {
 
   /**
+   * @param {string} username
    * @param {import("../../../app").UserCalendar} auth
    * @param {boolean} [displayOnly=false] If the calendar is only for display
    */
-  constructor(auth, displayOnly = false) {
+  constructor(username, auth, displayOnly = false) {
+    /** @private */
+    this.username = username;
     /** @private */
     this.auth = auth;
     /** @private */
@@ -214,10 +222,11 @@ export class CalendarBackend {
   /**
    * 
    * @param {string} [calendarName] 
+   * @param {boolean} [force]
    * @returns 
    */
-  async getCalendar(calendarName) {
-    if (this.calendar) return this.calendar
+  async getCalendar(calendarName, force) {
+    if (this.calendar && !force) return this.calendar
     const calendars = await this.getCalendars();
     const auth = this.auth;
     let calendar;
@@ -243,22 +252,106 @@ export class CalendarBackend {
   }
 
   /**
+   * @param {boolean} includeTodo
+   * @param {string} [calendarName]
+   */
+  async initialSync(includeTodo, calendarName ) {
+    const calendar = await this.getCalendar(calendarName, true);
+    const [todoObjs, eventObjs] = await Promise.all([
+      this.listTodosRaw(),
+      this.client.fetchCalendarObjects({
+        calendar,
+      })
+    ])
+    const modelEvents = eventObjs.map(obj => {
+      const comp = ICAL.Component.fromString(obj.data);
+      const vevent = comp.getFirstSubcomponent('vevent');
+      const event = new ICAL.Event(vevent);
+      return {
+        id: event.uid,
+        user: this.username,
+        calendarUrl: calendar.url,
+        data: obj.data,
+        date: event.startDate.toJSDate(),
+        endDate: event.endDate.toJSDate(),
+        etag: obj.etag,
+        url: obj.url,
+        icalType: 'vevent',
+      }
+    })
+    const eventsRes = Promise.all(chunkArray(modelEvents, 4).map(chunk =>
+      CalendarObjectModel.batchPut(chunk)
+    ))
+
+    if (!includeTodo) {
+      return await eventsRes;
+    }
+
+    const modelTodos = todoObjs.map(obj => {
+      const comp = ICAL.Component.fromString(obj.data);
+      const vtodo = comp.getFirstSubcomponent('vtodo');
+      return {
+        id: vtodo?.getFirstPropertyValue('uid'),
+        user: this.username,
+        calendarUrl: calendar.url,
+        data: obj.data,
+        etag: obj.etag,
+        url: obj.url,
+        icalType: 'vtodo',
+      } 
+    })
+
+    const todosRes = Promise.all(chunkArray(modelTodos, 4).map(chunk =>
+      CalendarObjectModel.batchPut(chunk)
+    ))
+
+    await Promise.all([eventsRes, todosRes])
+    const user = await UserModel.get({ username: this.username })
+    user.main.url = calendar.url;
+    user.main.ctag = calendar.ctag;
+    user.main.syncToken = calendar.syncToken;
+    await user.save();
+  }
+
+  /**
    * @param {TAllTypes} eventData
    */
   async createEvent(eventData) {
     const calendar = await this.getCalendar();
 
-    var { id, component } = this.toComponent(eventData);
+    var { id, component, meta } = this.toComponent(eventData);
 
-    const result = await this.client.createCalendarObject({
+    const model = await CalendarObjectModel.create({
+      id,
+      calendarUrl: calendar.url,
+      url: await this.getEventUrl(id),
+      user: this.username,
+      data: component.toString(),
+      date: eventData.date,
+      endDate: eventData.endDate,
+      icalType: meta.icalType,
+    })
+
+    const calendarPush = this.client.createCalendarObject({
       calendar: calendar,
       filename: `${id}.ics`,
       iCalString: component.toString(),
     });
-    return { id, result };
+
+    calendarPush.then(async () => {
+      // TODO check result
+      const newE = await this.getEventRaw(id);
+      const etag = newE.raw.props?.getetag
+      if (etag) {
+        await CalendarObjectModel.update({ id, etag })
+      }
+    })
+
+    return { id, model };
   }
 
-  async listTodos() {
+  /** @private */
+  async listTodosRaw() {
     const calendar = await this.getCalendar();
     const objects = await this.client.fetchCalendarObjects({
       calendar: calendar,
@@ -276,6 +369,18 @@ export class CalendarBackend {
       }
     });
 
+    return objects;
+  }
+
+  async listTodos() {
+    const calendar = await this.getCalendar();
+    // const objects = await this.listTodosRaw(); 
+    const objects = await CalendarObjectModel.scan({
+      calendarUrl: calendar.url,
+      user: this.username,
+      icalType: 'vtodo',
+    }).exec()
+  
     return objects.map(e => {
       const comp = ICAL.Component.fromString(e.data);
       const vtodo = comp.getFirstSubcomponent('vtodo');
@@ -321,69 +426,88 @@ export class CalendarBackend {
    */
   async listEvents(from, to, calendarName) {
     const calendar = await this.getCalendar(calendarName);
-    const objects = await this.client.fetchCalendarObjects({
-        calendar: calendar,
-        timeRange: {
-          start: formatISO(from),
-          end: formatISO(to),
-        }
-      });
+    // const objects = await this.client.fetchCalendarObjects({
+    //     calendar: calendar,
+    //     timeRange: {
+    //       start: formatISO(from),
+    //       end: formatISO(to),
+    //     }
+    //   });
+    const objects = await CalendarObjectModel.scan({
+      calendarUrl: calendar.url,
+      user: this.username,
+      icalType: 'vevent',
+    }).exec()
        
-    return objects.map(e => {
-      const comp = ICAL.Component.fromString(e.data);
-      const vevents = comp.getAllSubcomponents('vevent');
-
-      if (vevents.length === 0) return;
-      const parsed = vevents.map(e => this.fromVEvent(e))
-      let occurrenceEvent;
-
-      for (let index = 0; index < parsed.length; index++) {
-        /** @type {ICAL.Time | undefined} */
-        let currentOccurence;
-        const element = parsed[index];
-        const vevent = vevents[index];
-
-        let iterator = new ICAL.RecurExpansion({
-          component: vevent,
-          dtstart: vevents[index].getFirstPropertyValue('dtstart')
-        });
-        // next is always an ICAL.Time or null
-        /** @type {ICAL.Time | null} */
-        let next = iterator.next()
-        while (next) {
-          const nextJS = next.toJSDate()
-
-          if (isAfter(nextJS, to)) {
-            break;
-          }
-          if (next && isWithinInterval(nextJS, { start: from, end: to })) {
-            currentOccurence = next
-            break;
-          }
-          next = iterator.next()
-        }
-
-        if (currentOccurence) {
-          // @ts-expect-error add types
-          const details = element.icalEvent.getOccurrenceDetails(currentOccurence);
-          
-          let startDate = details.startDate
-          let endDate = details.endDate
-
-          occurrenceEvent = {
-            ...element.event,
-            date: startDate.toJSDate(),
-            endDate: endDate.toJSDate(),
-          }
-        }
-      }
-
-      return occurrenceEvent
-    }).filter(isDefined)
+    return objects
+      .map(o => o.data)
+      .map(o => this.parseCalendarVEvent(o, from, to))
+      .filter(isDefined)
   }
 
-  /** @param {string} id */
-  async getEvent(id) {
+  /**
+   * @param {string | DAVObject} obj 
+   * @param {Date} from
+   * @param {Date} to 
+   */
+  parseCalendarVEvent(obj, from, to) {
+    const data = typeof obj === 'string' ? obj : obj.data
+    const comp = ICAL.Component.fromString(data);
+    const vevents = comp.getAllSubcomponents('vevent');
+
+    if (vevents.length === 0) return;
+    const parsed = vevents.map(e => this.fromVEvent(e))
+    let occurrenceEvent;
+
+    for (let index = 0; index < parsed.length; index++) {
+      /** @type {ICAL.Time | undefined} */
+      let currentOccurence;
+      const element = parsed[index];
+      const vevent = vevents[index];
+
+      let iterator = new ICAL.RecurExpansion({
+        component: vevent,
+        dtstart: vevents[index].getFirstPropertyValue('dtstart')
+      });
+      // next is always an ICAL.Time or null
+      /** @type {ICAL.Time | null} */
+      let next = iterator.next()
+      while (next) {
+        const nextJS = next.toJSDate()
+
+        if (isAfter(nextJS, to)) {
+          break;
+        }
+        if (next && isWithinInterval(nextJS, { start: from, end: to })) {
+          currentOccurence = next
+          break;
+        }
+        next = iterator.next()
+      }
+
+      if (currentOccurence) {
+        // @ts-expect-error add types
+        const details = element.icalEvent.getOccurrenceDetails(currentOccurence);
+        
+        let startDate = details.startDate
+        let endDate = details.endDate
+
+        occurrenceEvent = {
+          ...element.event,
+          date: startDate.toJSDate(),
+          endDate: endDate.toJSDate(),
+        }
+      }
+    }
+
+    return occurrenceEvent
+  }
+
+  /**
+   * @private
+   * @param {string} id 
+   */
+  async getEventRaw(id) {
     const [object] = await this.client.calendarMultiGet({
       url: await this.getCalendarUrl(),
       objectUrls: [await this.getEventUrl(id)],
@@ -397,7 +521,16 @@ export class CalendarBackend {
       throw new Error('Event not found: ' + id);
     }
 
-    const comp = ICAL.Component.fromString(object?.props.calendarData._cdata);
+    const raw = object;
+    const comp = ICAL.Component.fromString(object?.props?.calendarData._cdata);
+    return { raw, comp };
+  }
+
+  /** @param {string} id */
+  async getEvent(id) {
+    const dbEvent = await CalendarObjectModel.get({ id });
+    const comp = ICAL.Component.fromString(dbEvent.data);
+
     /** @type {ReturnType<CalendarBackend['fromVTodo']> | ReturnType<CalendarBackend['fromVEvent']> | undefined} */
     let result;
     if (id.startsWith('vevent-')) {
@@ -456,13 +589,15 @@ export class CalendarBackend {
       return { id, result };
     }
 
-    const result = await this.client.updateCalendarObject({
+    await CalendarObjectModel.update({ id }, { data: component.toString() })
+
+    this.client.updateCalendarObject({
       calendarObject: {
         url: await this.getEventUrl(id),
         data: component.toString()
       }
-    })
-    return { id, result }
+    }).then(() => console.log('Updated calendar object'))
+    return { id }
   }
 
   /**
@@ -489,10 +624,14 @@ export class CalendarBackend {
     const event = await this.getEvent(id);
     if (!event) throw new Error('Event does not exists');
 
-    await this.client.deleteCalendarObject({
+    await CalendarObjectModel.delete({ id })
+
+    this.client.deleteCalendarObject({
       calendarObject: {
         url: await this.getEventUrl(id),
       }
+    }).then(() => {
+      console.log('Deleted calendar object')
     })
     return event
   }
@@ -767,7 +906,7 @@ export async function getBackend(user) {
 
   if (!backends[user.username]) {
     // @ts-ignore
-    const back = new CalendarBackend(user.main);
+    const back = new CalendarBackend(user.username ,user.main);
     await back.check();
     backends[user.username] = back;
   }

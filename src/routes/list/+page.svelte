@@ -77,6 +77,8 @@
 		loading = true;
 		return async ({ update }) => {
 			loading = false;
+			idOfDeleting = undefined;
+			selectedEvent = undefined;
 			update();
 		};
 	};

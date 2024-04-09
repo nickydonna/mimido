@@ -15,7 +15,7 @@ export const actions = {
 		const server = /** @type {string} */ (data.get('server'));
     const calendar = /** @type {string} */ (data.get('calendar'));
     const auth = { email, password, server, calendar}
-    const back = new CalendarBackend(auth);
+    const back = new CalendarBackend(locals.user.username, auth);
     try {
       await back.check();
       locals.user.main = auth;

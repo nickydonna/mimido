@@ -11,9 +11,11 @@ export const load = async ({ locals, url }) => {
 	const date = queryDate ? parseISO(queryDate) : new Date();
 
 	const { backend } = locals;
+	// await backend.initialSync(true);
 	const events = backend.listDayEvent(date);
-	const externalEvents = Promise.all(locals.user.calendars.map(c => {
+	const externalEvents = Promise.all(locals.user.calendars.map(async c => {
 		if (c.type === 'extend') {
+			// await backend.initialSync(false, c.name);
 			return backend.listExternalDayEvents(date, c.name)
 		} else {
 			// support google and other

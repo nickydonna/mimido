@@ -34,6 +34,9 @@ interface UserCalendar {
 	password: string,
 	calendar: string,
 	server: string,
+	syncToken?: string,
+	url?: string,
+	ctag?: string,
 }
 
 interface CognitoToken {
