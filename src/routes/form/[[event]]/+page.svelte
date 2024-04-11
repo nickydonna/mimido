@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import FloatingLabelInput from 'flowbite-svelte/FloatingLabelInput.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import {
@@ -12,64 +12,52 @@
 		Toggle
 	} from 'flowbite-svelte';
 
-	import { formatISODuration }  from 'date-fns/fp';
-	import { addDays, differenceInDays, formatDuration, parseISO, startOfDay } from 'date-fns';
-	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser';
-	import {
-		isBlock,
-		isReminder,
-		isTask,
-	} from '$lib/util';
+	import { formatISODuration } from 'date-fns/fp';
+	import { formatDuration, parseISO } from 'date-fns';
+	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser/index.js';
+	import { isBlock, isReminder, isTask } from '$lib/util.js';
 	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
 	import { commonmark } from '@milkdown/preset-commonmark';
 	import { nord } from '@milkdown/theme-nord';
 	import { listener, listenerCtx } from '@milkdown/plugin-listener';
 
 	import { enhance } from '$app/forms';
-	import { rruleToText } from '$lib/utils/rrule';
+	import { rruleToText } from '$lib/utils/rrule.js';
 	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
+	import type { PageData, ActionData } from './$types';
 
-	/** @type {import('./$types').PageData}*/
-	export let data;
-	/** @type {import('./$types').ActionData} */
-	export let form;
+	export let data: PageData;
+	export let form: ActionData;
 
 	const typeOptions = Object.values(EType).map((type) => ({ value: type, name: type }));
 	const statusOptions = Object.values(EStatus).map((type) => ({ value: type, name: type }));
 
-	const originalText =
-		form?.originalText ??
-		(data.event
-			? unparseTaskText(data.event)
-			: '');
+	const originalText = form?.originalText ?? (data.event ? unparseTaskText(data.event) : '');
 	let taskText = originalText;
 	const today = new Date();
 	let description = '';
-	/** @type {boolean} */
-	let editting;
-	/** @type {ReturnType<parseTaskText>}*/
+	let editing = false;
 	// get the default
 	let taskInfo = parseTaskText('');
 	// Task information
 	/** @type {{ name: string, value: string}[]} */
-	let alarmsValue = [];
+	let alarmsValue: { name: string; value: string }[] = [];
 	let useAI = false;
 	let taskTextAi = '';
 	$: {
 		if (!useAI) {
 			taskInfo = parseTaskText(taskText, today);
 		} else {
-			taskText = unparseTaskText(taskInfo);	
+			taskText = unparseTaskText(taskInfo);
 		}
-		editting = typeof data.event !== 'undefined';
+		editing = typeof data.event !== 'undefined';
 		alarmsValue = taskInfo.alarms.map((alarm) => ({
 			name: `${formatDuration({ ...alarm.duration }, { format: ['days', 'hours', 'minutes'] })} before`,
 			value: formatISODuration(alarm.duration)
 		}));
 	}
 
-	/** @param {HTMLElement} dom */
-	function editor(dom) {
+	function editor(dom: HTMLElement) {
 		// to obtain the editor instance we need to store a reference of the editor.
 		Editor.make()
 			.config((ctx) => {
@@ -87,7 +75,6 @@
 			.create();
 	}
 
-
 	let parsing = false;
 
 	const prompt = async () => {
@@ -99,15 +86,15 @@
 			},
 			body: JSON.stringify({
 				prompt: taskTextAi,
-				offset: new Date().getTimezoneOffset(),
+				offset: new Date().getTimezoneOffset()
 			})
 		});
 		const json = await res.then((res) => res.json());
 		taskInfo = {
 			...json,
 			date: json.date ? parseISO(json.date) : undefined,
-			endDate: json.endDate ? parseISO(json.endDate) : undefined,
-		}
+			endDate: json.endDate ? parseISO(json.endDate) : undefined
+		};
 
 		parsing = false;
 	};
@@ -116,7 +103,7 @@
 <div class="flex h-full w-full flex-row items-center align-middle">
 	<div class="flex-1 p-10">
 		<h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-			{editting ? 'Edit Event' : 'New Event'}
+			{editing ? 'Edit Event' : 'New Event'}
 		</h5>
 		<p>For creating tasks we use text rather than controls.</p>
 		<Accordion flush>
@@ -140,7 +127,7 @@
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					<span class="mr-1 font-semibold">Dates:</span>To set dates of a task/event. It will be
 					parsed from the text in parenthesis. After the date you can add a <code>|</code> and a recurrence
-					pattern (check rrule.js).
+					pattern (check rrule.ts).
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					Example: Go shopping (at 21 until 23 | every monday) -> Date: today 9pm until 23:00 [every
@@ -394,7 +381,7 @@
 				<div use:editor class="prose-sm" />
 				<textarea name="description" class="hidden" bind:value={description} />
 				<div class="">
-					<Button type="submit">{editting ? 'Update' : 'Create'}</Button>
+					<Button type="submit">{editing ? 'Update' : 'Create'}</Button>
 				</div>
 			</form>
 		</div>

@@ -2,7 +2,6 @@
 node_modules
 /build
 /.svelte-kit
-/src/lib/server/db
 /package
 .env
 .env.*

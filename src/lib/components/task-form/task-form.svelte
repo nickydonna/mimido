@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import FloatingLabelInput from 'flowbite-svelte/FloatingLabelInput.svelte';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import {
@@ -8,51 +8,41 @@
 		Input,
 		Label,
 		MultiSelect,
-		Select, Spinner,
+		Select,
+		Spinner,
 		Toggle
 	} from 'flowbite-svelte';
 
 	import { formatISODuration } from 'date-fns/fp';
 	import { formatDuration, parseISO } from 'date-fns';
-	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser';
-	import {
-		isBlock,
-		isReminder,
-		isTask
-	} from '$lib/util';
+	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser/index.js';
+	import { isBlock, isReminder, isTask } from '$lib/util.js';
 	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
 	import { commonmark } from '@milkdown/preset-commonmark';
 	import { nord } from '@milkdown/theme-nord';
 	import { listener, listenerCtx } from '@milkdown/plugin-listener';
 
 	import { enhance } from '$app/forms';
-	import { rruleToText } from '$lib/utils/rrule';
+	import { rruleToText } from '$lib/utils/rrule.js';
 	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, type EventDispatcher } from 'svelte';
+	import type { TAllTypesWithId } from '$lib/server/calendar';
 
-	/** @typedef {import('$lib/server/calendar/index.js').TAllTypesWithId} TAllTypesWithId */
-
-	/** @type {TAllTypesWithId | undefined} */
-	export let event = undefined;
+	export let event: TAllTypesWithId | undefined = undefined;
 
 	const typeOptions = Object.values(EType).map((type) => ({ value: type, name: type }));
 	const statusOptions = Object.values(EStatus).map((type) => ({ value: type, name: type }));
 
 	const today = new Date();
-	const originalText = event	? unparseTaskText(event) : '';
+	const originalText = event ? unparseTaskText(event) : '';
 
-	/**
-	 * @type {import('svelte').EventDispatcher<{ success: null}>}
-	 */
-	const dispatch = createEventDispatcher();
+	const dispatch: EventDispatcher<{ success: null }> = createEventDispatcher();
 	const onSuccess = () => dispatch('success');
 
 	let taskText = originalText;
 	let description = '';
-	/** @type {boolean} */
 	let editting = false;
 	let upserting = false;
-	/** @type {ReturnType<parseTaskText>}*/
 	let taskInfo = parseTaskText('');
 
 	// AI Variables
@@ -61,11 +51,9 @@
 	let parsing = false;
 
 	// Form variables
-	/** @type {{ name: string, value: string}[]} */
-	let alarmsValue = []
-	/** @type {string[] | undefined} */
-	let errors
-	let formAction = '/form'
+	let alarmsValue: { name: string; value: string }[] = [];
+	let errors: string[] | undefined;
+	let formAction = '/form';
 	$: {
 		if (!useAI) {
 			taskInfo = parseTaskText(taskText, today);
@@ -80,8 +68,7 @@
 		formAction = editting ? `/form/${event?.eventId}` : '/form';
 	}
 
-	/** @param {HTMLElement} dom */
-	function editor(dom) {
+	function editor(dom: HTMLElement) {
 		// to obtain the editor instance we need to store a reference of the editor.
 		Editor.make()
 			.config((ctx) => {
@@ -150,7 +137,7 @@
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					<span class="mr-1 font-semibold">Dates:</span>To set dates of a task/event. It will be
 					parsed from the text in parenthesis. After the date you can add a <code>|</code> and a recurrence
-					pattern (check rrule.js).
+					pattern (check rrule.ts).
 				</p>
 				<p class="mb-2 text-gray-600 dark:text-gray-400">
 					Example: Go shopping (at 21 until 23 | every monday) -> Date: today 9pm until 23:00 [every
@@ -182,19 +169,25 @@
 		</Accordion>
 
 		<div>
-			<form method="POST" action={formAction} class="mt-2" use:enhance={() => {
-				upserting = true;
-				return async ({ update, result }) => {
-					if (result.type === 'failure') {
-						upserting = false
-						errors = /** @type {string[]} */ (result.data?.errors ?? [])
-					} else if (result.type === 'success') {
-						await update()
-						upserting = false
-						onSuccess()
-					}
-				}
-			}}>
+			<form
+				method="POST"
+				action={formAction}
+				class="mt-2"
+				use:enhance={() => {
+					upserting = true;
+					return async ({ update, result }) => {
+						if (result.type === 'failure') {
+							upserting = false;
+							// @ts-expect-error no svelte template types
+							errors = result.data?.errors ?? [];
+						} else if (result.type === 'success') {
+							await update();
+							upserting = false;
+							onSuccess();
+						}
+					};
+				}}
+			>
 				<div class="flex">
 					<div class="mr-2 flex-1">
 						{#if useAI}

@@ -1,27 +1,38 @@
-<script>
-	import { importanceToString, isDone, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
-	import { differenceInMinutes, formatDuration } from 'date-fns';
+<script lang="ts">
+	import {
+		importanceToString,
+		isDone,
+		isReminder,
+		isTask,
+		loadToString,
+		urgencyToString
+	} from '$lib/util.js';
+	import { differenceInMinutes } from 'date-fns';
 	import { ArrowsRepeatOutline, BellActiveAltOutline } from 'flowbite-svelte-icons';
+	import type { TAllTypesWithId } from '$lib/server/calendar';
 
-	/** @type {import("$lib/server/calendar").TAllTypesWithId} */
-	export let event;
+	export let event: TAllTypesWithId;
 	const sizeClass =
-		differenceInMinutes(/** @type {Date} */ (event.date), /** @type {Date} */ (event.endDate)) < 16
+		differenceInMinutes(event.date as Date, event.endDate as Date) < 16
 			? 'text-xs'
 			: 'text-[0.6rem]';
+
+	let importance: number | undefined, load: number | undefined, urgency: number | undefined;
+	if (isTask(event) || isReminder(event)) {
+		importance = event.importance;
+		load = event.load;
+		urgency = event.urgency;
+	}
 </script>
 
-<div 
+<div
 	class:line-through={isDone(event)}
 	class:text-gray-400={isDone(event)}
 	class:text-gray-300={!isDone(event)}
-	class="{sizeClass}"
+	class={sizeClass}
 >
 	<p>
-		<span
-			class:line-through={isDone(event)}
-			class:text-gray-400={isDone(event)}
-		>
+		<span class:line-through={isDone(event)} class:text-gray-400={isDone(event)}>
 			{event.title}
 		</span>
 		{#if event.recur}
@@ -32,8 +43,8 @@
 		{/if}
 	</p>
 	{#if (isTask(event) || isReminder(event)) && !isDone(event)}
-		{importanceToString(event.importance, '|')}
-		{urgencyToString(event.urgency, '|')}
-		{loadToString(event.load)}
+		{importanceToString(importance, '|')}
+		{urgencyToString(urgency, '|')}
+		{loadToString(load)}
 	{/if}
 </div>

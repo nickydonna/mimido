@@ -4,10 +4,10 @@ This project is a personal organizer, using CalDAV as a backend. The main object
 
 My main issue with current task manager is that everything is an event or a task, which it annoying to organize around, so the approach used is to provide more tools, the ones provided now are:
 
-* Block: A block of time dedicated to something. For example, work, dinner, family time, etc. This will allow for quickly viewing what you are doing in that time. For now is not blocking, but it can change in the future for free/busy queries.
-* Event: A typical event, usually time blocking and fixed in time. A future version will include "transport time" and "preparation time". Example: I need to go to the doctor at 13 pm, it takes me 15 min to go, and I need 30 min to take a bath or look for previous studies to share.
-* Task: Something that needs to be done, can have time or not. Example: Fix Bug 15, Go grocery shopping
-* Reminder: An small thing that you not forget, should not take more that 15 min. Some of this Reminder may be "Create X Task". Example: Take the chicken out of the freezer, make doctors appoiment
+- Block: A block of time dedicated to something. For example, work, dinner, family time, etc. This will allow for quickly viewing what you are doing in that time. For now is not blocking, but it can change in the future for free/busy queries.
+- Event: A typical event, usually time blocking and fixed in time. A future version will include "transport time" and "preparation time". Example: I need to go to the doctor at 13 pm, it takes me 15 min to go, and I need 30 min to take a bath or look for previous studies to share.
+- Task: Something that needs to be done, can have time or not. Example: Fix Bug 15, Go grocery shopping
+- Reminder: An small thing that you not forget, should not take more that 15 min. Some of this Reminder may be "Create X Task". Example: Take the chicken out of the freezer, make doctors appoiment
 
 # Backend
 

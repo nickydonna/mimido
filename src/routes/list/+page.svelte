@@ -1,13 +1,10 @@
-<script>
+<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import DetailModal from '$lib/components/details-modal';
-	import { EStatus } from '$lib/parser';
-	import {
-		isDefined,
-		isDone,
-	} from '$lib/util';
+	import DetailModal from '$lib/components/details-modal/index.js';
+	import { EStatus } from '$lib/parser/index.js';
+	import { isDefined, isDone } from '$lib/util.js';
 	import {
 		Button,
 		CloseButton,
@@ -29,37 +26,29 @@
 		MailBoxSolid,
 		BarsFromLeftOutline,
 		ExclamationCircleOutline,
-
 		CloseOutline
-
 	} from 'flowbite-svelte-icons';
 	import { sineIn } from 'svelte/easing';
+	import type { PageData, SubmitFunction } from './$types';
+	import type { TAllTypesWithId } from '$lib/server/calendar';
 
-	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
+	export let data: PageData;
 
-	/** @type {import('./$types').PageData} */
-	export let data;
-
-	/** @type {TAllTypesWithId| undefined} */
-	let selectedEvent;
-	/** @type {string | undefined} */
-	let idOfDeleting;
+	let selectedEvent: TAllTypesWithId | undefined;
+	let idOfDeleting: string | undefined;
 	let showDelete = false;
 	let loading = false;
-	/** @type {string[]} */
-	let tags = [];
-	/** @type {string | undefined} */
-	let tagFilter;
+	let tags: string[] = [];
+	let tagFilter: string | undefined;
 	let events = data.events;
-	/** @type {Array<[EStatus, TAllTypesWithId[]]>} */
-	let groupedEvents 
+	let groupedEvents: Array<[EStatus, TAllTypesWithId[]]>;
 
 	$: {
 		tags = [...new Set(data.events.map((e) => e.tags).flat())];
 		showDelete = !!idOfDeleting;
 		tagFilter = $page.url.searchParams.get('tag') ?? undefined;
 		if (isDefined(tagFilter)) {
-			events = data.events.filter((e) => e.tags.includes(/** @type {string} */ (tagFilter)));
+			events = data.events.filter((e) => e.tags.includes(tagFilter as string));
 		} else {
 			events = data.events;
 		}
@@ -67,13 +56,11 @@
 			[EStatus.DOING, events.filter((e) => e.status === EStatus.DOING)],
 			[EStatus.TODO, events.filter((e) => e.status === EStatus.TODO)],
 			[EStatus.DONE, events.filter((e) => e.status === EStatus.DONE)],
-			[EStatus.BACK, events.filter((e) => e.status === EStatus.BACK)],
-			
-		]
+			[EStatus.BACK, events.filter((e) => e.status === EStatus.BACK)]
+		];
 	}
 
-	/** @type {import('./$types').SubmitFunction} */
-	const onDelete = () => {
+	const onDelete: SubmitFunction = () => {
 		loading = true;
 		return async ({ update }) => {
 			loading = false;
@@ -91,9 +78,7 @@
 		easing: sineIn
 	};
 
-	/** @typedef {import('$lib/parser').EStatus} EStatus */
-	/** @param {CustomEvent<{ status: EStatus}>} event */
-	const handleStatusChange = async (event) => {
+	const handleStatusChange = async (event: CustomEvent<{ status: EStatus }>) => {
 		if (!selectedEvent) return;
 		loading = true;
 		const res = await fetch(`/event/${selectedEvent.eventId}/status`, {
@@ -101,16 +86,15 @@
 			body: JSON.stringify({ status: event.detail.status })
 		});
 
-		const updatedEvent = /** @type {TAllTypesWithId} */ (await res.json());
-		events = /** @type {typeof events} */ (events.map((e) => (e.eventId === updatedEvent.eventId ? updatedEvent : e)));
+		const updatedEvent = await res.json();
+		events = events.map((e) => (e.eventId === updatedEvent.eventId ? updatedEvent : e));
 		selectedEvent = updatedEvent;
 		// TODO manage error
 		loading = false;
-		invalidateAll();
+		await invalidateAll();
 	};
 
-	/** @param {string} [tag] */
-	function setTag(tag) {
+	function setTag(tag?: string) {
 		let query = new URLSearchParams($page.url.searchParams.toString());
 		if (tag) {
 			query.set('tag', tag);
@@ -165,10 +149,7 @@
 			</SidebarGroup>
 			<SidebarGroup border>
 				{#each tags as tag (tag)}
-					<SidebarItem
-						on:click={() => setTag(tag)}
-						label={tag}
-					></SidebarItem>
+					<SidebarItem on:click={() => setTag(tag)} label={tag}></SidebarItem>
 				{/each}
 			</SidebarGroup>
 		</SidebarWrapper>
@@ -188,31 +169,36 @@
 	{/if}
 </div>
 <Table hoverable>
-  <TableHead>
-    <TableHeadCell>Title</TableHeadCell>
-  </TableHead>
-  <TableBody>
+	<TableHead>
+		<TableHeadCell>Title</TableHeadCell>
+	</TableHead>
+	<TableBody>
 		{#each groupedEvents as [status, events]}
 			{#if events.length > 0}
 				<TableBodyRow color="purple">
 					<TableBodyCell class="text-lg">
 						{status.toUpperCase()}
 					</TableBodyCell>
-				</TableBodyRow> 
+				</TableBodyRow>
 			{/if}
 			{#each events as event}
-				<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}" on:click={() => (selectedEvent = event)}>
-					<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}>{event.title}</TableBodyCell>
+				<TableBodyRow
+					class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}"
+					on:click={() => (selectedEvent = event)}
+				>
+					<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}
+						>{event.title}</TableBodyCell
+					>
 				</TableBodyRow>
 			{/each}
 		{/each}
-  </TableBody>
+	</TableBody>
 </Table>
 
 <DetailModal
 	{loading}
 	event={!idOfDeleting ? selectedEvent : undefined}
-	on:close={(e) => (selectedEvent = undefined)}
+	on:close={() => (selectedEvent = undefined)}
 	on:statuschange={handleStatusChange}
 	on:delete={() => (idOfDeleting = selectedEvent?.eventId)}
 />

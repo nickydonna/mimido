@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import {
 		addMinutes,
 		eachHourOfInterval,
@@ -16,7 +16,7 @@
 		AngleRightOutline,
 		ExclamationCircleOutline
 	} from 'flowbite-svelte-icons';
-	import { EType } from '$lib/parser/index';
+	import { EStatus, EType } from '$lib/parser/index.js';
 	import {
 		formatISO,
 		getMinutes,
@@ -27,44 +27,38 @@
 	} from 'date-fns';
 	import { enhance } from '$app/forms';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
-	import { getEventCardClass, isBlock, isEvent, isReminder, isTask, timeStore } from '$lib/util';
+	import { getEventCardClass, isBlock, isEvent, isReminder, isTask, timeStore } from '$lib/util.js';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Modal } from 'flowbite-svelte';
 	import { inview } from 'svelte-inview';
+	import type { Options, ObserverEventDetails } from 'svelte-inview';
+	import type { PageData, SubmitFunction } from './$types';
+	import type { TAllTypesWithId } from '$lib/server/calendar';
 
-	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
+	export let data: PageData;
 
-	/** @type {import('./$types').PageData} */
-	export let data;
-
-	/** @type {TAllTypesWithId | undefined} */
-	let selectedEvent;
-	/** @type {string | undefined} */
-	let idOfDeleting;
+	let selectedEvent: TAllTypesWithId | undefined;
+	let idOfDeleting: string | undefined;
 	let showDelete = false;
 	let loading = false;
-	/** @type {Date} */
-	let current;
-	/** @type {Array<{ time: Date, check: (d: Date) => boolean }>} */
-	let timeBlocks;
+	let current: Date;
+	let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }>;
 	let showingToday = false;
-	/** @type {Date} */
-	let currentTime;
+	let currentTime: Date;
 	/**
 	 * Row style for the time indicator
-	 * @type {{ neareastSlot: Date, offset: number }}
 	 */
-	let timeIndicator;
+	let timeIndicator: { nearestSlot: Date; offset: number };
 	timeStore.subscribe((storeTime) => {
 		currentTime = storeTime;
-		const neareastSlot = roundToNearestMinutes(storeTime, {
+		const nearestSlot = roundToNearestMinutes(storeTime, {
 			nearestTo: 15,
 			roundingMethod: 'floor'
 		});
-		const minutes = getMinutes(storeTime) - getMinutes(neareastSlot);
+		const minutes = getMinutes(storeTime) - getMinutes(nearestSlot);
 		timeIndicator = {
-			neareastSlot,
+			nearestSlot: nearestSlot,
 			offset: (minutes * 100) / 15
 		};
 	});
@@ -92,27 +86,18 @@
 	 * @param {(d: Date) => boolean} slotCheck
 	 * @returns {boolean}
 	 */
-	let timeCheck = (event, slotCheck) => {
+	let timeCheck = (event: TAllTypesWithId, slotCheck: (d: Date) => boolean) => {
 		if (!event.date) return false;
 
 		return slotCheck(event.date);
 	};
 
 	/**
-	 * @template {import('$lib/server/calendar').TAllTypes} T
-	 * @typedef {import('$lib/server/calendar').WithId<T>} WithId
-	 */
-	/** @typedef {import('$lib/server/calendar').TBlockSchema} TBlockSchema */
-	/** @typedef {import('$lib/server/calendar').TTaskSchema} TTaskSchema */
-	/** @typedef {import('$lib/server/calendar').TEventSchema} TEventSchema */
-	/** @typedef {import('$lib/server/calendar').TReminderSchema} TReminderSchema */
-
-	/**
 	 * @type {Array<
 	 * 	[EType, Array<TAllTypesWithId>]
 	 * >}
 	 */
-	let sortedEvents;
+	let sortedEvents: Array<[EType, Array<TAllTypesWithId>]>;
 	$: {
 		sortedEvents = [
 			[EType.BLOCK, data.events.filter(isBlock)],
@@ -122,8 +107,7 @@
 		];
 	}
 
-	/** @type {import('./$types').SubmitFunction} */
-	const onDelete = () => {
+	const onDelete: SubmitFunction = () => {
 		loading = true;
 		return async ({ update }) => {
 			loading = false;
@@ -138,9 +122,8 @@
 	 * if endTime is null, add 15 min to the start time
 	 * if the time is not in a 15 min slot, move it to the nearest before
 	 * if when moving start and end are the same, move the end 15 min later
-	 * @param {TAllTypesWithId} e
 	 */
-	function getScheduleSlot(e) {
+	function getScheduleSlot(e: TAllTypesWithId) {
 		if (!e.date) return '';
 		let startDate = roundToNearestMinutes(e.date, { nearestTo: 15, roundingMethod: 'floor' });
 		let endTime = e.endDate ?? addMinutes(15, e.date);
@@ -151,9 +134,7 @@
 		return `time-${format('HHmm', startDate)} / time-${format('HHmm', endTime)}`;
 	}
 
-	/** @typedef {import('$lib/parser').EStatus} EStatus */
-	/** @param {CustomEvent<{ status: EStatus}>} event */
-	const handleStatusChange = async (event) => {
+	const handleStatusChange = async (event: CustomEvent<{ status: EStatus }>) => {
 		if (!selectedEvent) return;
 		loading = true;
 		const res = await fetch(`/event/${selectedEvent.eventId}/status`, {
@@ -164,20 +145,17 @@
 		selectedEvent = /** @type {TAllTypesWithId} */ (await res.json());
 		// TODO manage error
 		loading = false;
-		invalidateAll();
+		await invalidateAll();
 	};
 	const modalZIndex = 40;
 
 	let currentTimeInView = false;
 	/** @type {import('svelte-inview').Options}*/
-	const inviewOption = {
+	const inviewOption: Options = {
 		rootMargin: '-50px'
 	};
 
-	/**
-	 * @param {CustomEvent<import('svelte-inview').ObserverEventDetails>} event
-	 */
-	const handleViewChange = ({ detail }) => {
+	const handleViewChange = ({ detail }: CustomEvent<ObserverEventDetails>) => {
 		currentTimeInView = detail.inView;
 	};
 	const scrollCurrentIntoView = () => {
@@ -212,7 +190,7 @@
 	<DetailModal
 		{loading}
 		event={!idOfDeleting ? selectedEvent : undefined}
-		on:close={(e) => (selectedEvent = undefined)}
+		on:close={() => (selectedEvent = undefined)}
 		on:statuschange={handleStatusChange}
 		on:delete={() => (idOfDeleting = selectedEvent?.eventId)}
 	/>
@@ -259,7 +237,7 @@
 				style:grid-column="times / reminder"
 				style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
 					'HHmm',
-					timeIndicator.neareastSlot
+					timeIndicator.nearestSlot
 				)}"
 			/>
 			<!-- Blur percentage time of current slot -->
@@ -267,7 +245,7 @@
 				class="pointer-events-none"
 				style:z-index={modalZIndex - 4}
 				style:grid-column="times / reminder"
-				style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+				style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
 			>
 				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
 			</div>
@@ -282,7 +260,7 @@
 			class="pointer-events-none"
 			style:z-index={modalZIndex - 3}
 			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
 		>
 			<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
 				<span class="relative px-2">
@@ -293,12 +271,12 @@
 		<!-- Dotted line for current time -->
 		<div
 			use:inview={inviewOption}
-			on:change={handleViewChange}
+			on:inview_change={handleViewChange}
 			id="current-time"
 			class="pointer-events-none"
 			style:z-index={modalZIndex - 3}
 			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeIndicator.neareastSlot)}"
+			style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
 		>
 			<div
 				style:top="{timeIndicator.offset}%"
@@ -376,10 +354,12 @@
 			rgba(0, 0, 0, 0.3) 20px
 		);
 	}
+
 	.card__bg-work {
 		background-position: center;
 		background-image: url('$lib/assets/work.jpg');
 	}
+
 	/** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
 
 	.time-slot {
@@ -387,6 +367,7 @@
 		margin-right: 0.5em;
 		border-right: 1px solid gray;
 	}
+
 	.schedule {
 		margin: 20px 0;
 		display: grid;

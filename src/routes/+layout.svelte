@@ -1,10 +1,12 @@
-<script>
+<script lang="ts">
 	import '../app.pcss';
 
 	import {
 		RectangleListOutline,
 		CalendarEditOutline,
-		PlusOutline, UserOutline, CloseOutline
+		PlusOutline,
+		UserOutline,
+		CloseOutline
 	} from 'flowbite-svelte-icons';
 	import BottomNav from 'flowbite-svelte/BottomNav.svelte';
 	import BottomNavItem from 'flowbite-svelte/BottomNavItem.svelte';
@@ -15,8 +17,9 @@
 	import { pwaAssetsHead } from 'virtual:pwa-assets/head';
 	import { onMount } from 'svelte';
 	import { Drawer } from 'flowbite-svelte';
-	import TaskForm from '$lib/components/task-form/index.js';
-	import { selectedEvent } from '$lib/stores.js';
+	import TaskForm from '$lib/components/task-form';
+	import { selectedEvent } from '$lib/stores';
+	import type { LayoutData } from './$types';
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
@@ -49,8 +52,7 @@
 
 	$: webManifest = pwaInfo ? pwaInfo.webManifest.linkTag : '';
 
-	/** @type {import('./$types').LayoutData} */
-	export let data;
+	export let data: LayoutData;
 	$: {
 		if ($selectedEvent) {
 			hideUpsertDrawer = false;
@@ -59,13 +61,12 @@
 
 	function closeDrawer() {
 		if ($selectedEvent) {
-			selectedEvent.set(undefined)
+			selectedEvent.set(undefined);
 		}
 		hideUpsertDrawer = true;
 	}
 
-	/** @type {string} */
-	let date;
+	let date: string;
 	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date());
 </script>
 
@@ -128,6 +129,6 @@
 	</BottomNav>
 {/if}
 
-{#await import('$lib/components/reload-prompt') then { default: ReloadPrompt }}
+{#await import('$lib/components/reload-prompt/index.js') then { default: ReloadPrompt }}
 	<ReloadPrompt />
 {/await}

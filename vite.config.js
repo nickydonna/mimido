@@ -12,7 +12,7 @@ export default defineConfig({
 	],
 	resolve: {
 		alias: {
-			"@zoneinfo": path.resolve(__dirname, 'src/lib/server/calendar/zoneinfo')
+			'@zoneinfo': path.resolve(__dirname, 'src/lib/server/calendar/zoneinfo')
 		}
 	},
 	test: {

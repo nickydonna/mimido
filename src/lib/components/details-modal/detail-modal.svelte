@@ -1,8 +1,17 @@
-<script>
+<script lang="ts">
 	import { Badge, Button, ButtonGroup, Modal } from 'flowbite-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { formatDuration } from 'date-fns';
-	import { getEventColor, importanceToString, isBlock, isDefined, isReminder, isTask, loadToString, urgencyToString } from '$lib/util';
+	import {
+		getEventColor,
+		importanceToString,
+		isBlock,
+		isDefined,
+		isReminder,
+		isTask,
+		loadToString,
+		urgencyToString
+	} from '$lib/util.js';
 	import {
 		AngleLeftOutline,
 		AngleRightOutline,
@@ -13,24 +22,25 @@
 	import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/core';
 	import { commonmark } from '@milkdown/preset-commonmark';
 	import { nord } from '@milkdown/theme-nord';
-	import { EStatus } from '$lib/parser';
-	import { rruleToText } from '$lib/utils/rrule';
-	import { selectedEvent } from '$lib/stores.js';
+	import { EStatus } from '$lib/parser/index.js';
+	import { rruleToText } from '$lib/utils/rrule.js';
+	import { selectedEvent } from '$lib/stores';
+	import type { EventDispatcher } from 'svelte';
+	import type { TAllTypesWithId } from '$lib/server/calendar';
 
-	/** @typedef {import('$lib/server/calendar').TAllTypesWithId} TAllTypesWithId */
-
-	/**
-	 * @type {import('svelte').EventDispatcher<{ close: null, delete: null, statuschange: { status: EStatus }}>}
-	 */
-	const dispatch = createEventDispatcher();
+	const dispatch: EventDispatcher<{
+		close: null;
+		delete: null;
+		statuschange: { status: EStatus };
+	}> = createEventDispatcher();
 
 	const onClose = () => dispatch('close');
 	const onDelete = () => dispatch('delete');
 	/** @param {EStatus} status */
-	const onStatusChange = (status) => dispatch('statuschange', { status });
+	const onStatusChange = (status: EStatus) => dispatch('statuschange', { status });
 
 	/** @type {TAllTypesWithId | undefined} */
-	export let event;
+	export let event: TAllTypesWithId | undefined;
 	export let loading = false;
 
 	let open = false;
@@ -38,24 +48,21 @@
 	$: open = !!event;
 	$: color = event ? getEventColor(event) : '';
 	const statuses = Object.values(EStatus);
-	/** @type {EStatus | undefined} */
-	let status;
-	/** @type {number | undefined }*/
-	let statusIdx = undefined;
+	let status: EStatus | undefined;
+	let statusIdx: number | undefined = undefined;
 	$: {
 		if (event && (isTask(event) || isReminder(event))) {
-			status = event.status;
-			statusIdx = statuses.indexOf(event.status);
+			status = event.status as EStatus;
+			statusIdx = statuses.indexOf(status);
 		}
 	}
 
-	/** @param {HTMLElement} dom */
-	function editor(dom) {
+	function editor(dom: HTMLElement) {
 		// to obtain the editor instance we need to store a reference of the editor.
 		Editor.make()
 			.config((ctx) => {
 				ctx.set(rootCtx, dom);
-				ctx.set(editorViewOptionsCtx, { editable: () => false })
+				ctx.set(editorViewOptionsCtx, { editable: () => false });
 				if (event?.description) {
 					ctx.set(defaultValueCtx, event.description);
 				}
@@ -64,7 +71,6 @@
 			.use(commonmark)
 			.create();
 	}
-
 </script>
 
 <Modal bind:open dismissable={false} on:close={() => (open = false)}>
@@ -75,39 +81,39 @@
 				{event?.title}
 			</div>
 			{#if status && isDefined(statusIdx)}
-			<div>
-				<ButtonGroup>
-					{#if status !== EStatus.BACK}
-						<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
-							<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
-						</Button>
-						<Button
-							disabled={loading}
-							on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx - 1])}
-							aria-label="Move to {statuses[statusIdx - 1]}"
-						>
-							<AngleLeftOutline class="me-2 h-4 w-4" />
-						</Button>
-					{/if}
-					<Button>{status.toUpperCase()}</Button>
-					{#if status !== EStatus.DONE}
-						<Button
-							disabled={loading}
-							on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx + 1])}
-							aria-label="Move to {statuses[statusIdx + 1]}"
-						>
-							<AngleRightOutline class="me-2 h-4 w-4" />
-						</Button>
-						<Button
-							disabled={loading}
-							on:click={() => onStatusChange(EStatus.DONE)}
-							aria-label="move to done"
-						>
-							<CheckOutline class="me-2 h-4 w-4" />
-						</Button>
-					{/if}
-				</ButtonGroup>
-			</div>
+				<div>
+					<ButtonGroup>
+						{#if status !== EStatus.BACK}
+							<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
+								<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
+							</Button>
+							<Button
+								disabled={loading}
+								on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx - 1])}
+								aria-label="Move to {statuses[statusIdx - 1]}"
+							>
+								<AngleLeftOutline class="me-2 h-4 w-4" />
+							</Button>
+						{/if}
+						<Button>{status.toUpperCase()}</Button>
+						{#if status !== EStatus.DONE}
+							<Button
+								disabled={loading}
+								on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx + 1])}
+								aria-label="Move to {statuses[statusIdx + 1]}"
+							>
+								<AngleRightOutline class="me-2 h-4 w-4" />
+							</Button>
+							<Button
+								disabled={loading}
+								on:click={() => onStatusChange(EStatus.DONE)}
+								aria-label="move to done"
+							>
+								<CheckOutline class="me-2 h-4 w-4" />
+							</Button>
+						{/if}
+					</ButtonGroup>
+				</div>
 			{/if}
 		</div>
 	</svelte:fragment>
@@ -141,22 +147,17 @@
 		{/if}
 	</p>
 	{#if !isBlock(event)}
-	<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
-		{importanceToString(event?.importance, '|')}
-		{urgencyToString(event?.urgency, '|')}
-		{loadToString(event?.load)}
-	</p>
+		<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+			{importanceToString(event?.importance, '|')}
+			{urgencyToString(event?.urgency, '|')}
+			{loadToString(event?.load)}
+		</p>
 	{/if}
 	<div use:editor class="prose-sm" />
 	<svelte:fragment slot="footer">
 		<div class="flex w-full">
 			<div class="flex-1">
-				<Button
-					disabled={loading}
-					color="red"
-					type="button"
-					on:click={onDelete}
-				>
+				<Button disabled={loading} color="red" type="button" on:click={onDelete}>
 					<TrashBinOutline />
 				</Button>
 			</div>
@@ -170,9 +171,9 @@
 					}}
 					class="mr-2"
 					color="alternative"
-					>
-						Edit
-					</Button>
+				>
+					Edit
+				</Button>
 			</div>
 		</div>
 	</svelte:fragment>
