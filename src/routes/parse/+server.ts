@@ -20,7 +20,7 @@ const openai = new OpenAi({
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
-	const { prompt } = /** @type {{ prompt: string, offset: number }} */ (await request.json());
+	const { prompt } = /** @type {{ prompt: string, offset: number }} */ await request.json();
 
 	const thread = await openai.beta.threads.create();
 
@@ -30,9 +30,7 @@ export async function POST({ request }) {
 	});
 	return new Promise((resolve) => {
 		run.on('messageDone', (message) => {
-			const content = (
-				message.content[0]
-			) as OpenAi.Beta.Threads.TextContentBlock;
+			const content = message.content[0] as OpenAi.Beta.Threads.TextContentBlock;
 			if (!content) resolve(json({}, { status: 204 }));
 			const event = JSON.parse(content.text.value);
 			const aiCtxDay = parseISO(event.now);

@@ -1,11 +1,8 @@
 // SPDX-FileCopyrightText: © 2017 EteSync Authors
 // SPDX-License-Identifier: MPL-2.0
 
-// Disable some style eslint rules for things we can't control
-/* eslint-disable @typescript-eslint/camelcase, @typescript-eslint/class-name-casing */
-
 declare module 'ical.js' {
-	function parse(input: string): any[];
+	function parse(input: string): Record<string, unknown> | Record<string, unknown>[];
 
 	export class helpers {
 		public static updateTimezones(vcal: Component): Component;
@@ -16,14 +13,14 @@ declare module 'ical.js' {
 
 		public name: string;
 
-		constructor(jCal: any[] | string, parent?: Component);
+		constructor(jCal: Record<string, unknown>[] | string, parent?: Component);
 
-		public toJSON(): any[];
+		public toJSON(): Record<string, unknown>[];
 
 		public getFirstSubcomponent(name?: string): Component | null;
 		public getAllSubcomponents(name?: string): Component[];
 
-		public getFirstPropertyValue<T = any>(name?: string): T;
+		public getFirstPropertyValue<T>(name?: string): T;
 
 		public getFirstProperty(name?: string): Property;
 		public getAllProperties(name?: string): Property[];
@@ -53,7 +50,7 @@ declare module 'ical.js' {
 
 		public constructor(
 			component?: Component | null,
-			options?: { strictExceptions: boolean; exepctions: Array<Component | Event> }
+			options?: { strictExceptions: boolean; exceptions: Array<Component | Event> }
 		);
 
 		public isRecurring(): boolean;
@@ -65,16 +62,16 @@ declare module 'ical.js' {
 		public name: string;
 		public type: string;
 
-		constructor(jCal: any[] | string, parent?: Component);
+		constructor(jCal: Record<string, unknown>[] | string, parent?: Component);
 
-		public getFirstValue<T = any>(): T;
-		public getFirstParameter<T = any>(name?: string): T;
-		public getValues<T = any>(): T[];
+		public getFirstValue<T>(): T;
+		public getFirstParameter<T>(name?: string): T;
+		public getValues<T>(): T[];
 
 		public setParameter(name: string, value: string | string[]): void;
 		public setValue(value: string | object): void;
 		public setValues(values: (string | object)[]): void;
-		public toJSON(): any;
+		public toJSON(): Record<string, unknown>[];
 	}
 
 	interface TimeJsonData {

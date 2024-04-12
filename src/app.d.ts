@@ -3,8 +3,6 @@
 // See https://kit.svelte.dev/docs/types#app
 import 'vite-plugin-pwa/pwa-assets';
 import type { CalendarBackend } from '$lib/server/calendar';
-import type { Session } from 'svelte-kit-cookie-session';
-import type { StringMappingType } from 'typescript';
 import type { User } from '$lib/server/db';
 
 interface CalendarAccess {

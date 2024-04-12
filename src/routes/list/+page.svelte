@@ -19,11 +19,11 @@
 		TableBodyCell,
 		TableBodyRow,
 		TableHead,
-		TableHeadCell
+		TableHeadCell,
+		Toggle,
+		GradientButton
 	} from 'flowbite-svelte';
 	import {
-		GridSolid,
-		MailBoxSolid,
 		BarsFromLeftOutline,
 		ExclamationCircleOutline,
 		CloseOutline
@@ -41,11 +41,13 @@
 	let tags: string[] = [];
 	let tagFilter: string | undefined;
 	let events = data.events;
+	let showDone = false;
 	let groupedEvents: Array<[EStatus, TAllTypesWithId[]]>;
 
 	$: {
 		tags = [...new Set(data.events.map((e) => e.tags).flat())];
 		showDelete = !!idOfDeleting;
+		showDone = $page.url.searchParams.get('showDone') === 'true';
 		tagFilter = $page.url.searchParams.get('tag') ?? undefined;
 		if (isDefined(tagFilter)) {
 			events = data.events.filter((e) => e.tags.includes(tagFilter as string));
@@ -55,7 +57,7 @@
 		groupedEvents = [
 			[EStatus.DOING, events.filter((e) => e.status === EStatus.DOING)],
 			[EStatus.TODO, events.filter((e) => e.status === EStatus.TODO)],
-			[EStatus.DONE, events.filter((e) => e.status === EStatus.DONE)],
+			[EStatus.DONE, showDone ? events.filter((e) => e.status === EStatus.DONE) : []],
 			[EStatus.BACK, events.filter((e) => e.status === EStatus.BACK)]
 		];
 	}
@@ -74,7 +76,7 @@
 	let spanClass = 'flex-1 ms-3 whitespace-nowrap';
 	let transitionParams = {
 		x: -320,
-		duration: 200,
+		duration: 100,
 		easing: sineIn
 	};
 
@@ -104,6 +106,17 @@
 		hideDrawer = true;
 		goto(`?${query.toString()}`);
 	}
+
+	function toggleDone() {
+		let query = new URLSearchParams($page.url.searchParams.toString());
+		if (showDone) {
+			query.delete('showDone');
+		} else {
+			query.set('showDone', 'true');
+		}
+		hideDrawer = true;
+		goto(`?${query.toString()}`);
+	}
 </script>
 
 <Drawer transitionType="fly" {transitionParams} bind:hidden={hideDrawer} id="sidebar1">
@@ -119,31 +132,9 @@
 	<Sidebar>
 		<SidebarWrapper divClass="overflow-y-auto py-4 px-3 rounded dark:bg-gray-800">
 			<SidebarGroup>
-				<SidebarItem label="Today" {spanClass}>
-					<svelte:fragment slot="icon">
-						<GridSolid
-							class="h-5 w-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white"
-						/>
-					</svelte:fragment>
+				<SidebarItem label="Show Down" {spanClass} on:click={toggleDone}>
 					<svelte:fragment slot="subtext">
-						<span
-							class="ms-3 inline-flex items-center justify-center rounded-full bg-gray-200 px-2 text-sm font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-						>
-						</span>
-					</svelte:fragment>
-				</SidebarItem>
-				<SidebarItem label="Inbox" {spanClass}>
-					<svelte:fragment slot="icon">
-						<MailBoxSolid
-							class="h-5 w-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white"
-						/>
-					</svelte:fragment>
-					<svelte:fragment slot="subtext">
-						<span
-							class="ms-3 inline-flex h-3 w-3 items-center justify-center rounded-full bg-primary-200 p-3 text-sm font-medium text-primary-600 dark:bg-primary-900 dark:text-primary-200"
-						>
-							3
-						</span>
+						<Toggle checked={showDone} />
 					</svelte:fragment>
 				</SidebarItem>
 			</SidebarGroup>
@@ -157,16 +148,24 @@
 </Drawer>
 
 <div class="flex mb-4">
-	<Button on:click={() => (hideDrawer = false)}>
-		<BarsFromLeftOutline />
-		Menu
-	</Button>
-	{#if tagFilter}
-		<Button class="ml-2" color="alternative" on:click={() => setTag()}>
-			Filtering by: {tagFilter}
-			<CloseOutline />
-		</Button>
-	{/if}
+	<div>
+		<GradientButton color="greenToBlue" on:click={() => (hideDrawer = false)}>
+			<BarsFromLeftOutline class="w-3.5 h-3.5 me-2" />
+			Menu
+		</GradientButton>
+	</div>
+	<div>
+		{#if tagFilter}
+			<GradientButton class="ml-2" color="tealToLime" on:click={() => setTag()}>
+				Filtering by: {tagFilter}
+				<CloseOutline class="w-3.5 h-3.5 ms-2" />
+			</GradientButton>
+		{/if}
+	</div>
+	<div class="flex-1"></div>
+	<div class="flex">
+		<Toggle checked={showDone} on:change={toggleDone}>Show Done</Toggle>
+	</div>
 </div>
 <Table hoverable>
 	<TableHead>

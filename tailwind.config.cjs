@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 const flattenColorPalette = require('tailwindcss/lib/util/flattenColorPalette');
 const Color = require('color');
 
