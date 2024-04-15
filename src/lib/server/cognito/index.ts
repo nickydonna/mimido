@@ -1,4 +1,5 @@
-import { COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, DOMAIN } from '$env/static/private';
+import { COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import { JwtExpiredError } from 'aws-jwt-verify/error';
 import type { CognitoToken } from '../../../app';
@@ -13,7 +14,7 @@ export function getCognitoUIUrl() {
 	params.set('response_type', 'code');
 	params.set('scope', 'email openid phone');
 	// Replace with actual URL
-	params.set('redirect_uri', `${DOMAIN}/cognito`);
+	params.set('redirect_uri', `${env.DOMAIN}/cognito`);
 	return (
 		'https://' +
 		COGNITO_UI_ID +
@@ -25,7 +26,7 @@ export function getCognitoUIUrl() {
 export async function getTokenFromCode(code: string): Promise<CognitoToken> {
 	const params = new URLSearchParams();
 	params.set('grant_type', 'authorization_code');
-	params.set('redirect_uri', `${DOMAIN}/cognito`);
+	params.set('redirect_uri', `${env.DOMAIN}/cognito`);
 	params.set('code', code);
 	const res = await fetch(
 		`https://${COGNITO_UI_ID}.auth.us-east-1.amazoncognito.com/oauth2/token`,
@@ -52,7 +53,7 @@ export async function refreshToken(
 	params.set('grant_type', 'refresh_token');
 	params.set('refresh_token', refreshToken);
 	params.set('client_id', COGNITO_CLIENT_ID);
-	params.set('redirect_uri', `${DOMAIN}/cognito`);
+	params.set('redirect_uri', `${env.DOMAIN}/cognito`);
 	const res = await fetch(
 		`https://${COGNITO_UI_ID}.auth.us-east-1.amazoncognito.com/oauth2/token`,
 		{

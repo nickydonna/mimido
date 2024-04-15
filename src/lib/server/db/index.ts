@@ -1,15 +1,11 @@
-import { REAL_DYNAMO } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import dynamoose from 'dynamoose';
 import { Item } from 'dynamoose/dist/Item';
 import type { ExtendCalendarAccess, UserCalendar } from '../../../app';
 
 // // Create new DynamoDB instance
-if (REAL_DYNAMO === 'true') {
+if (env.REAL_DYNAMO === 'true') {
 	const ddb = new dynamoose.aws.ddb.DynamoDB({
-		credentials: {
-			accessKeyId: 'AKID',
-			secretAccessKey: 'SECRET'
-		},
 		region: 'us-east-1'
 	});
 	// Set DynamoDB instance to the Dynamoose DDB instance
