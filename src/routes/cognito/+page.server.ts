@@ -10,9 +10,11 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	}
 
 	const token = await getTokenFromCode(code);
+	console.log(token);
 
 	const { payload, newToken } = await verifyToken(token.access_token, token.refresh_token);
 	const accessToken = newToken ?? token.access_token;
+	console.log(newToken);
 	cookies.set('token', accessToken, {
 		path: '/'
 	});
