@@ -10,13 +10,15 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	}
 
 	const token = await getTokenFromCode(code);
+	console.log(token);
+
+	const { payload } = await verifyToken(token.access_token, token.refresh_token);
 	cookies.set('token', token.access_token, {
 		path: '/'
 	});
 	cookies.set('refresh_token', token.refresh_token, {
 		path: '/'
 	});
-	const { payload } = await verifyToken(token.access_token, token.refresh_token);
 
 	const results = await UserModel.query('username').eq(payload.username).exec();
 	if (results.length === 0) {
