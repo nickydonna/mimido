@@ -1,13 +1,21 @@
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import adapter from 'amplify-adapter';
+import adapter from '@jill64/sveltekit-adapter-aws'
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
-		// adapter-auto only supports some environments, see https://kit.svelte.dev/docs/adapter-auto for a list.
-		// If your environment is not supported or you settled on a specific environment, switch out the adapter.
-		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
-		adapter: adapter()
+		adapter: adapter({
+			name: 'mimido',
+			deploy: true,
+			architecture: 'lambda-s3',
+			domain: {
+				fqdn: 'mimido.pirus.io',
+				certificateArn: 'arn:aws:acm:us-east-1:623155984954:certificate/f7f8860a-4fa3-4e54-8e38-3ca38efa42d5',
+			},
+			env: {
+				DOMAIN: 'https://mimido.pirus.io',
+			}
+		})
 	},
 
 	preprocess: [vitePreprocess({})]

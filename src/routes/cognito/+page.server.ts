@@ -10,7 +10,6 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	}
 
 	const token = await getTokenFromCode(code);
-	console.log(token);
 
 	const { payload } = await verifyToken(token.access_token, token.refresh_token);
 	cookies.set('token', token.access_token, {
