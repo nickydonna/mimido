@@ -1,15 +1,15 @@
 {
-	"main": {
-		"awscloudformation": {
-			"AuthRoleName": "amplify-mimido-main-677ea-authRole",
-			"UnauthRoleArn": "arn:aws:iam::623155984954:role/amplify-mimido-main-677ea-unauthRole",
-			"AuthRoleArn": "arn:aws:iam::623155984954:role/amplify-mimido-main-677ea-authRole",
-			"Region": "us-east-1",
-			"DeploymentBucketName": "amplify-mimido-main-677ea-deployment",
-			"UnauthRoleName": "amplify-mimido-main-677ea-unauthRole",
-			"StackName": "amplify-mimido-main-677ea",
-			"StackId": "arn:aws:cloudformation:us-east-1:623155984954:stack/amplify-mimido-main-677ea/00e35860-f20d-11ee-846a-0affd5b9fae9",
-			"AmplifyAppId": "d25tn49fsx4n1c"
-		}
-	}
+  "main": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-mimido-main-677ea-authRole",
+      "UnauthRoleArn": "arn:aws:iam::623155984954:role/amplify-mimido-main-677ea-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::623155984954:role/amplify-mimido-main-677ea-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-mimido-main-677ea-deployment",
+      "UnauthRoleName": "amplify-mimido-main-677ea-unauthRole",
+      "StackName": "amplify-mimido-main-677ea",
+      "StackId": "arn:aws:cloudformation:us-east-1:623155984954:stack/amplify-mimido-main-677ea/00e35860-f20d-11ee-846a-0affd5b9fae9",
+      "AmplifyAppId": "d25tn49fsx4n1c"
+    }
+  }
 }
