@@ -11,8 +11,9 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 
 	const token = await getTokenFromCode(code);
 
-	const { payload } = await verifyToken(token.access_token, token.refresh_token);
-	cookies.set('token', token.access_token, {
+	const { payload, newToken } = await verifyToken(token.access_token, token.refresh_token);
+	const accessToken = newToken ?? token.access_token;
+	cookies.set('token', accessToken, {
 		path: '/'
 	});
 	cookies.set('refresh_token', token.refresh_token, {
