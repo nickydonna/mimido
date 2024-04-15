@@ -7,13 +7,10 @@ export const alarmSchema = yup
 		isNegative: yup.boolean().required(),
 		duration: yup
 			.object({
-				years: yup.number(),
-				months: yup.number(),
 				weeks: yup.number(),
 				days: yup.number(),
 				hours: yup.number(),
 				minutes: yup.number(),
-				seconds: yup.number()
 			})
 			.required()
 	})

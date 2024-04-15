@@ -153,7 +153,7 @@
 			{loadToString(event?.load)}
 		</p>
 	{/if}
-	<div use:editor class="prose-sm" />
+	<div use:editor />
 	<svelte:fragment slot="footer">
 		<div class="flex w-full">
 			<div class="flex-1">

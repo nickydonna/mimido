@@ -34,7 +34,9 @@ const config = {
 		...includeColors
 			.map((c) => [`bg-${c}-600`, `border-${c}-900`, `bg-polka-${c}-800`, `text-${c}-600`])
 			.flat(),
-		'z-[11000]'
+		'z-[11000]',
+		'prose',
+		'dark:prose-invert',
 	],
 	theme: {
 		extend: {

@@ -1,8 +1,8 @@
-import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import type { DAVCalendar } from 'tsdav';
+import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { v4 } from 'uuid';
-import { add, addMinutes, startOfDay, isWithinInterval } from 'date-fns/fp';
+import { add, addMinutes, isWithinInterval, startOfDay } from 'date-fns/fp';
 import { endOfDay, isAfter } from 'date-fns';
 import yup, { type InferType } from 'yup';
 import { isValidRRule } from '$lib/utils/rrule';
@@ -86,7 +86,7 @@ const blockSchema = baseSchema.shape({
 });
 
 /**
- * Reminders must have an start date
+ * Reminders must have a start date
  * They also can have rank and status
  */
 const reminderSchema = rankingFields.concat(baseSchema).shape({
@@ -289,7 +289,7 @@ export class CalendarBackend {
 	/** @private */
 	async listTodosRaw() {
 		const calendar = await this.getCalendar();
-		const objects = await this.client.fetchCalendarObjects({
+		return await this.client.fetchCalendarObjects({
 			calendar: calendar,
 			filters: {
 				'comp-filter': {
@@ -304,8 +304,6 @@ export class CalendarBackend {
 				}
 			}
 		});
-
-		return objects;
 	}
 
 	async listTodos() {
@@ -375,8 +373,7 @@ export class CalendarBackend {
 		const isBetween = isWithinInterval({ start: from, end: to });
 
 		for (let index = 0; index < parsed.length; index++) {
-			/** @type {ICAL.Time | undefined} */
-			let currentOccurence;
+			let currentOccurrence: ICAL.Time | undefined;
 			const element = parsed[index];
 			const vevent = vevents[index];
 
@@ -402,15 +399,15 @@ export class CalendarBackend {
 					break;
 				}
 				if (next && isBetween(nextJS)) {
-					currentOccurence = next;
+					currentOccurrence = next;
 					break;
 				}
 				next = iterator.next();
 			}
 
-			if (currentOccurence) {
+			if (currentOccurrence) {
 				// @ts-expect-error add types
-				const details = element.icalEvent.getOccurrenceDetails(currentOccurence);
+				const details = element.icalEvent.getOccurrenceDetails(currentOccurrence);
 
 				const startDate = details.startDate;
 				const endDate = details.endDate;
@@ -449,8 +446,7 @@ export class CalendarBackend {
 		const dbEvent = await CalendarObjectModel.get({ id });
 		const comp = ICAL.Component.fromString(dbEvent.data);
 
-		/** @type {ReturnType<CalendarBackend['fromVTodo']> | ReturnType<CalendarBackend['fromVEvent']> | undefined} */
-		let result;
+		let result: ReturnType<CalendarBackend['fromVTodo']> | ReturnType<CalendarBackend['fromVEvent']> | undefined ;
 		if (id.startsWith('vevent-')) {
 			const vevent = comp.getFirstSubcomponent('vevent');
 			if (vevent) result = this.fromVEvent(vevent);
@@ -542,12 +538,7 @@ export class CalendarBackend {
 		return event;
 	}
 
-	/**
-	 * @private
-	 * @param {string | TAllTypesWithId} eventOrId
-	 * @returns {Promise<string>}
-	 */
-	async getEventUrl(eventOrId: string | TAllTypesWithId) {
+	private async getEventUrl(eventOrId: string | TAllTypesWithId) {
 		const calUrl = await this.getCalendarUrl();
 		return `${calUrl}${typeof eventOrId === 'string' ? eventOrId : eventOrId.eventId}.ics`;
 	}
@@ -557,21 +548,29 @@ export class CalendarBackend {
 		return (await this.getCalendar()).url;
 	}
 
+	private parseRankProp(comp: ICAL.Component): {
+		importance: number;
+		load: number;
+		urgency: number;
+	} {
+		let urgency = parseInt(comp.getFirstPropertyValue<string>(CustomPropName.URGENCY), 10);
+		urgency = Number.isFinite(urgency) ? urgency : 0;
+		let load = parseInt(comp.getFirstPropertyValue<string>(CustomPropName.LOAD), 10);
+		load = Number.isFinite(load) ? load : 0;
+		let importance = parseInt(comp.getFirstPropertyValue<string>(CustomPropName.IMPORTANCE), 10);
+		importance = Number.isFinite(importance) ? importance : 0;
+		return { importance, load, urgency };
+	}
+
 	/**
 	 * @param {ICAL.Component} vtodo - vtodo component from calendar
 	 * @return {{ event: WithId<TTaskSchema>, meta: TEventMeta }}
 	 */
 	fromVTodo(vtodo: ICAL.Component): { event: WithId<TTaskSchema>; meta: TEventMeta } {
-		const eventId = vtodo.getFirstPropertyValue('uid');
-		const title = vtodo.getFirstPropertyValue('summary');
-		let urgency = parseInt(vtodo.getFirstPropertyValue(CustomPropName.URGENCY), 10);
-		urgency = Number.isFinite(urgency) ? urgency : 0;
-		let load = parseInt(vtodo.getFirstPropertyValue(CustomPropName.LOAD), 10);
-		load = Number.isFinite(load) ? load : 0;
-		let importance = parseInt(vtodo.getFirstPropertyValue(CustomPropName.IMPORTANCE), 10);
-		importance = Number.isFinite(importance) ? importance : 0;
-		const description = vtodo.getFirstPropertyValue('description');
-
+		const eventId = vtodo.getFirstPropertyValue<string>('uid');
+		const title = vtodo.getFirstPropertyValue<string>('summary');
+		const { urgency, load, importance } = this.parseRankProp(vtodo);
+		const description = vtodo.getFirstPropertyValue<string>('description');
 		const tags = this.parseTags(vtodo);
 
 		return {
@@ -602,11 +601,10 @@ export class CalendarBackend {
 		meta: TEventMeta;
 	} {
 		const icalEvent = new ICAL.Event(vevent);
-		const date = /** @type {Date | undefined} */ icalEvent.startDate?.toJSDate();
-		/** @type {Date | undefined} */
-		let endDate;
+		const date = icalEvent.startDate?.toJSDate();
+		let endDate: Date | undefined;
 		if (icalEvent.endDate) {
-			endDate = /** @type {Date | undefined} */ icalEvent.endDate?.toJSDate();
+			endDate = icalEvent.endDate?.toJSDate();
 		} else if (date && icalEvent.duration) {
 			endDate = add(icalEvent.duration, date);
 		} else if (date) {
@@ -621,12 +619,7 @@ export class CalendarBackend {
 			recur = icalRecur.toString();
 		}
 
-		let urgency = parseInt(vevent.getFirstPropertyValue(CustomPropName.URGENCY), 10);
-		urgency = Number.isFinite(urgency) ? urgency : 0;
-		let load = parseInt(vevent.getFirstPropertyValue(CustomPropName.LOAD), 10);
-		load = Number.isFinite(load) ? load : 0;
-		let importance = parseInt(vevent.getFirstPropertyValue(CustomPropName.IMPORTANCE), 10);
-		importance = Number.isFinite(importance) ? importance : 0;
+		const { importance, urgency, load } = this.parseRankProp(vevent);
 
 		let alarms: TAlarmSchema[] = [];
 
@@ -636,8 +629,8 @@ export class CalendarBackend {
 				// Only support display, no email
 				.filter((comp) => comp.getFirstPropertyValue('action') === 'DISPLAY')
 				.map((comp) => {
-					// The ICAL duraction is not good for formating
-					const dur = comp.getFirstPropertyValue('trigger');
+					// The ICAL duration is not good for formating
+					const dur = comp.getFirstPropertyValue<ICAL.Duration>('trigger');
 					return {
 						related: 'START', // TODO check actual related
 						duration: {
@@ -664,10 +657,10 @@ export class CalendarBackend {
 			description: /** @type {string | undefined} */ icalEvent.description,
 			date,
 			endDate,
-			type: vevent.getFirstPropertyValue(CustomPropName.TYPE) ?? EStatus.TODO,
+			type: vevent.getFirstPropertyValue<EType>(CustomPropName.TYPE) ?? EType.TASK,
 			tags,
-			status: vevent.getFirstPropertyValue(CustomPropName.STATUS) ?? EStatus.TODO,
-			originalText: vevent.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
+			status: vevent.getFirstPropertyValue<EStatus>(CustomPropName.STATUS) ?? EStatus.TODO,
+			originalText: vevent.getFirstPropertyValue<string>(CustomPropName.ORIGINAL_TEXT) ?? '',
 			urgency,
 			importance,
 			load,
@@ -685,22 +678,22 @@ export class CalendarBackend {
 	parseTags(comp: ICAL.Component) {
 		const categories = comp
 			.getAllProperties('categories')
-			.map((v) => v.getFirstValue().replace('\\:', ':'));
+			.map((v) => v.getFirstValue<string>().replace('\\:', ':'));
 
 		if (categories.length > 0) return categories;
 
-		const tagProp = comp.getFirstPropertyValue(CustomPropName.TAG)?.trim() ?? '';
+		const tagProp = comp.getFirstPropertyValue<string>(CustomPropName.TAG)?.trim() ?? '';
 		return tagProp.length > 0 ? tagProp.split(',') : [];
 	}
 
 	/**
 	 * Transform an {@link TAllTypes} into a {@link ICAL.Component} for sending
 	 * If {@link TAllTypesWithId#eventId} is not defined, one will be created
-	 * @param {TAllTypes} eventData
-	 * @param {string} [eventId]
-	 * @returns {{ id: string, component: ICAL.Component, meta: TEventMeta }}
 	 */
-	toComponent(eventData: TAllTypes, eventId?: string) {
+	toComponent(
+		eventData: TAllTypes,
+		eventId?: string
+	): { id: string; component: ICAL.Component; meta: TEventMeta } {
 		const { description, date, endDate, alarms, title, recur, originalText, type, tags } =
 			eventData;
 		const component = new ICAL.Component(['vcalendar', [], []]);
@@ -768,8 +761,8 @@ export class CalendarBackend {
 			vcomponent.addPropertyWithValue(
 				'categories',
 				tags.map((t) => t.replace(':', '\\:')).join(',')
-			),
-				vcomponent.addPropertyWithValue(CustomPropName.TAG, tags.join(','));
+			)
+			vcomponent.addPropertyWithValue(CustomPropName.TAG, tags.join(','));
 		}
 
 		if (!isBlock(eventData)) {

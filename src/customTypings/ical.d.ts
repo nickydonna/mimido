@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: © 2017 EteSync Authors
 // SPDX-License-Identifier: MPL-2.0
 
-declare module 'ical.js' {
-	function parse(input: string): Record<string, unknown> | Record<string, unknown>[];
+type JCAL = string | Record<string,unknown> | JCAL[];
 
+declare module 'ical.js' {
+
+	function parse(input: string): JCAL;
 	export class helpers {
 		public static updateTimezones(vcal: Component): Component;
 	}
@@ -13,7 +15,7 @@ declare module 'ical.js' {
 
 		public name: string;
 
-		constructor(jCal: Record<string, unknown>[] | string, parent?: Component);
+		constructor(jCal: JCAL, parent?: Component);
 
 		public toJSON(): Record<string, unknown>[];
 
@@ -130,7 +132,7 @@ declare module 'ical.js' {
 		public hours: number;
 		public minutes: number;
 		public seconds: number;
-		public isNegative: number;
+		public isNegative: boolean;
 		constructor(data: {
 			weeks?: number;
 			days?: number;

@@ -12,7 +12,6 @@
 		Spinner,
 		Toggle
 	} from 'flowbite-svelte';
-
 	import { formatISODuration } from 'date-fns/fp';
 	import { formatDuration, parseISO } from 'date-fns';
 	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser/index.js';
@@ -27,6 +26,7 @@
 	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
 	import { createEventDispatcher, type EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
+	import '@milkdown/theme-nord/style.css'
 
 	export let event: TAllTypesWithId | undefined = undefined;
 
@@ -407,7 +407,7 @@
 				<Label for="description" class="text-md my-2 block text-gray-500 dark:text-gray-400">
 					Description
 				</Label>
-				<div use:editor class="prose-sm" />
+				<div use:editor />
 				<textarea name="description" class="hidden" bind:value={description} />
 				<div class="">
 					<Button type="submit" disabled={upserting}>
