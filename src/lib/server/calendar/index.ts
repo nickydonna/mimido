@@ -11,6 +11,7 @@ import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
 import { CalendarObjectModel, type User, UserModel } from '../db';
 import type { UserCalendar } from '../../../app';
+import dynamoose from 'dynamoose';
 
 export enum EType {
 	EVENT = 'event',
@@ -203,6 +204,13 @@ export class CalendarBackend {
 			const comp = ICAL.Component.fromString(obj.data);
 			const vevent = comp.getFirstSubcomponent('vevent');
 			const event = new ICAL.Event(vevent);
+			const rrule = vevent?.getFirstPropertyValue('rrule');
+			let recur: TAllTypes['recur'];
+
+			if (rrule) {
+				const icalRecur = new ICAL.Recur(rrule);
+				recur = icalRecur.toString();
+			}
 			return {
 				id: event.uid,
 				user: this.username,
@@ -212,6 +220,7 @@ export class CalendarBackend {
 				endDate: event.endDate.toJSDate(),
 				etag: obj.etag,
 				url: obj.url,
+				recur: recur,
 				icalType: 'vevent'
 			};
 		});
@@ -313,7 +322,7 @@ export class CalendarBackend {
 			calendarUrl: calendar.url,
 			user: this.username,
 			icalType: 'vtodo'
-		}).exec();
+		}).using('calendarUrl').exec();
 
 		return objects
 			.map((e) => {
@@ -343,18 +352,20 @@ export class CalendarBackend {
 
 	async listEvents(from: Date, to: Date, calendarName?: string) {
 		const calendar = await this.getCalendar(calendarName);
-		// const objects = await this.client.fetchCalendarObjects({
-		//     calendar: calendar,
-		//     timeRange: {
-		//       start: formatISO(from),
-		//       end: formatISO(to),
-		//     }
-		//   });
-		const objects = await CalendarObjectModel.scan({
+
+		const cond = new dynamoose.Condition({
 			calendarUrl: calendar.url,
 			user: this.username,
-			icalType: 'vevent'
-		}).exec();
+			icalType: 'vevent',
+		})
+			.parenthesis(condition =>
+				condition.parenthesis(condition =>
+					condition.where('date').ge(from.getTime())
+						.and().where('endDate').le(to.getTime())
+				).or().where('recur').exists()
+			)
+		const objects = await CalendarObjectModel.scan(cond)
+			.using('calendarUrl').exec();
 
 		return objects
 			.map((o) => o.data)
@@ -370,7 +381,6 @@ export class CalendarBackend {
 		if (vevents.length === 0) return;
 		const parsed = vevents.map((e) => this.fromVEvent(e));
 		let occurrenceEvent;
-		let eee
 		const isBetween = isWithinInterval({ start: from, end: to });
 
 		for (let index = 0; index < parsed.length; index++) {
@@ -408,7 +418,6 @@ export class CalendarBackend {
 			}
 
 			if (currentOccurrence) {
-				eee = vevent
 				// @ts-expect-error add types
 				const details = element.icalEvent.getOccurrenceDetails(currentOccurrence);
 

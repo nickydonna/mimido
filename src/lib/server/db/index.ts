@@ -59,8 +59,8 @@ export const UserModel = dynamoose.model<User>(
 				default: []
 			}
 		},
-		{ timestamps: true }
-	)
+		{ timestamps: true  }
+	), { create: true, update: true }
 );
 
 export interface CalendarObject extends Item {
@@ -87,8 +87,9 @@ export const CalendarObjectModel = dynamoose.model<CalendarObject>(
 		date: { type: Date },
 		endDate: { type: Date },
 		data: { type: String, required: true },
+		recur: { type: String },
 		icalType: { type: String, required: true, enum: ['vtodo', 'vevent'] }
-	})
+	}, { timestamps: true }), { create: true, update: true }
 );
 
 // class Event extends Item {
