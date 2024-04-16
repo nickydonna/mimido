@@ -7,7 +7,42 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
-			strategies: 'generateSW'
+			srcDir: './src',
+			scope: '/',
+			base: '/',
+			pwaAssets: {
+				config: true
+			},
+			registerType: 'autoUpdate',
+			strategies: 'generateSW',
+			devOptions: {
+				enabled: true,
+				type: 'module',
+				navigateFallback: '/'
+			},
+			injectManifest: {
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}']
+			},
+			workbox: {
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}']
+			},
+			includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+			manifest: {
+				name: 'MimiDo',
+				start_url: '/',
+				display: 'standalone',
+				short_name: 'MimiDo',
+				description: 'An app for organizing mimis',
+				theme_color: '#9CA3AF',
+				background_color: '#9CA3AF',
+				icons: [
+					{
+						src: '/frog.jpg',
+						sizes: '192x192',
+						type: 'image/jpg'
+					}
+				]
+			}
 		})
 	],
 	resolve: {
