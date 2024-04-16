@@ -2,11 +2,11 @@ import type { DAVCalendar } from 'tsdav';
 import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { v4 } from 'uuid';
-import { add, addMinutes, isWithinInterval, startOfDay } from 'date-fns/fp';
-import { endOfDay, isAfter } from 'date-fns';
+import { add, addMinutes, getTime, isWithinInterval, startOfDay } from 'date-fns/fp';
+import { endOfDay, formatISO, isAfter } from 'date-fns';
 import yup, { type InferType } from 'yup';
 import { isValidRRule } from '$lib/utils/rrule';
-import { isBlock, isDefined, isReminder, isTask } from '$lib/util';
+import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
 import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
 import { CalendarObjectModel, type User, UserModel } from '../db';
@@ -290,6 +290,7 @@ export class CalendarBackend {
 			if (etag) {
 				await CalendarObjectModel.update({ id, etag });
 			}
+			console.log('Create calendar object');
 		});
 
 		return { id, model };
@@ -315,16 +316,18 @@ export class CalendarBackend {
 		});
 	}
 
-	async listTodos() {
+	async listTodos({ excludeDone }: { excludeDone?: boolean } = {}) {
 		const calendar = await this.getCalendar();
 		// const objects = await this.listTodosRaw();
 		const objects = await CalendarObjectModel.scan({
 			calendarUrl: calendar.url,
 			user: this.username,
 			icalType: 'vtodo'
-		}).using('calendarUrl').exec();
+		})
+			.using('calendarUrl')
+			.exec();
 
-		return objects
+		const todos = objects
 			.map((e) => {
 				const comp = ICAL.Component.fromString(e.data);
 				const vtodo = comp.getFirstSubcomponent('vtodo');
@@ -333,6 +336,7 @@ export class CalendarBackend {
 				}
 			})
 			.filter(isDefined);
+		return excludeDone ? todos.filter((t) => !isDone(t)) : todos;
 	}
 
 	async listDayEvent(day: Date, calendar?: string) {
@@ -356,16 +360,11 @@ export class CalendarBackend {
 		const cond = new dynamoose.Condition({
 			calendarUrl: calendar.url,
 			user: this.username,
-			icalType: 'vevent',
-		})
-			.parenthesis(condition =>
-				condition.parenthesis(condition =>
-					condition.where('date').ge(from.getTime())
-						.and().where('endDate').le(to.getTime())
-				).or().where('recur').exists()
-			)
-		const objects = await CalendarObjectModel.scan(cond)
-			.using('calendarUrl').exec();
+			icalType: 'vevent'
+		}).parenthesis((condition) =>
+			condition.where('date').between(from.valueOf(), to.valueOf()).or().where('recur').exists()
+		);
+		const objects = await CalendarObjectModel.scan(cond).using('calendarUrl').exec();
 
 		return objects
 			.map((o) => o.data)
@@ -458,7 +457,10 @@ export class CalendarBackend {
 		const dbEvent = await CalendarObjectModel.get({ id });
 		const comp = ICAL.Component.fromString(dbEvent.data);
 
-		let result: ReturnType<CalendarBackend['fromVTodo']> | ReturnType<CalendarBackend['fromVEvent']> | undefined ;
+		let result:
+			| ReturnType<CalendarBackend['fromVTodo']>
+			| ReturnType<CalendarBackend['fromVEvent']>
+			| undefined;
 		if (id.startsWith('vevent-')) {
 			const vevent = comp.getFirstSubcomponent('vevent');
 			if (vevent) result = this.fromVEvent(vevent);
@@ -493,17 +495,14 @@ export class CalendarBackend {
 		if (!res) throw new Error('Event does not exists');
 		const { meta } = res;
 
-		const { component, id: newId } = this.toComponent(eventData, id);
+		const { component, id: newId, meta: newMeta } = this.toComponent(eventData, id);
 
 		// If event changed type, destroy and recreate
-		if (meta.icalType !== meta.icalType) {
+		if (meta.icalType !== newMeta.icalType) {
 			await this.deleteEvent(id);
-			const result = await this.client.createCalendarObject({
-				calendar: await this.getCalendar(),
-				filename: `${newId}.ics`,
-				iCalString: component.toString()
-			});
-			return { id, result };
+			const { id: newId } = await this.createEvent(eventData);
+			console.log('recreate', newId);
+			return { id: newId };
 		}
 
 		await CalendarObjectModel.update({ id }, { data: component.toString() });
@@ -530,6 +529,30 @@ export class CalendarBackend {
 			event.status = status;
 			return this.editEvent(eventId, event);
 		}
+	}
+
+	async removeDate(eventId: string) {
+		const res = await this.getEvent(eventId);
+		if (!res) {
+			throw new Error(`Could not find event with id: ${eventId}`);
+		}
+		const { event } = res;
+
+		event.date = undefined;
+		event.endDate = undefined;
+		return this.editEvent(eventId, event);
+	}
+
+	async updateDate(eventId: string, from: Date, to?: Date) {
+		const res = await this.getEvent(eventId);
+		if (!res) {
+			throw new Error(`Could not find event with id: ${eventId}`);
+		}
+		const { event } = res;
+
+		event.date = from;
+		event.endDate = to;
+		return this.editEvent(eventId, event);
 	}
 
 	async deleteEvent(id: string) {
@@ -773,7 +796,7 @@ export class CalendarBackend {
 			vcomponent.addPropertyWithValue(
 				'categories',
 				tags.map((t) => t.replace(':', '\\:')).join(',')
-			)
+			);
 			vcomponent.addPropertyWithValue(CustomPropName.TAG, tags.join(','));
 		}
 

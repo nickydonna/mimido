@@ -131,13 +131,6 @@
 	</div>
 	<Sidebar>
 		<SidebarWrapper divClass="overflow-y-auto py-4 px-3 rounded dark:bg-gray-800">
-			<SidebarGroup>
-				<SidebarItem label="Show Down" {spanClass} on:click={toggleDone}>
-					<svelte:fragment slot="subtext">
-						<Toggle checked={showDone} />
-					</svelte:fragment>
-				</SidebarItem>
-			</SidebarGroup>
 			<SidebarGroup border>
 				{#each tags as tag (tag)}
 					<SidebarItem on:click={() => setTag(tag)} label={tag}></SidebarItem>

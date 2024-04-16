@@ -7,10 +7,10 @@ import { LRUCache } from 'lru-cache';
 const options = {
 	max: 100,
 	// return stale items before removing from cache?
-	allowStale: false,
-}
+	allowStale: false
+};
 
-const loginCache = new LRUCache<string, User>(options)
+const loginCache = new LRUCache<string, User>(options);
 
 const unProtectedRoutes = ['/', '/cognito', '/sign-in', '/sign-up'];
 
@@ -23,7 +23,7 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 	if (!token && refresh) {
 		const res = await refreshToken(refresh);
 		token = res.access_token;
-		event.cookies.set('token', token, { path: '/' })
+		event.cookies.set('token', token, { path: '/' });
 	}
 
 	if (!token) {

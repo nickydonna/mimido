@@ -10,7 +10,7 @@ export const alarmSchema = yup
 				weeks: yup.number(),
 				days: yup.number(),
 				hours: yup.number(),
-				minutes: yup.number(),
+				minutes: yup.number()
 			})
 			.required()
 	})

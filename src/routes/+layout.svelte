@@ -2,9 +2,9 @@
 	/* eslint-disable svelte/no-at-html-tags */
 	import '../app.pcss';
 
-	import { navigating } from "$app/stores"
-	import { expoOut } from "svelte/easing"
-	import { slide } from "svelte/transition"
+	import { navigating } from '$app/stores';
+	import { expoOut } from 'svelte/easing';
+	import { slide } from 'svelte/transition';
 
 	import {
 		RectangleListOutline,
@@ -95,7 +95,7 @@
 	-->
 	<div
 		class="fixed top-0 right-0 left-0 h-2 rounded-r-lg z-[100] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
-		in:slide={{ delay: 50, duration: 12000, axis: "x", easing: expoOut }}
+		in:slide={{ delay: 50, duration: 12000, axis: 'x', easing: expoOut }}
 	></div>
 {/if}
 <div class="container mx-auto h-full">

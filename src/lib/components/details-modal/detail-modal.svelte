@@ -27,11 +27,14 @@
 	import { selectedEvent } from '$lib/stores';
 	import type { EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
+	import { format } from 'date-fns/fp';
+	import { invalidateAll } from '$app/navigation';
 
 	const dispatch: EventDispatcher<{
 		close: null;
 		delete: null;
 		statuschange: { status: EStatus };
+		removeDate: null;
 	}> = createEventDispatcher();
 
 	const onClose = () => dispatch('close');
@@ -47,6 +50,7 @@
 	let color = '';
 	$: open = !!event;
 	$: color = event ? getEventColor(event) : '';
+	const dateFormat = format("E dd LLL yy 'at' HH:mm");
 	const statuses = Object.values(EStatus);
 	let status: EStatus | undefined;
 	let statusIdx: number | undefined = undefined;
@@ -71,48 +75,92 @@
 			.use(commonmark)
 			.create();
 	}
+
+	async function handleRemoveDate() {
+		if (!event) return;
+		loading = true;
+		await fetch(`/event/${event.eventId}/removeDate`, {
+			method: 'PUT'
+		});
+
+		await invalidateAll()
+		loading = false;
+		dispatch('removeDate');
+	}
 </script>
 
 <Modal bind:open dismissable={false} on:close={() => (open = false)}>
 	<svelte:fragment slot="header">
 		<div class="flex w-full">
 			<div class="flex-1 self-center">
-				<span class="mr-1 text-{color}-600">{event?.type.toUpperCase()}:</span>
-				{event?.title}
+				<div class="text-lg mb-1.5">
+					<span class="mr-1 text-{color}-600">{event?.type.toUpperCase()}:</span>
+					{event?.title}
+				</div>
+				<div>
+					{#if event?.date && event?.endDate}
+						<p class="font-semibold text-base leading-relaxed text-gray-500 dark:text-gray-400">
+							from
+							<span class="underline">
+								{dateFormat(event?.date)}
+							</span>
+							until
+							<span class="underline">
+								{dateFormat(event?.endDate)}
+							</span>
+						</p>
+					{:else if event?.date}
+						<p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+							on
+							<span class="underline">
+								{dateFormat(event?.date)}
+							</span>
+						</p>
+					{/if}
+				</div>
 			</div>
 			{#if status && isDefined(statusIdx)}
-				<div>
-					<ButtonGroup>
-						{#if status !== EStatus.BACK}
-							<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
-								<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
-							</Button>
-							<Button
-								disabled={loading}
-								on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx - 1])}
-								aria-label="Move to {statuses[statusIdx - 1]}"
+				<div class="self-center">
+					<div class="block mb-1.5">
+						<ButtonGroup>
+							{#if status !== EStatus.BACK}
+								<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
+									<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
+								</Button>
+								<Button
+									disabled={loading}
+									on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx - 1])}
+									aria-label="Move to {statuses[statusIdx - 1]}"
+								>
+									<AngleLeftOutline class="me-2 h-4 w-4" />
+								</Button>
+							{/if}
+							<Button>{status.toUpperCase()}</Button>
+							{#if status !== EStatus.DONE}
+								<Button
+									disabled={loading}
+									on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx + 1])}
+									aria-label="Move to {statuses[statusIdx + 1]}"
+								>
+									<AngleRightOutline class="me-2 h-4 w-4" />
+								</Button>
+								<Button
+									disabled={loading}
+									on:click={() => onStatusChange(EStatus.DONE)}
+									aria-label="move to done"
+								>
+									<CheckOutline class="me-2 h-4 w-4" />
+								</Button>
+							{/if}
+						</ButtonGroup>
+					</div>
+					{#if event?.date}
+						<div class="text-right">
+							<Button on:click={() => handleRemoveDate()} size="xs" color="purple"
+								>Remove Dates</Button
 							>
-								<AngleLeftOutline class="me-2 h-4 w-4" />
-							</Button>
-						{/if}
-						<Button>{status.toUpperCase()}</Button>
-						{#if status !== EStatus.DONE}
-							<Button
-								disabled={loading}
-								on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx + 1])}
-								aria-label="Move to {statuses[statusIdx + 1]}"
-							>
-								<AngleRightOutline class="me-2 h-4 w-4" />
-							</Button>
-							<Button
-								disabled={loading}
-								on:click={() => onStatusChange(EStatus.DONE)}
-								aria-label="move to done"
-							>
-								<CheckOutline class="me-2 h-4 w-4" />
-							</Button>
-						{/if}
-					</ButtonGroup>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>

@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: © 2017 EteSync Authors
 // SPDX-License-Identifier: MPL-2.0
 
-type JCAL = string | Record<string,unknown> | JCAL[];
+type JCAL = string | Record<string, unknown> | JCAL[];
 
 declare module 'ical.js' {
-
 	function parse(input: string): JCAL;
 	export class helpers {
 		public static updateTimezones(vcal: Component): Component;

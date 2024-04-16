@@ -36,7 +36,7 @@ const config = {
 			.flat(),
 		'z-[11000]',
 		'prose',
-		'dark:prose-invert',
+		'dark:prose-invert'
 	],
 	theme: {
 		extend: {

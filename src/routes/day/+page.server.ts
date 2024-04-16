@@ -3,11 +3,11 @@ import { fail } from '@sveltejs/kit';
 import { parseISO } from 'date-fns/fp';
 import type { TAllTypesWithId } from '$lib/server/calendar';
 
-/** @type {import('./$types').PageServerLoad<{ date: Date, events: TAllTypesWithId[], externalEvents: TAllTypesWithId[] }>} */
 export const load: PageServerLoad<{
 	date: Date;
 	events: TAllTypesWithId[];
 	externalEvents: TAllTypesWithId[];
+	tasks: TAllTypesWithId[];
 }> = async ({ locals, url }) => {
 	const queryDate = url.searchParams.get('date');
 	const date = queryDate ? parseISO(queryDate) : new Date();
@@ -30,7 +30,8 @@ export const load: PageServerLoad<{
 	return {
 		date,
 		externalEvents: (await externalEvents).flat(),
-		events: await events
+		events: await events,
+		tasks: await backend.listTodos({ excludeDone: true })
 	};
 };
 

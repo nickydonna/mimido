@@ -26,7 +26,7 @@
 	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
 	import { createEventDispatcher, type EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
-	import '@milkdown/theme-nord/style.css'
+	import '@milkdown/theme-nord/style.css';
 
 	export let event: TAllTypesWithId | undefined = undefined;
 

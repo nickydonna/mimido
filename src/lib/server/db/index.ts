@@ -59,8 +59,9 @@ export const UserModel = dynamoose.model<User>(
 				default: []
 			}
 		},
-		{ timestamps: true  }
-	), { create: false, update: true, throughput: 'ON_DEMAND' }
+		{ timestamps: true }
+	),
+	{ create: false, update: true, throughput: 'ON_DEMAND' }
 );
 
 export interface CalendarObject extends Item {
@@ -78,18 +79,22 @@ export interface CalendarObject extends Item {
 
 export const CalendarObjectModel = dynamoose.model<CalendarObject>(
 	'CalendarObject',
-	new dynamoose.Schema({
-		id: { type: String, required: true, hashKey: true },
-		user: { type: String, required: true, index: { type: 'global', name: 'user' } },
-		url: { type: String, required: true },
-		calendarUrl: { type: String, required: true, index: { type: 'global', name: 'calendarUrl' } },
-		etag: { type: String },
-		date: { type: Date },
-		endDate: { type: Date },
-		data: { type: String, required: true },
-		recur: { type: String },
-		icalType: { type: String, required: true, enum: ['vtodo', 'vevent'] }
-	}, { timestamps: true }), { create: false, update: true, throughput: 'ON_DEMAND' }
+	new dynamoose.Schema(
+		{
+			id: { type: String, required: true, hashKey: true },
+			user: { type: String, required: true, index: { type: 'global', name: 'user' } },
+			url: { type: String, required: true },
+			calendarUrl: { type: String, required: true, index: { type: 'global', name: 'calendarUrl' } },
+			etag: { type: String },
+			date: { type: Date },
+			endDate: { type: Date },
+			data: { type: String, required: true },
+			recur: { type: String },
+			icalType: { type: String, required: true, enum: ['vtodo', 'vevent'] }
+		},
+		{ timestamps: true }
+	),
+	{ create: false, update: true, throughput: 'ON_DEMAND' }
 );
 
 // class Event extends Item {

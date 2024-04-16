@@ -14,6 +14,7 @@
 	import {
 		AngleLeftOutline,
 		AngleRightOutline,
+		BarsFromLeftOutline,
 		ExclamationCircleOutline
 	} from 'flowbite-svelte-icons';
 	import { EStatus, EType } from '$lib/parser/index.js';
@@ -27,18 +28,48 @@
 	} from 'date-fns';
 	import { enhance } from '$app/forms';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
-	import { getEventCardClass, isBlock, isEvent, isReminder, isTask, timeStore } from '$lib/util.js';
+	import {
+		getEventCardClass,
+		isBlock,
+		isDone,
+		isEvent,
+		isReminder,
+		isTask,
+		timeStore
+	} from '$lib/util.js';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { Modal } from 'flowbite-svelte';
+	import {
+		GradientButton,
+		Modal,
+		Spinner,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
+	} from 'flowbite-svelte';
 	import { inview } from 'svelte-inview';
 	import type { Options, ObserverEventDetails } from 'svelte-inview';
 	import type { PageData, SubmitFunction } from './$types';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
 
+	import { Drawer, CloseButton } from 'flowbite-svelte';
+	import { sineIn } from 'svelte/easing';
+
+	let hideTaskDrawer = true;
+	let transitionParams = {
+		x: -320,
+		duration: 200,
+		easing: sineIn
+	};
+
 	export let data: PageData;
 
 	let selectedEvent: TAllTypesWithId | undefined;
+	let dragging: TAllTypesWithId | undefined;
+	let hoverTime: Date | undefined;
 	let idOfDeleting: string | undefined;
 	let showDelete = false;
 	let loading = false;
@@ -73,30 +104,14 @@
 			.flat();
 		timeBlocks = eachHour.map((h) => ({
 			time: h,
-			// TODO maybe memo this?
-			check:
-				/** @type {(d: Date) => boolean} */
-				(isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) }))
+			check: isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) })
 		}));
 		showDelete = !!idOfDeleting;
 	}
 
-	/**
-	 * @param {TAllTypesWithId} event
-	 * @param {(d: Date) => boolean} slotCheck
-	 * @returns {boolean}
-	 */
-	let timeCheck = (event: TAllTypesWithId, slotCheck: (d: Date) => boolean) => {
-		if (!event.date) return false;
+	let timeCheck = (event: TAllTypesWithId, slotCheck: (d: Date) => boolean) =>
+		!!event.date && slotCheck(event.date);
 
-		return slotCheck(event.date);
-	};
-
-	/**
-	 * @type {Array<
-	 * 	[EType, Array<TAllTypesWithId>]
-	 * >}
-	 */
 	let sortedEvents: Array<[EType, Array<TAllTypesWithId>]>;
 	$: {
 		sortedEvents = [
@@ -118,7 +133,7 @@
 	};
 
 	/**
-	 * Give a time slot find the begin and end time grid slot
+	 * Give a time slot find the start and end time grid slot
 	 * if endTime is null, add 15 min to the start time
 	 * if the time is not in a 15 min slot, move it to the nearest before
 	 * if when moving start and end are the same, move the end 15 min later
@@ -150,7 +165,6 @@
 	const modalZIndex = 40;
 
 	let currentTimeInView = false;
-	/** @type {import('svelte-inview').Options}*/
 	const inviewOption: Options = {
 		rootMargin: '-50px'
 	};
@@ -159,18 +173,41 @@
 		currentTimeInView = detail.inView;
 	};
 	const scrollCurrentIntoView = () => {
-		const el = document.getElementById('current-time');
-		if (!el) return;
-
-		el.scrollIntoView({
+		document.getElementById('current-time')?.scrollIntoView({
 			block: 'center',
 			behavior: 'smooth'
 		});
 	};
+
+	async function handleDragDrop(e: Event, timeSlot: Date) {
+		e.preventDefault();
+		console.log('dropped in ', timeSlot);
+		if (!dragging) return;
+		loading = true;
+		await fetch(`/event/${dragging.eventId}/date`, {
+			method: 'PUT',
+			body: JSON.stringify({ from: formatISO(timeSlot) })
+		});
+
+		dragging = undefined;
+		hideTaskDrawer = true;
+		hoverTime = undefined;
+		// TODO manage error
+		loading = false;
+		await invalidateAll();
+	}
 </script>
 
 <div>
 	<div class="flex">
+		<GradientButton
+			class="flex-0 mr-2"
+			color="greenToBlue"
+			disabled={loading}
+			on:click={() => (hideTaskDrawer = false)}
+		>
+			<BarsFromLeftOutline class="w-4 h-4" />
+		</GradientButton>
 		<div class="flex-1">
 			<p class="text-4xl dark:text-white">
 				{format('do MMM yy ', data.date)}
@@ -187,12 +224,20 @@
 		</ButtonGroup>
 	</div>
 
+	<Modal open={loading && !selectedEvent} dismissable={false} autoclose={false}>
+		<div class="text-center text-lg font-bold">
+			<p>Working...</p>
+			<Spinner color="green" size={10} class="mt-2" />
+		</div>
+	</Modal>
+
 	<DetailModal
 		{loading}
 		event={!idOfDeleting ? selectedEvent : undefined}
 		on:close={() => (selectedEvent = undefined)}
 		on:statuschange={handleStatusChange}
 		on:delete={() => (idOfDeleting = selectedEvent?.eventId)}
+		on:removeDate={() => (selectedEvent = undefined)}
 	/>
 	<Modal bind:open={showDelete} size="xs" on:close={() => (idOfDeleting = undefined)}>
 		<div class="text-center">
@@ -229,7 +274,7 @@
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
-		{#if showingToday}
+		{#if showingToday && !dragging}
 			<!-- Blur time before current slot -->
 			<div
 				class="blurred-time pointer-events-none"
@@ -291,13 +336,28 @@
 			>
 				{format('HH:mm', time)}
 			</h2>
+			<div
+				class:hidden={hoverTime !== time}
+				class="z-40 text-center font-bold text-lg bg-blue-800"
+				style:grid-column="event / time"
+				style:grid-row="time-{format('HHmm', time)}"
+			>
+				{format('HH:mm', time)}
+			</div>
 			{#each sortedEvents as [type, events], i}
 				<div
+					aria-hidden="true"
 					class="border-t border-dotted"
+					class:z-50={dragging}
 					class:border-gray-600={getMinutes(time) === 0}
 					class:border-gray-300={getMinutes(time) === 30}
 					style:grid-column={type}
 					style:grid-row="time-{format('HHmm', time)}"
+					on:dragenter={() => (hoverTime = time)}
+					on:drop={(e) => {
+						handleDragDrop(e, time);
+					}}
+					ondragover="return false"
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
 					<div
@@ -331,6 +391,58 @@
 		{/each}
 	</div>
 </div>
+
+<Drawer
+	backdrop={false}
+	transitionType="fly"
+	{transitionParams}
+	bind:hidden={hideTaskDrawer}
+	id="sidebar1"
+>
+	<div class="flex items-center">
+		<h5
+			id="drawer-label"
+			class="inline-flex items-center mb-4 text-base font-semibold text-gray-500 dark:text-gray-400"
+		>
+			Tasks
+		</h5>
+		<CloseButton on:click={() => (hideTaskDrawer = true)} class="mb-4 dark:text-white" />
+	</div>
+	<p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Drop your task on time slots</p>
+
+	<div class="pr-1">
+		<Table hoverable divClass="overflow-hidden">
+			<TableHead>
+				<TableHeadCell>Title</TableHeadCell>
+			</TableHead>
+			<TableBody>
+				{#each data.tasks as event}
+					<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}">
+						<TableBodyCell
+							on:click={() => {
+								selectedEvent = event;
+								hideTaskDrawer = true;
+							}}
+							class={isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'}
+						>
+							<div
+								draggable="true"
+								aria-hidden="true"
+								on:dragstart={() => (dragging = event)}
+								on:dragend={() => {
+									dragging = undefined;
+									hoverTime = undefined;
+								}}
+							>
+								{event.title}
+							</div>
+						</TableBodyCell>
+					</TableBodyRow>
+				{/each}
+			</TableBody>
+		</Table>
+	</div>
+</Drawer>
 
 <style>
 	.glass {
