@@ -20,6 +20,7 @@ export const actions: Actions = {
 			await back.check();
 			locals.user.main = auth;
 			await locals.user.save();
+			locals.loginCache.delete(locals.user.username)
 		} catch (e) {
 			return error(500, e instanceof Error ? e.message : '');
 		}
@@ -40,6 +41,7 @@ export const actions: Actions = {
 			}
 		];
 		await locals.user.save();
+		locals.loginCache.delete(locals.user.username)
 		throw redirect(302, '/day');
 	},
 	resync: async ({ locals }) => {

@@ -38,6 +38,7 @@
 		"flowbite-svelte-blocks": "^1.1.0",
 		"globals": "^15.0.0",
 		"just-memoize": "^2.2.0",
+		"lru-cache": "^10.2.0",
 		"openai": "^4.32.1",
 		"postcss": "^8.4.32",
 		"postcss-load-config": "^5.0.2",

@@ -3,7 +3,8 @@
 // See https://kit.svelte.dev/docs/types#app
 import 'vite-plugin-pwa/pwa-assets';
 import type { CalendarBackend } from '$lib/server/calendar';
-import type { User } from '$lib/server/db';
+import { type User } from '$lib/server/db';
+import { LRUCache } from 'lru-cache';
 
 interface CalendarAccess {
 	type: 'oauth' | 'extend';
@@ -52,6 +53,7 @@ declare global {
 			loggedIn: boolean;
 			user: User;
 			backend: CalendarBackend;
+			loginCache: LRUCache<string, User>;
 		}
 		// interface PageData {}
 		// interface PageState {}

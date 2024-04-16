@@ -1,12 +1,23 @@
 import { getBackend } from '$lib/server/calendar/index.js';
 import { refreshToken, verifyToken } from '$lib/server/cognito/index.js';
-import { UserModel } from '$lib/server/db/index.js';
+import { type User, UserModel } from '$lib/server/db/index.js';
 import { redirect } from '@sveltejs/kit';
+import { LRUCache } from 'lru-cache';
+
+const options = {
+	max: 100,
+	ttl: 1000 * 60 * 5,
+	// return stale items before removing from cache?
+	allowStale: false,
+}
+
+const loginCache = new LRUCache<string, User>(options)
 
 const unProtectedRoutes = ['/', '/cognito', '/sign-in', '/sign-up'];
 
 export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event }) => {
 	event.locals.loggedIn = false;
+	event.locals.loginCache = loginCache;
 	let token = event.cookies.get('token');
 	const refresh = event.cookies.get('refresh_token');
 
@@ -29,7 +40,11 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 	}
 	event.locals.loggedIn = true;
 
-	const user = await UserModel.get({ username: payload.username });
+	let user = loginCache.get(payload.username);
+	if (!user) {
+		user = await UserModel.get({ username: payload.username });
+	}
+
 	event.locals.user = user;
 	if (user.main) {
 		event.locals.backend = await getBackend(user);
