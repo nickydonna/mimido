@@ -8,6 +8,7 @@ const config = {
 			name: 'mimido',
 			deploy: true,
 			architecture: 'lambda-s3',
+			memory: 512,
 			domain: {
 				fqdn: 'mimido.pirus.io',
 				certificateArn: 'arn:aws:acm:us-east-1:623155984954:certificate/f7f8860a-4fa3-4e54-8e38-3ca38efa42d5',
