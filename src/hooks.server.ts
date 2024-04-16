@@ -1,5 +1,6 @@
 import { getBackend } from '$lib/server/calendar/index.js';
-import { refreshToken, verifyToken } from '$lib/server/cognito/index.js';
+import { PUBLIC_COGNITO_CLIENT_ID } from '$env/static/public';
+import { verifyToken } from '$lib/server/cognito/index.js';
 import { type User, UserModel } from '$lib/server/db/index.js';
 import { redirect } from '@sveltejs/kit';
 import { LRUCache } from 'lru-cache';
@@ -17,14 +18,11 @@ const unProtectedRoutes = ['/', '/cognito', '/sign-in', '/sign-up'];
 export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event }) => {
 	event.locals.loggedIn = false;
 	event.locals.loginCache = loginCache;
-	let token = event.cookies.get('token');
-	const refresh = event.cookies.get('refresh_token');
-
-	if (!token && refresh) {
-		const res = await refreshToken(refresh);
-		token = res.access_token;
-		event.cookies.set('token', token, { path: '/' });
-	}
+	const cookies = event.cookies.getAll()
+	const token = cookies.find(({ name }) =>
+		name.startsWith(`CognitoIdentityServiceProvider.${PUBLIC_COGNITO_CLIENT_ID}`)
+		&& name.endsWith('accessToken')
+	)?.value
 
 	if (!token) {
 		if (!unProtectedRoutes.includes(event.url.pathname)) {
@@ -33,7 +31,7 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 		return resolve(event);
 	}
 
-	const { payload, newToken } = await verifyToken(token, refresh);
+	const { payload, newToken } = await verifyToken(token);
 	if (newToken) {
 		event.cookies.set('token', newToken, { path: '/' });
 	}

@@ -83,7 +83,7 @@
 			method: 'PUT'
 		});
 
-		await invalidateAll()
+		await invalidateAll();
 		loading = false;
 		dispatch('removeDate');
 	}
