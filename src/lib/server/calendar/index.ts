@@ -370,6 +370,7 @@ export class CalendarBackend {
 		if (vevents.length === 0) return;
 		const parsed = vevents.map((e) => this.fromVEvent(e));
 		let occurrenceEvent;
+		let eee
 		const isBetween = isWithinInterval({ start: from, end: to });
 
 		for (let index = 0; index < parsed.length; index++) {
@@ -390,6 +391,7 @@ export class CalendarBackend {
 				component: vevent,
 				dtstart: vevent.getFirstPropertyValue('dtstart')
 			});
+
 			// next is always an ICAL.Time or null
 			let next: ICAL.Time | null = iterator.next();
 			while (next) {
@@ -406,6 +408,7 @@ export class CalendarBackend {
 			}
 
 			if (currentOccurrence) {
+				eee = vevent
 				// @ts-expect-error add types
 				const details = element.icalEvent.getOccurrenceDetails(currentOccurrence);
 

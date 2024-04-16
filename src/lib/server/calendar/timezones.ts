@@ -7,7 +7,7 @@ const tzFiles: Record<string, string> = import.meta.glob('@zoneinfo/**/*.ics', {
 }); // Import all
 
 function registerTz(tzInfo: string) {
-	const parsed = ICAL.parse(tzInfo);
+	const parsed = ICAL.parse(tzInfo.replace('/citadel.org/20240317_1/', ''));
 	const comp = new ICAL.Component(parsed);
 	const vtimezone = comp.getFirstSubcomponent('vtimezone');
 	if (!vtimezone) throw new Error('Could not find vtimezone');

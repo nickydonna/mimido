@@ -80,9 +80,9 @@ export const CalendarObjectModel = dynamoose.model<CalendarObject>(
 	'CalendarObject',
 	new dynamoose.Schema({
 		id: { type: String, required: true, hashKey: true },
-		user: { type: String, required: true, index: { type: 'local', name: 'user' } },
+		user: { type: String, required: true, index: { type: 'global', name: 'user' } },
 		url: { type: String, required: true },
-		calendarUrl: { type: String, required: true, index: { type: 'local', name: 'calendarUrl' } },
+		calendarUrl: { type: String, required: true, index: { type: 'global', name: 'calendarUrl' } },
 		etag: { type: String },
 		date: { type: Date },
 		endDate: { type: Date },
