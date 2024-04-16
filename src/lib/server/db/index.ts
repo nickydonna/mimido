@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/private';
 import dynamoose from 'dynamoose';
-import { Item } from 'dynamoose/dist/Item';
+import type { Item } from 'dynamoose/dist/Item';
 import type { ExtendCalendarAccess, UserCalendar } from '../../../app';
 
 // // Create new DynamoDB instance
@@ -60,7 +60,7 @@ export const UserModel = dynamoose.model<User>(
 			}
 		},
 		{ timestamps: true  }
-	), { create: true, update: true }
+	), { create: false, update: true, throughput: 'ON_DEMAND' }
 );
 
 export interface CalendarObject extends Item {
@@ -89,7 +89,7 @@ export const CalendarObjectModel = dynamoose.model<CalendarObject>(
 		data: { type: String, required: true },
 		recur: { type: String },
 		icalType: { type: String, required: true, enum: ['vtodo', 'vevent'] }
-	}, { timestamps: true }), { create: true, update: true }
+	}, { timestamps: true }), { create: false, update: true, throughput: 'ON_DEMAND' }
 );
 
 // class Event extends Item {
