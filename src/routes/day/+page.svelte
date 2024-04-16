@@ -199,7 +199,7 @@
 </script>
 
 <div>
-	<div class="flex">
+	<div class="flex sticky top-0 bg-gray-900 py-3 px-1" style:z-index={modalZIndex - 2}>
 		<GradientButton
 			class="flex-0 mr-2"
 			color="greenToBlue"
@@ -257,20 +257,17 @@
 
 	<div class="schedule">
 		<span
-			style:z-index={modalZIndex - 2}
-			class="sticky top-0 block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+			class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
 			aria-hidden="true"
 			style="grid-column: event; grid-row: tracks;">Events</span
 		>
 		<span
-			style:z-index={modalZIndex - 2}
-			class="sticky top-0 block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+			class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
 			aria-hidden="true"
 			style="grid-column: task; grid-row: tracks;">Tasks</span
 		>
 		<span
-			style:z-index={modalZIndex - 2}
-			class="sticky top-0 block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+			class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
 			aria-hidden="true"
 			style="grid-column: reminder; grid-row: tracks;">Reminder</span
 		>
