@@ -117,7 +117,7 @@ export function parseTaskText(str: string, tzOffset?: number): TAllTypes {
 	if (dateMatch?.groups?.['match']) {
 		title = title.replace(dateMatch[0], '');
 		const [datePart, recurPart] = dateMatch.groups['match'].split('|');
-		const parsedDate = chrono.parse(datePart, { timezone: tzOffset })?.[0];
+		const parsedDate = chrono.parse(datePart, tzOffset ? { timezone: -tzOffset } : undefined)?.[0];
 
 		if (parsedDate) {
 			date = parsedDate.start.date();

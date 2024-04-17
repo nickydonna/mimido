@@ -25,7 +25,6 @@ const baseInfo = {
 
 function createDate(date: Date, hours: number, minutes = 0, offset = 0) {
 	const d = subMinutes(offset, startOfMinute(setMinutes(minutes, setHours(hours, date))));
-	console.log(d);
 	return d;
 }
 
@@ -66,8 +65,8 @@ const testCases: Array<[string, number | undefined, Omit<TAllTypes, 'originalTex
 			...baseInfo,
 			title: 'With TZ',
 			type: 'reminder',
-			date: startOfHour(setHours(7, nextMonday(new Date()))),
-			endDate: startOfMinute(setMinutes(30, setHours(9, startOfDay(nextMonday(new Date()))))),
+			date: createDate(nextMonday(new Date()), 13, 0),
+			endDate: createDate(nextMonday(new Date()), 15, 30),
 			tags: ['mimi'],
 			// @ts-expect-error - Just testing
 			status: 'back',
@@ -126,10 +125,7 @@ const testCases: Array<[string, number | undefined, Omit<TAllTypes, 'originalTex
 describe('Task Test Parser', () => {
 	testCases.forEach(([txt, offset, result]) => {
 		it(`Parses "${txt}"`, () => {
-			console.log(process.env.TZ);
 			const r = parseTaskText(txt, offset);
-			console.log(r.date, r.endDate);
-			console.log(result.date, r.endDate);
 			expect(parseTaskText(txt, offset)).toEqual({ ...result, originalText: txt });
 		});
 	});
