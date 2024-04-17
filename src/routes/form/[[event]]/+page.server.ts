@@ -22,14 +22,15 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const originalText = data.get('originalText') as string;
 		const description = data.get('description') as string | undefined;
+		const offsetStr = data.get('offset') as string;
+		const offset = parseInt(offsetStr ?? '0', 10);
 
 		const eventData = {
-			...parseTaskText(originalText),
+			...parseTaskText(originalText, offset),
 			description
 		};
 
-		/** @type {{ id: string }} */
-		let result;
+		let result: { id: string };
 
 		try {
 			const valid = await locals.backend.validateEventData(eventData);

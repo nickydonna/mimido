@@ -4,13 +4,14 @@ import { EType, parseTaskText, unparseTaskText } from '.';
 import {
 	startOfDay,
 	addWeeks,
-	subWeeks,
-	setSeconds,
 	setHours,
 	setMinutes,
-	startOfHour
+	startOfHour,
+	nextMonday,
+	startOfMinute,
+	subMinutes
 } from 'date-fns/fp';
-import { startOfWeek, startOfTomorrow } from 'date-fns';
+import { startOfTomorrow } from 'date-fns';
 import type { TAllTypes } from '$lib/server/calendar';
 
 const baseInfo = {
@@ -22,16 +23,23 @@ const baseInfo = {
 	recur: undefined
 };
 
-const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
+function createDate(date: Date, hours: number, minutes = 0, offset = 0) {
+	const d = subMinutes(offset, startOfMinute(setMinutes(minutes, setHours(hours, date))));
+	console.log(d);
+	return d;
+}
+
+// Tuple of original text, offset, expected
+const testCases: Array<[string, number | undefined, Omit<TAllTypes, 'originalText'>]> = [
 	[
 		'Meeting (tomorrow 12:30-14:30) #work @event',
-		new Date(),
+		0,
 		{
 			...baseInfo,
 			title: 'Meeting',
 			type: 'event',
-			date: setHours(12, setMinutes(30, startOfTomorrow())),
-			endDate: setHours(14, setMinutes(30, startOfTomorrow())),
+			date: createDate(startOfTomorrow(), 12, 30),
+			endDate: createDate(startOfTomorrow(), 14, 30),
 			tags: ['work'],
 			// @ts-expect-error - Just testing
 			status: 'back'
@@ -39,7 +47,7 @@ const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
 	],
 	[
 		'A lot of things (next week at 9) #personal @block',
-		new Date(),
+		0,
 		{
 			...baseInfo,
 			title: 'A lot of things',
@@ -52,17 +60,14 @@ const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
 		}
 	],
 	[
-		'(next monday at 10 to 12:30) #mimi @reminder Not a lot of things ??',
-		subWeeks(1, new Date()),
+		'(next monday at 10 to 12:30) #mimi @reminder With TZ ??',
+		180,
 		{
 			...baseInfo,
-			title: 'Not a lot of things',
+			title: 'With TZ',
 			type: 'reminder',
-			date: startOfHour(setHours(10, startOfWeek(new Date(), { weekStartsOn: 1 }))),
-			endDate: setSeconds(
-				0,
-				setMinutes(30, setHours(12, startOfDay(startOfWeek(new Date(), { weekStartsOn: 1 }))))
-			),
+			date: startOfHour(setHours(7, nextMonday(new Date()))),
+			endDate: startOfMinute(setMinutes(30, setHours(9, startOfDay(nextMonday(new Date()))))),
 			tags: ['mimi'],
 			// @ts-expect-error - Just testing
 			status: 'back',
@@ -71,13 +76,13 @@ const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
 	],
 	[
 		'(next monday) #mimi #asdf @reminder Not a lot of things2 ^^',
-		subWeeks(1, new Date()),
+		0,
 		{
 			...baseInfo,
 			title: 'Not a lot of things2',
 			type: 'reminder',
 			// When no time, chrone set the middle of the day as date
-			date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
+			date: startOfHour(setHours(12, nextMonday(new Date()))),
 			endDate: undefined,
 			tags: ['mimi', 'asdf'],
 			// @ts-expect-error - Just testing
@@ -87,13 +92,13 @@ const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
 	],
 	[
 		'(next monday) %done #mimi2 @reminder aaa $$$',
-		subWeeks(1, new Date()),
+		0,
 		{
 			...baseInfo,
 			title: 'aaa',
 			type: 'reminder',
 			// When no time, chrone set the middle of the day as date
-			date: setHours(12, startOfWeek(new Date(), { weekStartsOn: 1 })),
+			date: startOfHour(setHours(12, nextMonday(new Date()))),
 			endDate: undefined,
 			tags: ['mimi2'],
 			// @ts-expect-error - Just testing
@@ -103,7 +108,7 @@ const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
 	],
 	[
 		'work (today from 9:30 to 13:30 | every weekday) @block',
-		new Date(),
+		0,
 		{
 			...baseInfo,
 			title: 'work',
@@ -111,17 +116,21 @@ const testCases: Array<[string, Date, Omit<TAllTypes, 'originalText'>]> = [
 			// @ts-expect-error - Just testing
 			status: 'back',
 			// When no time, chrone set the middle of the day as date
-			date: setMinutes(30, setHours(9, startOfDay(new Date()))),
-			endDate: setMinutes(30, setHours(13, startOfDay(new Date()))),
+			date: startOfMinute(setMinutes(30, setHours(9, startOfDay(new Date())))),
+			endDate: startOfMinute(setMinutes(30, setHours(13, startOfDay(new Date())))),
 			recur: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'
 		}
 	]
 ];
 
 describe('Task Test Parser', () => {
-	testCases.forEach(([txt, date, result]) => {
+	testCases.forEach(([txt, offset, result]) => {
 		it(`Parses "${txt}"`, () => {
-			expect(parseTaskText(txt, date)).toEqual({ ...result, originalText: txt });
+			console.log(process.env.TZ);
+			const r = parseTaskText(txt, offset);
+			console.log(r.date, r.endDate);
+			console.log(result.date, r.endDate);
+			expect(parseTaskText(txt, offset)).toEqual({ ...result, originalText: txt });
 		});
 	});
 });

@@ -2,8 +2,8 @@ import type { DAVCalendar } from 'tsdav';
 import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { v4 } from 'uuid';
-import { add, addMinutes, getTime, isWithinInterval, startOfDay } from 'date-fns/fp';
-import { endOfDay, formatISO, isAfter } from 'date-fns';
+import { add, addMinutes, isWithinInterval, startOfDay } from 'date-fns/fp';
+import { endOfDay, isAfter } from 'date-fns';
 import yup, { type InferType } from 'yup';
 import { isValidRRule } from '$lib/utils/rrule';
 import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
@@ -495,7 +495,7 @@ export class CalendarBackend {
 		if (!res) throw new Error('Event does not exists');
 		const { meta } = res;
 
-		const { component, id: newId, meta: newMeta } = this.toComponent(eventData, id);
+		const { component, meta: newMeta } = this.toComponent(eventData, id);
 
 		// If event changed type, destroy and recreate
 		if (meta.icalType !== newMeta.icalType) {

@@ -34,7 +34,7 @@ const pImportanceRE = /( |^)(?<match>!{1,3})( |$)/;
 const nImportanceRE = /( |^)(?<match>\?{1,3})( |$)/;
 const dateRE = /(^| )\((?<match>.*)\)( |$)/;
 
-export function parseTaskText(str: string, ref = new Date()): TAllTypes {
+export function parseTaskText(str: string, tzOffset?: number): TAllTypes {
 	let title = str + '';
 	let type = EType.TASK;
 	let date;
@@ -107,7 +107,6 @@ export function parseTaskText(str: string, ref = new Date()): TAllTypes {
 					// Force duration to be negative so alarm is before
 					return alarmFromString(`-${t.trim()}`);
 				} catch (e) {
-					console.log(e);
 					return undefined;
 				}
 			})
@@ -118,7 +117,7 @@ export function parseTaskText(str: string, ref = new Date()): TAllTypes {
 	if (dateMatch?.groups?.['match']) {
 		title = title.replace(dateMatch[0], '');
 		const [datePart, recurPart] = dateMatch.groups['match'].split('|');
-		const parsedDate = chrono.parse(datePart, ref)?.[0];
+		const parsedDate = chrono.parse(datePart, { timezone: tzOffset })?.[0];
 
 		if (parsedDate) {
 			date = parsedDate.start.date();

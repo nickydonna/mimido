@@ -34,6 +34,7 @@
 	const statusOptions = Object.values(EStatus).map((type) => ({ value: type, name: type }));
 
 	const today = new Date();
+	const offset = today.getTimezoneOffset();
 	const originalText = event ? unparseTaskText(event) : '';
 
 	const dispatch: EventDispatcher<{ success: null }> = createEventDispatcher();
@@ -56,7 +57,8 @@
 	let formAction = '/form';
 	$: {
 		if (!useAI) {
-			taskInfo = parseTaskText(taskText, today);
+			// Use local timezone
+			taskInfo = parseTaskText(taskText);
 		} else {
 			taskText = unparseTaskText(taskInfo);
 		}
@@ -188,6 +190,7 @@
 					};
 				}}
 			>
+				<input type="number" class="hidden" name="offset" value={offset}>
 				<div class="flex">
 					<div class="mr-2 flex-1">
 						{#if useAI}

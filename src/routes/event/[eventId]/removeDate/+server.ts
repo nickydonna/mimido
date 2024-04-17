@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { parseISO } from 'date-fns';
 
-export const PUT: RequestHandler = async ({ request, params, locals }) => {
+export const PUT: RequestHandler = async ({ params, locals }) => {
 	const { eventId } = params;
 
 	// Get new id in case the type changed

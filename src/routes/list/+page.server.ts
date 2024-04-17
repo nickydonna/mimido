@@ -9,7 +9,7 @@ export const actions: Actions = {
 		if (!eventId || typeof eventId !== 'string') {
 			return fail(404, { error: 'Not Found' });
 		}
-		const event = await locals.backend.deleteEvent(eventId);
+		const { event } = await locals.backend.deleteEvent(eventId);
 		return { success: true, event };
 	}
 };

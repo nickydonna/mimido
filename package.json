@@ -14,7 +14,7 @@
 		"eslint": "eslint .",
 		"format": "prettier --write .",
 		"test:integration": "playwright test",
-		"test:unit": "vitest"
+		"test:unit": "TZ=UTC vitest"
 	},
 	"devDependencies": {
 		"@aws-sdk/client-cognito-identity-provider": "^3.549.0",

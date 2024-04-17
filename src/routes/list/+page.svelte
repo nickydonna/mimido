@@ -73,7 +73,6 @@
 	};
 
 	let hideDrawer = true;
-	let spanClass = 'flex-1 ms-3 whitespace-nowrap';
 	let transitionParams = {
 		x: -320,
 		duration: 100,
