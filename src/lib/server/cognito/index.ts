@@ -60,7 +60,7 @@ export async function refreshToken(
 		{
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Type': 'application/x-www-form-urlencoded'
 				// Authorization: `Basic ${btoa(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`)}`
 			},
 			body: params
@@ -76,7 +76,7 @@ const verifier = CognitoJwtVerifier.create({
 });
 
 export async function verifyToken(
-	token: string,
+	token: string
 ): Promise<{ newToken?: string; payload: CognitoAccessTokenPayload }> {
 	try {
 		const payload = await verifier.verify(token);

@@ -19,11 +19,12 @@ const unProtectedRoutes = ['/', '/cognito', '/sign-in', '/sign-up'];
 export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event }) => {
 	event.locals.loggedIn = false;
 	event.locals.loginCache = loginCache;
-	const cookies = event.cookies.getAll()
-	const token = cookies.find(({ name }) =>
-		name.startsWith(`CognitoIdentityServiceProvider.${PUBLIC_COGNITO_CLIENT_ID}`)
-		&& name.endsWith('accessToken')
-	)?.value
+	const cookies = event.cookies.getAll();
+	const token = cookies.find(
+		({ name }) =>
+			name.startsWith(`CognitoIdentityServiceProvider.${PUBLIC_COGNITO_CLIENT_ID}`) &&
+			name.endsWith('accessToken')
+	)?.value;
 
 	if (!token) {
 		if (!unProtectedRoutes.includes(event.url.pathname)) {
@@ -53,11 +54,10 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 	} catch (e) {
 		if (e instanceof JwtExpiredError) {
 			if (!unProtectedRoutes.includes(event.url.pathname)) {
-				throw redirect(302, '/')
+				throw redirect(302, '/');
 			}
 			return resolve(event);
 		}
 		throw e;
 	}
-
 };
