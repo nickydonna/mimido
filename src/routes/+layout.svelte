@@ -111,40 +111,41 @@
 {:then user}
 	{#if user}
 		<Drawer
+			width="w-full"
 			transitionType="fly"
 			placement="bottom"
 			{transitionParams}
-			width="w-full"
-			bottomOffset="bottom-8"
 			bind:hidden={hideUpsertDrawer}
 		>
-			<TaskForm event={$selectedEvent} on:success={closeDrawer} />
+			<div class="mb-10">
+				<TaskForm event={$selectedEvent} on:success={closeDrawer} />
+			</div>
 		</Drawer>
-		<BottomNav position="fixed" classInner="grid-cols-4">
-			<BottomNavItem btnName="Tasks" href="/list?date={date}">
+		<BottomNav position="fixed" classInner="grid-cols-4" navType="application">
+			<BottomNavItem btnName="Tasks" href="/list?date={date}" appBtnPosition="left">
 				<RectangleListOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-			<BottomNavItem btnName="Day" href="/day?date={date}">
+			<BottomNavItem btnName="Day" href="/day?date={date}" appBtnPosition="middle">
 				<CalendarEditOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
 			{#if hideUpsertDrawer}
-				<BottomNavItem btnName="Add" on:click={() => (hideUpsertDrawer = false)}>
+				<BottomNavItem btnName="Add" on:click={() => (hideUpsertDrawer = false)} appBtnPosition="middle">
 					<PlusOutline
 						class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 					/>
 				</BottomNavItem>
 			{:else}
-				<BottomNavItem btnName="Close" on:click={closeDrawer}>
+				<BottomNavItem btnName="Close" on:click={closeDrawer} appBtnPosition="middle">
 					<CloseOutline
 						class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 					/>
 				</BottomNavItem>
 			{/if}
-			<BottomNavItem btnName="Account" href="/account">
+			<BottomNavItem btnName="Account" href="/account" appBtnPosition="right">
 				<UserOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>

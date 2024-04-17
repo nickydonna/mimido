@@ -49,8 +49,6 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 		if (user.main) {
 			event.locals.backend = await getBackend(user);
 		}
-
-		return resolve(event);
 	} catch (e) {
 		if (e instanceof JwtExpiredError) {
 			if (!unProtectedRoutes.includes(event.url.pathname)) {
@@ -60,4 +58,5 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 		}
 		throw e;
 	}
+	return resolve(event);
 };

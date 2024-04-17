@@ -294,8 +294,8 @@
 			</div>
 		{/if}
 		{#if !currentTimeInView}
-			<Button class="fixed bottom-[5rem] end-6 z-40" on:click={scrollCurrentIntoView}>
-				Go to Current Time
+			<Button class="fixed bottom-[6rem] end-6 z-40" on:click={scrollCurrentIntoView}>
+				Current Time
 			</Button>
 		{/if}
 		<!-- Time indicator -->
