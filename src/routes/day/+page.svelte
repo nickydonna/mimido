@@ -203,22 +203,23 @@
 		<GradientButton
 			class="flex-0 mr-2"
 			color="greenToBlue"
+			size="sm"
 			disabled={loading}
 			on:click={() => (hideTaskDrawer = false)}
 		>
 			<BarsFromLeftOutline class="w-4 h-4" />
 		</GradientButton>
 		<div class="flex-1">
-			<p class="text-4xl dark:text-white">
+			<p class="text-lg md:text-4xl dark:text-white">
 				{format('do MMM yy ', data.date)}
 			</p>
 		</div>
-		<ButtonGroup>
-			<Button href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
+		<ButtonGroup size="xs">
+			<Button size="xs" href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
 				<AngleLeftOutline />
 			</Button>
-			<Button href="/day">Today</Button>
-			<Button href="/day?date={formatISO(addDays(1, startOfDay(data.date)))}">
+			<Button size="xs" href="/day">Today</Button>
+			<Button size="xs" href="/day?date={formatISO(addDays(1, startOfDay(data.date)))}">
 				<AngleRightOutline />
 			</Button>
 		</ButtonGroup>
