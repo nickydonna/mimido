@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import type { CognitoToken } from '../../../app';
 import type { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
+import { JwtExpiredError } from 'aws-jwt-verify/error';
 
 const COGNITO_POOL_ID = 'us-east-1_p74VfoeuG';
 const COGNITO_UI_ID = 'mimido';
@@ -81,6 +82,7 @@ export async function verifyToken(
 		const payload = await verifier.verify(token);
 		return { payload };
 	} catch (e) {
+		if (e instanceof JwtExpiredError) throw e;
 		throw new Error('Token is invalid', { cause: e });
 	}
 }

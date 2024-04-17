@@ -4,6 +4,7 @@ import { verifyToken } from '$lib/server/cognito/index.js';
 import { type User, UserModel } from '$lib/server/db/index.js';
 import { redirect } from '@sveltejs/kit';
 import { LRUCache } from 'lru-cache';
+import { JwtExpiredError } from 'aws-jwt-verify/error';
 
 const options = {
 	max: 100,
@@ -31,21 +32,32 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 		return resolve(event);
 	}
 
-	const { payload, newToken } = await verifyToken(token);
-	if (newToken) {
-		event.cookies.set('token', newToken, { path: '/' });
-	}
-	event.locals.loggedIn = true;
+	try {
+		const { payload, newToken } = await verifyToken(token);
+		if (newToken) {
+			event.cookies.set('token', newToken, { path: '/' });
+		}
+		event.locals.loggedIn = true;
 
-	let user = loginCache.get(payload.username);
-	if (!user) {
-		user = await UserModel.get({ username: payload.username });
+		let user = loginCache.get(payload.username);
+		if (!user) {
+			user = await UserModel.get({ username: payload.username });
+		}
+
+		event.locals.user = user;
+		if (user.main) {
+			event.locals.backend = await getBackend(user);
+		}
+
+		return resolve(event);
+	} catch (e) {
+		if (e instanceof JwtExpiredError) {
+			if (!unProtectedRoutes.includes(event.url.pathname)) {
+				throw redirect(302, '/')
+			}
+			return resolve(event);
+		}
+		throw e;
 	}
 
-	event.locals.user = user;
-	if (user.main) {
-		event.locals.backend = await getBackend(user);
-	}
-
-	return resolve(event);
 };
