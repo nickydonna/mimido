@@ -133,7 +133,11 @@
 				/>
 			</BottomNavItem>
 			{#if hideUpsertDrawer}
-				<BottomNavItem btnName="Add" on:click={() => (hideUpsertDrawer = false)} appBtnPosition="middle">
+				<BottomNavItem
+					btnName="Add"
+					on:click={() => (hideUpsertDrawer = false)}
+					appBtnPosition="middle"
+				>
 					<PlusOutline
 						class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 					/>
