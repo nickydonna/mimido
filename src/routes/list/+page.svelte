@@ -1,19 +1,16 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import DetailModal from '$lib/components/details-modal/index.js';
 	import { EStatus } from '$lib/parser/index.js';
 	import { isDefined, isDone } from '$lib/util.js';
 	import {
-		Button,
 		CloseButton,
 		Drawer,
 		Sidebar,
 		SidebarGroup,
 		SidebarItem,
 		SidebarWrapper,
-		Modal,
 		Table,
 		TableBody,
 		TableBodyCell,
@@ -25,19 +22,15 @@
 	} from 'flowbite-svelte';
 	import {
 		BarsFromLeftOutline,
-		ExclamationCircleOutline,
 		CloseOutline
 	} from 'flowbite-svelte-icons';
 	import { sineIn } from 'svelte/easing';
-	import type { PageData, SubmitFunction } from './$types';
+	import type { PageData } from './$types';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
 
 	export let data: PageData;
 
-	let selectedEvent: TAllTypesWithId | undefined;
-	let idOfDeleting: string | undefined;
-	let showDelete = false;
-	let loading = false;
+	let showEventDetail: TAllTypesWithId | undefined;
 	let tags: string[] = [];
 	let tagFilter: string | undefined;
 	let events = data.events;
@@ -46,7 +39,6 @@
 
 	$: {
 		tags = [...new Set(data.events.map((e) => e.tags).flat())];
-		showDelete = !!idOfDeleting;
 		showDone = $page.url.searchParams.get('showDone') === 'true';
 		tagFilter = $page.url.searchParams.get('tag') ?? undefined;
 		if (isDefined(tagFilter)) {
@@ -60,17 +52,10 @@
 			[EStatus.DONE, showDone ? events.filter((e) => e.status === EStatus.DONE) : []],
 			[EStatus.BACK, events.filter((e) => e.status === EStatus.BACK)]
 		];
+		if (showEventDetail) {
+			showEventDetail = data.events.find(e => e.eventId === showEventDetail?.eventId)
+		}
 	}
-
-	const onDelete: SubmitFunction = () => {
-		loading = true;
-		return async ({ update }) => {
-			loading = false;
-			idOfDeleting = undefined;
-			selectedEvent = undefined;
-			update();
-		};
-	};
 
 	let hideDrawer = true;
 	let transitionParams = {
@@ -79,21 +64,6 @@
 		easing: sineIn
 	};
 
-	const handleStatusChange = async (event: CustomEvent<{ status: EStatus }>) => {
-		if (!selectedEvent) return;
-		loading = true;
-		const res = await fetch(`/event/${selectedEvent.eventId}/status`, {
-			method: 'PUT',
-			body: JSON.stringify({ status: event.detail.status })
-		});
-
-		const updatedEvent = await res.json();
-		events = events.map((e) => (e.eventId === updatedEvent.eventId ? updatedEvent : e));
-		selectedEvent = updatedEvent;
-		// TODO manage error
-		loading = false;
-		await invalidateAll();
-	};
 
 	function setTag(tag?: string) {
 		let query = new URLSearchParams($page.url.searchParams.toString());
@@ -149,7 +119,7 @@
 	<div>
 		{#if tagFilter}
 			<GradientButton class="ml-2" color="tealToLime" on:click={() => setTag()}>
-				Filtering by: {tagFilter}
+				#{tagFilter}
 				<CloseOutline class="w-3.5 h-3.5 ms-2" />
 			</GradientButton>
 		{/if}
@@ -175,7 +145,7 @@
 			{#each events as event}
 				<TableBodyRow
 					class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}"
-					on:click={() => (selectedEvent = event)}
+					on:click={() => (showEventDetail = event)}
 				>
 					<TableBodyCell class={isDone(event) ? 'line-through !text-gray-400' : ''}
 						>{event.title}</TableBodyCell
@@ -187,25 +157,7 @@
 </Table>
 
 <DetailModal
-	{loading}
-	event={!idOfDeleting ? selectedEvent : undefined}
-	on:close={() => (selectedEvent = undefined)}
-	on:statuschange={handleStatusChange}
-	on:delete={() => (idOfDeleting = selectedEvent?.eventId)}
+	event={showEventDetail}
+	on:close={() => (showEventDetail = undefined)}
+	on:delete={() => (showEventDetail = undefined)}
 />
-
-<Modal bind:open={showDelete} size="xs" on:close={() => (idOfDeleting = undefined)}>
-	<div class="text-center">
-		<ExclamationCircleOutline class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-200" />
-		<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
-			Are you sure you want to delete this event?
-		</h3>
-		<form class="inline-block" method="POST" action="?/delete" use:enhance={onDelete}>
-			<input type="text" name="eventId" value={idOfDeleting} class="hidden" />
-			<Button disabled={loading} color="red" class="me-2" type="submit">Yes, I'm sure</Button>
-			<Button disabled={loading} on:click={() => (idOfDeleting = undefined)} color="alternative">
-				No, cancel
-			</Button>
-		</form>
-	</div>
-</Modal>

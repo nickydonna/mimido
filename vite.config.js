@@ -42,7 +42,8 @@ export default defineConfig({
 						type: 'image/jpg'
 					}
 				]
-			}
+			},
+
 		})
 	],
 	resolve: {

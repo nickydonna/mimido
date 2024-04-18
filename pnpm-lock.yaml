@@ -88,6 +88,9 @@ devDependencies:
   '@playwright/test':
     specifier: ^1.28.1
     version: 1.43.1
+  '@svelte-put/shortcut':
+    specifier: ^3.1.0
+    version: 3.1.0
   '@sveltejs/adapter-auto':
     specifier: ^3.0.0
     version: 3.2.0(@sveltejs/kit@2.5.6)
@@ -3939,6 +3942,10 @@ packages:
       json5: 2.2.3
       magic-string: 0.25.9
       string.prototype.matchall: 4.0.11
+    dev: true
+
+  /@svelte-put/shortcut@3.1.0:
+    resolution: {integrity: sha512-EWMEDkZ0+O3yMhb9yrqe5UYisV9CNRKX6Pl/JW3x62t74CiN+3COu1L9NzZUG0omagc2Z3J14PZNYxs77IC9NA==}
     dev: true
 
   /@sveltejs/adapter-auto@3.2.0(@sveltejs/kit@2.5.6):

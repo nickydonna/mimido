@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge, Button, ButtonGroup, Modal } from 'flowbite-svelte';
 	import { createEventDispatcher } from 'svelte';
-	import { formatDuration } from 'date-fns';
+	import { formatDuration, isSameDay } from 'date-fns';
 	import {
 		getEventColor,
 		importanceToString,
@@ -16,7 +16,7 @@
 		AngleLeftOutline,
 		AngleRightOutline,
 		ArrowLeftToBracketOutline,
-		CheckOutline,
+		CheckOutline, ExclamationCircleOutline,
 		TrashBinOutline
 	} from 'flowbite-svelte-icons';
 	import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/core';
@@ -24,7 +24,7 @@
 	import { nord } from '@milkdown/theme-nord';
 	import { EStatus } from '$lib/parser/index.js';
 	import { rruleToText } from '$lib/utils/rrule.js';
-	import { selectedEvent } from '$lib/stores';
+	import { isLoading, loading, selectedEvent } from '$lib/stores';
 	import type { EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
 	import { format } from 'date-fns/fp';
@@ -33,22 +33,17 @@
 	const dispatch: EventDispatcher<{
 		close: null;
 		delete: null;
-		statuschange: { status: EStatus };
+		statuschange: null;
 		removeDate: null;
 	}> = createEventDispatcher();
 
 	const onClose = () => dispatch('close');
-	const onDelete = () => dispatch('delete');
-	/** @param {EStatus} status */
-	const onStatusChange = (status: EStatus) => dispatch('statuschange', { status });
-
-	/** @type {TAllTypesWithId | undefined} */
 	export let event: TAllTypesWithId | undefined;
-	export let loading = false;
 
+	let showDelete = false;
 	let open = false;
 	let color = '';
-	$: open = !!event;
+	$: open = !!event && !showDelete;
 	$: color = event ? getEventColor(event) : '';
 	const dateFormat = format("E dd LLL yy 'at' HH:mm");
 	const statuses = Object.values(EStatus);
@@ -76,20 +71,62 @@
 			.create();
 	}
 
+	const handleStatusChange = async (status: EStatus) => {
+		if (!event) return;
+		loading.increase()
+		await fetch(`/event/${event?.eventId}/status`, {
+			method: 'PUT',
+			body: JSON.stringify({ status })
+		});
+
+		// TODO manage error
+		loading.decrease()
+		await invalidateAll();
+		dispatch('statuschange')
+	};
+
 	async function handleRemoveDate() {
 		if (!event) return;
-		loading = true;
+		loading.increase()
 		await fetch(`/event/${event.eventId}/removeDate`, {
 			method: 'PUT'
 		});
 
 		await invalidateAll();
-		loading = false;
+		loading.decrease()
 		dispatch('removeDate');
+	}
+
+	async function handleDelete() {
+		if (!event) return;
+		loading.increase()
+		await fetch(`/event/${event.eventId}`, {
+			method: 'DELETE'
+		});
+
+		await invalidateAll();
+		loading.decrease()
+		showDelete = false;
+		dispatch('delete');
 	}
 </script>
 
-<Modal bind:open dismissable={false} on:close={() => (open = false)}>
+<Modal bind:open={showDelete} size="xs" on:close={() => (showDelete = false)}>
+	<div class="text-center">
+		<ExclamationCircleOutline class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-200" />
+		<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
+			Are you sure you want to delete this event?
+		</h3>
+		<form class="inline-block" on:submit|preventDefault={handleDelete}>
+			<Button disabled={$isLoading} color="red" class="me-2" type="submit">Yes, I'm sure</Button>
+			<Button disabled={$isLoading} type="button" on:click={() => (showDelete = false)} color="alternative">
+				No, cancel
+			</Button>
+		</form>
+	</div>
+</Modal>
+
+<Modal bind:open dismissable={false}>
 	<svelte:fragment slot="header">
 		<div class="flex w-full">
 			<div class="flex-1 self-center">
@@ -106,7 +143,7 @@
 							</span>
 							until
 							<span class="underline">
-								{dateFormat(event?.endDate)}
+								{isSameDay(event.endDate, event.date) ? format('HH:mm', event.endDate) : dateFormat(event?.endDate)}
 							</span>
 						</p>
 					{:else if event?.date}
@@ -124,12 +161,12 @@
 					<div class="block mb-1.5">
 						<ButtonGroup>
 							{#if status !== EStatus.BACK}
-								<Button disabled={loading} on:click={() => onStatusChange(EStatus.BACK)}>
+								<Button disabled={$isLoading} on:click={() => handleStatusChange(EStatus.BACK)}>
 									<ArrowLeftToBracketOutline class=" me-2 h-4 w-4 rotate-180" />
 								</Button>
 								<Button
-									disabled={loading}
-									on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx - 1])}
+									disabled={$isLoading}
+									on:click={() => isDefined(statusIdx) && handleStatusChange(statuses[statusIdx - 1])}
 									aria-label="Move to {statuses[statusIdx - 1]}"
 								>
 									<AngleLeftOutline class="me-2 h-4 w-4" />
@@ -138,15 +175,15 @@
 							<Button>{status.toUpperCase()}</Button>
 							{#if status !== EStatus.DONE}
 								<Button
-									disabled={loading}
-									on:click={() => isDefined(statusIdx) && onStatusChange(statuses[statusIdx + 1])}
+									disabled={$isLoading}
+									on:click={() => isDefined(statusIdx) && handleStatusChange(statuses[statusIdx + 1])}
 									aria-label="Move to {statuses[statusIdx + 1]}"
 								>
 									<AngleRightOutline class="me-2 h-4 w-4" />
 								</Button>
 								<Button
-									disabled={loading}
-									on:click={() => onStatusChange(EStatus.DONE)}
+									disabled={$isLoading}
+									on:click={() => handleStatusChange(EStatus.DONE)}
 									aria-label="move to done"
 								>
 									<CheckOutline class="me-2 h-4 w-4" />
@@ -205,14 +242,14 @@
 	<svelte:fragment slot="footer">
 		<div class="flex w-full">
 			<div class="flex-1">
-				<Button disabled={loading} color="red" type="button" on:click={onDelete}>
+				<Button disabled={$isLoading} color="red" type="button" on:click={() => (showDelete = true)}>
 					<TrashBinOutline />
 				</Button>
 			</div>
 			<div>
-				<Button disabled={loading} on:click={onClose}>Close</Button>
+				<Button disabled={$isLoading} on:click={onClose}>Close</Button>
 				<Button
-					disabled={loading}
+					disabled={$isLoading}
 					on:click={() => {
 						event && selectedEvent.set(event);
 						onClose();

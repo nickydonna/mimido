@@ -23,7 +23,7 @@
 	import { onMount } from 'svelte';
 	import { Drawer } from 'flowbite-svelte';
 	import TaskForm from '$lib/components/task-form';
-	import { selectedEvent } from '$lib/stores';
+	import { isLoading, selectedEvent } from '$lib/stores';
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
@@ -88,7 +88,7 @@
 
 	{@html webManifest}
 </svelte:head>
-{#if $navigating}
+{#if $navigating || $isLoading}
 	<!--
 		Loading animation for next page since svelte doesn't show any indicator.
 		 - delay 100ms because most page loads are instant, and we don't want to flash

@@ -15,7 +15,6 @@
 		AngleLeftOutline,
 		AngleRightOutline,
 		BarsFromLeftOutline,
-		ExclamationCircleOutline
 	} from 'flowbite-svelte-icons';
 	import { EStatus, EType } from '$lib/parser/index.js';
 	import {
@@ -26,7 +25,6 @@
 		roundToNearestMinutes,
 		startOfDay
 	} from 'date-fns';
-	import { enhance } from '$app/forms';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
 	import {
 		getEventCardClass,
@@ -52,11 +50,12 @@
 	} from 'flowbite-svelte';
 	import { inview } from 'svelte-inview';
 	import type { Options, ObserverEventDetails } from 'svelte-inview';
-	import type { PageData, SubmitFunction } from './$types';
+	import type { PageData } from './$types';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
 
 	import { Drawer, CloseButton } from 'flowbite-svelte';
 	import { sineIn } from 'svelte/easing';
+	import { isLoading, loading, selectedEvent } from '$lib/stores';
 
 	let hideTaskDrawer = true;
 	let transitionParams = {
@@ -67,12 +66,9 @@
 
 	export let data: PageData;
 
-	let selectedEvent: TAllTypesWithId | undefined;
 	let dragging: TAllTypesWithId | undefined;
+	let showEventDetail: TAllTypesWithId | undefined;
 	let hoverTime: Date | undefined;
-	let idOfDeleting: string | undefined;
-	let showDelete = false;
-	let loading = false;
 	let current: Date;
 	let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }>;
 	let showingToday = false;
@@ -106,7 +102,10 @@
 			time: h,
 			check: isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) })
 		}));
-		showDelete = !!idOfDeleting;
+
+		if (showEventDetail) {
+			showEventDetail = data.events.find(e => e.eventId === showEventDetail?.eventId)
+		}
 	}
 
 	let timeCheck = (event: TAllTypesWithId, slotCheck: (d: Date) => boolean) =>
@@ -121,16 +120,6 @@
 			[EType.REMINDER, data.events.filter(isReminder)]
 		];
 	}
-
-	const onDelete: SubmitFunction = () => {
-		loading = true;
-		return async ({ update }) => {
-			loading = false;
-			idOfDeleting = undefined;
-			selectedEvent = undefined;
-			update();
-		};
-	};
 
 	/**
 	 * Give a time slot find the start and end time grid slot
@@ -149,19 +138,6 @@
 		return `time-${format('HHmm', startDate)} / time-${format('HHmm', endTime)}`;
 	}
 
-	const handleStatusChange = async (event: CustomEvent<{ status: EStatus }>) => {
-		if (!selectedEvent) return;
-		loading = true;
-		const res = await fetch(`/event/${selectedEvent.eventId}/status`, {
-			method: 'PUT',
-			body: JSON.stringify({ status: event.detail.status })
-		});
-
-		selectedEvent = /** @type {TAllTypesWithId} */ (await res.json());
-		// TODO manage error
-		loading = false;
-		await invalidateAll();
-	};
 	const modalZIndex = 40;
 
 	let currentTimeInView = false;
@@ -183,7 +159,7 @@
 		e.preventDefault();
 		console.log('dropped in ', timeSlot);
 		if (!dragging) return;
-		loading = true;
+		loading.increase()
 		await fetch(`/event/${dragging.eventId}/date`, {
 			method: 'PUT',
 			body: JSON.stringify({ from: formatISO(timeSlot) })
@@ -193,7 +169,7 @@
 		hideTaskDrawer = true;
 		hoverTime = undefined;
 		// TODO manage error
-		loading = false;
+		loading.decrease()
 		await invalidateAll();
 	}
 </script>
@@ -204,7 +180,7 @@
 			class="flex-0 mr-2"
 			color="greenToBlue"
 			size="sm"
-			disabled={loading}
+			disabled={$isLoading}
 			on:click={() => (hideTaskDrawer = false)}
 		>
 			<BarsFromLeftOutline class="w-4 h-4" />
@@ -225,7 +201,7 @@
 		</ButtonGroup>
 	</div>
 
-	<Modal open={loading && !selectedEvent} dismissable={false} autoclose={false}>
+	<Modal open={$isLoading && !selectedEvent} dismissable={false} autoclose={false}>
 		<div class="text-center text-lg font-bold">
 			<p>Working...</p>
 			<Spinner color="green" size={10} class="mt-2" />
@@ -233,28 +209,10 @@
 	</Modal>
 
 	<DetailModal
-		{loading}
-		event={!idOfDeleting ? selectedEvent : undefined}
-		on:close={() => (selectedEvent = undefined)}
-		on:statuschange={handleStatusChange}
-		on:delete={() => (idOfDeleting = selectedEvent?.eventId)}
-		on:removeDate={() => (selectedEvent = undefined)}
+		event={showEventDetail}
+		on:close={() => (showEventDetail = undefined)}
+		on:delete={() => (showEventDetail = undefined)}
 	/>
-	<Modal bind:open={showDelete} size="xs" on:close={() => (idOfDeleting = undefined)}>
-		<div class="text-center">
-			<ExclamationCircleOutline class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-200" />
-			<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
-				Are you sure you want to delete this event?
-			</h3>
-			<form class="inline-block" method="POST" action="?/delete" use:enhance={onDelete}>
-				<input type="text" name="eventId" value={idOfDeleting} class="hidden" />
-				<Button disabled={loading} color="red" class="me-2" type="submit">Yes, I'm sure</Button>
-				<Button disabled={loading} on:click={() => (idOfDeleting = undefined)} color="alternative">
-					No, cancel
-				</Button>
-			</form>
-		</div>
-	</Modal>
 
 	<div class="schedule">
 		<span
@@ -368,9 +326,9 @@
 						style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
 						style:grid-row={getScheduleSlot(e)}
 						style:z-index={type === EType.BLOCK ? 0 : k}
-						on:click={() => (selectedEvent = e)}
+						on:click={() => (showEventDetail = e)}
 						on:keypress={(event) => {
-							if (event.code === 'Enter') selectedEvent = e;
+							if (event.code === 'Enter') showEventDetail = e;
 						}}
 					>
 						<div class="absolute right-2 hidden group-hover:block"></div>
@@ -418,7 +376,7 @@
 					<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}">
 						<TableBodyCell
 							on:click={() => {
-								selectedEvent = event;
+								selectedEvent.set(event);
 								hideTaskDrawer = true;
 							}}
 							class={isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'}

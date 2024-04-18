@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { cognitoLogin, tryGetToken } from '$lib/utils/cognitoClient';
+	import { loading } from '$lib/stores';
 
 	let username: string;
 	let password: string;
@@ -20,8 +21,10 @@
 	});
 
 	async function login() {
+		loading.increase()
 		await cognitoLogin(username, password);
 		await goto('/day');
+		loading.decrease()
 	}
 </script>
 

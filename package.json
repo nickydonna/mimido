@@ -20,6 +20,7 @@
 		"@aws-sdk/client-cognito-identity-provider": "^3.549.0",
 		"@jill64/sveltekit-adapter-aws": "^1.5.7",
 		"@playwright/test": "^1.28.1",
+		"@svelte-put/shortcut": "^3.1.0",
 		"@sveltejs/adapter-auto": "^3.0.0",
 		"@sveltejs/kit": "^2.5.5",
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
