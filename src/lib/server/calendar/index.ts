@@ -195,6 +195,23 @@ export class CalendarBackend {
 	 */
 	async initialSync(includeTodo: boolean, calendarName?: string) {
 		const calendar = await this.getCalendar(calendarName, true);
+
+		if (!calendarName) {
+			const oldTodos = await this.listTodos();
+			const batched = chunkArray(oldTodos.map(t => t.eventId), 5);
+			await Promise.all(batched.map(c =>
+				CalendarObjectModel.batchDelete(c)
+			))
+		}
+		const oldEvents = await CalendarObjectModel.scan({
+			calendarUrl: calendar.url,
+			user: this.username,
+		}).exec()
+
+		const batched = chunkArray(oldEvents.map(t => t.id), 5);
+		await Promise.all(batched.map(c =>
+			CalendarObjectModel.batchDelete(c)
+		))
 		const [todoObjs, eventObjs] = await Promise.all([
 			this.listTodosRaw(),
 			this.client.fetchCalendarObjects({
@@ -358,13 +375,14 @@ export class CalendarBackend {
 	async listEvents(from: Date, to: Date, calendarName?: string) {
 		const calendar = await this.getCalendar(calendarName);
 
-		const cond = new dynamoose.Condition({
+		let cond = new dynamoose.Condition({
 			calendarUrl: calendar.url,
 			user: this.username,
 			icalType: 'vevent'
 		}).parenthesis((condition) =>
-			condition.where('date').between(from.valueOf(), to.valueOf()).or().where('recur').exists()
-		);
+				condition.where('date').between(from.valueOf(), to.valueOf()).or().where('recur').exists()
+			);
+
 		const objects = await CalendarObjectModel.scan(cond).using('calendarUrl').exec();
 
 		return objects

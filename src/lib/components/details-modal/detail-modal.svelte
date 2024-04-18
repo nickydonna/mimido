@@ -1,14 +1,5 @@
 <script lang="ts">
-	import {
-		Badge,
-		Button,
-		ButtonGroup,
-		Indicator,
-		Modal,
-		P,
-		Popover,
-		Tooltip
-	} from 'flowbite-svelte';
+	import { Badge, Button, ButtonGroup, Indicator, Modal, Tooltip } from 'flowbite-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { formatDuration, formatISO, isSameDay } from 'date-fns';
 	import {
@@ -26,7 +17,6 @@
 		AngleRightOutline,
 		ArrowLeftToBracketOutline,
 		CheckOutline,
-		ChevronLeftOutline,
 		ChevronRightOutline,
 		CloseOutline,
 		ExclamationCircleOutline,
