@@ -49,6 +49,7 @@ const baseSchema = yup.object({
 	endDate: yup.date(),
 	description: yup.string(),
 	tags: yup.array().of(yup.string().required()).required(),
+	postponed: yup.number().required(),
 	recur: yup.string().test(
 		'is-recur',
 		(str) => `${str.path} is not a valid RRule`,
@@ -505,7 +506,16 @@ export class CalendarBackend {
 			return { id: newId };
 		}
 
-		await CalendarObjectModel.update({ id }, { data: component.toString() });
+		await CalendarObjectModel.update(
+			{ id },
+			{
+				data: component.toString(),
+				date: eventData.date,
+				endDate: eventData.endDate,
+				recur: eventData.recur,
+				postponed: eventData.postponed ?? 0
+			}
+		);
 
 		this.client
 			.updateCalendarObject({
@@ -543,7 +553,7 @@ export class CalendarBackend {
 		return this.editEvent(eventId, event);
 	}
 
-	async updateDate(eventId: string, from: Date, to?: Date) {
+	async updateDate(eventId: string, from: Date, to: Date | undefined, postponing?: boolean) {
 		const res = await this.getEvent(eventId);
 		if (!res) {
 			throw new Error(`Could not find event with id: ${eventId}`);
@@ -552,6 +562,9 @@ export class CalendarBackend {
 
 		event.date = from;
 		event.endDate = to;
+		if (postponing) {
+			event.postponed = (event.postponed ?? 0) + 1;
+		}
 		return this.editEvent(eventId, event);
 	}
 
@@ -620,7 +633,8 @@ export class CalendarBackend {
 				originalText: vtodo.getFirstPropertyValue(CustomPropName.ORIGINAL_TEXT) ?? EStatus.TODO,
 				urgency,
 				importance,
-				load
+				load,
+				postponed: parseInt(vtodo.getFirstPropertyValue<string>(CustomPropName.POSTPONED) ?? '0')
 			},
 			meta: { icalType: 'vtodo' }
 		};
@@ -696,6 +710,7 @@ export class CalendarBackend {
 			tags,
 			status: vevent.getFirstPropertyValue<EStatus>(CustomPropName.STATUS) ?? EStatus.TODO,
 			originalText: vevent.getFirstPropertyValue<string>(CustomPropName.ORIGINAL_TEXT) ?? '',
+			postponed: parseInt(vevent.getFirstPropertyValue<string>(CustomPropName.POSTPONED) ?? '0'),
 			urgency,
 			importance,
 			load,
@@ -729,8 +744,18 @@ export class CalendarBackend {
 		eventData: TAllTypes,
 		eventId?: string
 	): { id: string; component: ICAL.Component; meta: TEventMeta } {
-		const { description, date, endDate, alarms, title, recur, originalText, type, tags } =
-			eventData;
+		const {
+			postponed,
+			description,
+			date,
+			endDate,
+			alarms,
+			title,
+			recur,
+			originalText,
+			type,
+			tags
+		} = eventData;
 		const component = new ICAL.Component(['vcalendar', [], []]);
 		component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
 
@@ -791,6 +816,7 @@ export class CalendarBackend {
 
 		vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, originalText);
 		vcomponent.addPropertyWithValue(CustomPropName.TYPE, type ?? EType.EVENT);
+		vcomponent.addPropertyWithValue(CustomPropName.POSTPONED, postponed?.toString() ?? '0');
 
 		if (tags.length > 0) {
 			vcomponent.addPropertyWithValue(
@@ -825,7 +851,8 @@ const CustomPropName = {
 	LOAD: 'x-load',
 	IMPORTANCE: 'x-importance',
 	ORIGINAL_TEXT: 'x-original-text',
-	STATUS: 'x-status'
+	STATUS: 'x-status',
+	POSTPONED: 'x-postponed'
 };
 
 const backends: Record<string, CalendarBackend> = {};

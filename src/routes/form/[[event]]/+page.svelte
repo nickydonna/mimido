@@ -4,6 +4,5 @@
 
 	onMount(async () => {
 		await goto('/day');
-	})
+	});
 </script>
-

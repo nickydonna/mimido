@@ -73,8 +73,9 @@ export interface CalendarObject extends Item {
 	date: Date | undefined;
 	endDate: Date | undefined;
 	data: string;
-	/** @type {'vtodo' | 'vevent'} */
 	icalType: 'vtodo' | 'vevent';
+	recur: string | undefined;
+	postponed: number;
 }
 
 export const CalendarObjectModel = dynamoose.model<CalendarObject>(
@@ -90,7 +91,8 @@ export const CalendarObjectModel = dynamoose.model<CalendarObject>(
 			endDate: { type: Date },
 			data: { type: String, required: true },
 			recur: { type: String },
-			icalType: { type: String, required: true, enum: ['vtodo', 'vevent'] }
+			icalType: { type: String, required: true, enum: ['vtodo', 'vevent'] },
+			postponed: { type: Number, default: 0 }
 		},
 		{ timestamps: true }
 	),

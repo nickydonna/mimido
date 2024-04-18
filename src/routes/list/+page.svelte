@@ -20,10 +20,7 @@
 		Toggle,
 		GradientButton
 	} from 'flowbite-svelte';
-	import {
-		BarsFromLeftOutline,
-		CloseOutline
-	} from 'flowbite-svelte-icons';
+	import { BarsFromLeftOutline, CloseOutline } from 'flowbite-svelte-icons';
 	import { sineIn } from 'svelte/easing';
 	import type { PageData } from './$types';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
@@ -53,7 +50,7 @@
 			[EStatus.BACK, events.filter((e) => e.status === EStatus.BACK)]
 		];
 		if (showEventDetail) {
-			showEventDetail = data.events.find(e => e.eventId === showEventDetail?.eventId)
+			showEventDetail = data.events.find((e) => e.eventId === showEventDetail?.eventId);
 		}
 	}
 
@@ -63,7 +60,6 @@
 		duration: 100,
 		easing: sineIn
 	};
-
 
 	function setTag(tag?: string) {
 		let query = new URLSearchParams($page.url.searchParams.toString());

@@ -11,11 +11,7 @@
 	} from 'date-fns/fp';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
-	import {
-		AngleLeftOutline,
-		AngleRightOutline,
-		BarsFromLeftOutline,
-	} from 'flowbite-svelte-icons';
+	import { AngleLeftOutline, AngleRightOutline, BarsFromLeftOutline } from 'flowbite-svelte-icons';
 	import { EStatus, EType } from '$lib/parser/index.js';
 	import {
 		formatISO,
@@ -104,7 +100,7 @@
 		}));
 
 		if (showEventDetail) {
-			showEventDetail = data.events.find(e => e.eventId === showEventDetail?.eventId)
+			showEventDetail = data.events.find((e) => e.eventId === showEventDetail?.eventId);
 		}
 	}
 
@@ -159,7 +155,7 @@
 		e.preventDefault();
 		console.log('dropped in ', timeSlot);
 		if (!dragging) return;
-		loading.increase()
+		loading.increase();
 		await fetch(`/event/${dragging.eventId}/date`, {
 			method: 'PUT',
 			body: JSON.stringify({ from: formatISO(timeSlot) })
@@ -169,7 +165,7 @@
 		hideTaskDrawer = true;
 		hoverTime = undefined;
 		// TODO manage error
-		loading.decrease()
+		loading.decrease();
 		await invalidateAll();
 	}
 </script>

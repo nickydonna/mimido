@@ -142,7 +142,8 @@ export function parseTaskText(str: string, tzOffset?: number): TAllTypes {
 		importance,
 		urgency,
 		recur,
-		alarms
+		alarms,
+		postponed: 0
 	};
 }
 

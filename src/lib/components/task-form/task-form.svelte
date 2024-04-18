@@ -190,7 +190,7 @@
 					};
 				}}
 			>
-				<input type="number" class="hidden" name="offset" value={offset}>
+				<input type="number" class="hidden" name="offset" value={offset} />
 				<div class="flex">
 					<div class="mr-2 flex-1">
 						{#if useAI}

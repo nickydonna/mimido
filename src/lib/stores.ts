@@ -7,9 +7,9 @@ const loadingStore = writable<number>(0);
 
 export const loading = {
 	subscribe: loadingStore.subscribe,
-	increase: () => loadingStore.update(n => n + 1),
+	increase: () => loadingStore.update((n) => n + 1),
 	// lower cap to 0
-	decrease: () => loadingStore.update(n => Math.max(n - 1, 0)),
-}
+	decrease: () => loadingStore.update((n) => Math.max(n - 1, 0))
+};
 
-export const isLoading = derived(loadingStore, ($loading) => $loading > 0)
+export const isLoading = derived(loadingStore, ($loading) => $loading > 0);

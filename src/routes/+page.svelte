@@ -21,10 +21,10 @@
 	});
 
 	async function login() {
-		loading.increase()
+		loading.increase();
 		await cognitoLogin(username, password);
 		await goto('/day');
-		loading.decrease()
+		loading.decrease();
 	}
 </script>
 
