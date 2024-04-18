@@ -51,7 +51,10 @@ export const UserModel = dynamoose.model<User>(
 						schema: {
 							provider: { type: String, enum: ['parent'], required: true },
 							type: { type: String, enum: ['extend'], required: true },
-							name: { type: String, required: true }
+							name: { type: String, required: true },
+							ctag: { type: String },
+							syncToken: { type: String },
+							url: { type: String }
 						}
 					}
 				],
@@ -98,71 +101,3 @@ export const CalendarObjectModel = dynamoose.model<CalendarObject>(
 	),
 	{ create: false, update: true, throughput: 'ON_DEMAND' }
 );
-
-// class Event extends Item {
-
-//   eventId = undefined;
-//   /** @type {string | undefined} */
-//   title = undefined;
-//   /** @type {Date | undefined} */
-//   date = undefined;
-//   /** @type {Date | undefined} */
-//   endDate = undefined;
-//   /** @type {string | undefined} */
-//   description = undefined;
-//   /** @type {string[]} */
-//   tags = [];
-//   /** @type {string | undefined} */
-//   recur = undefined
-//   /** @type {EStatus} */
-//   status = EStatus.BACK;
-//   /** @type {EType} */
-//   type = EType.TASK;
-//   /** @type {TAlarm[]} */
-//   alarms = []
-//   /** @type {number | undefined} */
-//   importance = undefined
-//   /** @type {number | undefined} */
-//   load = undefined
-//   /** @type {number | undefined} */
-//   urgency = undefined
-// }
-
-// export const EventModel =
-//   /** @type {import('dynamoose/dist/General').ModelType<Event>} */
-//   (dynamoose.model("Event", new dynamoose.Schema({
-//     eventId: { type: String, required: true, hashKey: true },
-//     title: { type: String, required: true },
-//     date: { type: Date },
-//     endDate: { type: Date },
-//     description: { type: String },
-//     recur: { type: String },
-//     tags: { type: Array, schema: String },
-//     status: {type: String, enum: Object.values(EStatus) },
-//     type: { type: String, enum: Object.values(EType) },
-//     importance: { type: Number },
-//     urgency: { type: Number },
-//     load: { type: Number },
-//     alarms: {
-//       type: Array,
-//       schema: [{
-//         type: Object,
-//         schema: {
-//           isNegative: Boolean,
-//           related: { type: String, enum: ['START'] },
-//           duration: {
-//             type: Object,
-//             schema: {
-//               years: Number,
-//               months: Number,
-//               weeks: Number,
-//               days: Number,
-//               hours: Number,
-//               minutes: Number,
-//               seconds: Number,
-//             }
-//           }
-//         }
-//       }]
-//     }
-//   })))

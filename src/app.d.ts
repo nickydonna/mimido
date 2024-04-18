@@ -25,6 +25,9 @@ interface ExtendCalendarAccess extends CalendarAccess {
 	type: 'extend';
 	provider: 'parent';
 	name: string;
+	ctag?: string;
+	syncToken?: string;
+	url?: string;
 }
 
 interface UserCalendar {

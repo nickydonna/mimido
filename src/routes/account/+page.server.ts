@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { CalendarBackend } from '$lib/server/calendar/index.js';
-import type { PageServerLoad, Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load: PageServerLoad = async ({ locals }) => {
@@ -18,7 +18,11 @@ export const actions: Actions = {
 		const back = new CalendarBackend(locals.user.username, auth);
 		try {
 			await back.check();
-			locals.user.main = auth;
+			const syncResult = await back.initialSync(true);
+			locals.user.main = {
+				...auth,
+				...syncResult
+			};
 			await locals.user.save();
 			locals.loginCache.delete(locals.user.username);
 		} catch (e) {
@@ -31,13 +35,15 @@ export const actions: Actions = {
 		const calendarName = data.get('calendarName') as string;
 
 		await locals.backend.check(calendarName);
+		const syncResult = await locals.backend.initialSync(false, calendarName);
 		const calendars = locals.user.calendars ?? [];
 		locals.user.calendars = [
 			...calendars,
 			{
 				provider: 'parent',
 				type: 'extend',
-				name: calendarName
+				name: calendarName,
+				...syncResult
 			}
 		];
 		await locals.user.save();
@@ -45,9 +51,19 @@ export const actions: Actions = {
 		throw redirect(302, '/day');
 	},
 	resync: async ({ locals }) => {
-		const { backend } = locals;
-		await backend.initialSync(true);
-		await Promise.all(locals.user.calendars.map(async (c) => backend.initialSync(false, c.name)));
+		const { backend, user } = locals;
+		const syncResult = await backend.initialSync(true);
+		console.log('main', syncResult);
+		user.calendars = await Promise.all(
+			user.calendars.map(async (c) => {
+				const syncResult = await backend.initialSync(false, c.name);
+				console.log(c.name, syncResult);
+				return { ...c, ...syncResult };
+			})
+		);
+		user.main = { ...user.main, ...syncResult };
+		console.log(user.toJSON());
+		await user.save();
 		return { ok: true };
 	}
 };

@@ -9,8 +9,8 @@ import { isValidRRule } from '$lib/utils/rrule';
 import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
 import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
-import { CalendarObjectModel, type User, UserModel } from '../db';
-import type { UserCalendar } from '../../../app';
+import { CalendarObjectModel, type User } from '../db';
+import type {  UserCalendar } from '../../../app';
 import dynamoose from 'dynamoose';
 
 export enum EType {
@@ -198,20 +198,22 @@ export class CalendarBackend {
 
 		if (!calendarName) {
 			const oldTodos = await this.listTodos();
-			const batched = chunkArray(oldTodos.map(t => t.eventId), 5);
-			await Promise.all(batched.map(c =>
-				CalendarObjectModel.batchDelete(c)
-			))
+			const batched = chunkArray(
+				oldTodos.map((t) => t.eventId),
+				5
+			);
+			await Promise.all(batched.map((c) => CalendarObjectModel.batchDelete(c)));
 		}
 		const oldEvents = await CalendarObjectModel.scan({
 			calendarUrl: calendar.url,
-			user: this.username,
-		}).exec()
+			user: this.username
+		}).exec();
 
-		const batched = chunkArray(oldEvents.map(t => t.id), 5);
-		await Promise.all(batched.map(c =>
-			CalendarObjectModel.batchDelete(c)
-		))
+		const batched = chunkArray(
+			oldEvents.map((t) => t.id),
+			5
+		);
+		await Promise.all(batched.map((c) => CalendarObjectModel.batchDelete(c)));
 		const [todoObjs, eventObjs] = await Promise.all([
 			this.listTodosRaw(),
 			this.client.fetchCalendarObjects({
@@ -247,7 +249,12 @@ export class CalendarBackend {
 		);
 
 		if (!includeTodo) {
-			return await eventsRes;
+			await eventsRes;
+			return {
+				url: calendar.url,
+				ctag: calendar.ctag,
+				syncToken: calendar.syncToken
+			};
 		}
 
 		const modelTodos = todoObjs.map((obj) => {
@@ -269,11 +276,11 @@ export class CalendarBackend {
 		);
 
 		await Promise.all([eventsRes, todosRes]);
-		const user = await UserModel.get({ username: this.username });
-		user.main.url = calendar.url;
-		user.main.ctag = calendar.ctag;
-		user.main.syncToken = calendar.syncToken;
-		await user.save();
+		return {
+			url: calendar.url,
+			ctag: calendar.ctag,
+			syncToken: calendar.syncToken
+		};
 	}
 
 	/**
@@ -380,8 +387,8 @@ export class CalendarBackend {
 			user: this.username,
 			icalType: 'vevent'
 		}).parenthesis((condition) =>
-				condition.where('date').between(from.valueOf(), to.valueOf()).or().where('recur').exists()
-			);
+			condition.where('date').between(from.valueOf(), to.valueOf()).or().where('recur').exists()
+		);
 
 		const objects = await CalendarObjectModel.scan(cond).using('calendarUrl').exec();
 
@@ -609,9 +616,8 @@ export class CalendarBackend {
 		return `${calUrl}${typeof eventOrId === 'string' ? eventOrId : eventOrId.eventId}.ics`;
 	}
 
-	/** @private */
-	async getCalendarUrl() {
-		return (await this.getCalendar()).url;
+	private async getCalendarUrl(calendarName?: string): Promise<string> {
+		return (await this.getCalendar(calendarName)).url;
 	}
 
 	private parseRankProp(comp: ICAL.Component): {
@@ -860,6 +866,59 @@ export class CalendarBackend {
 
 		return { id, component, meta };
 	}
+
+	// TODO fix this
+	// async smartSync(otherCalendars: ExtendCalendarAccess[]) {
+	// 	// @ts-expect-error
+	// 	const oldCalendars: DAVCalendar[] = [
+	// 		{
+	// 			name: this.auth.calendar,
+	// 			syncToken: this.auth.syncToken,
+	// 			ctag: this.auth.ctag,
+	// 			url: this.auth.url
+	// 		},
+	// 		...otherCalendars
+	// 	].filter((c) => isDefined(c.url));
+	//
+	// 	const { updated } = (await this.client.syncCalendars({
+	// 		oldCalendars: oldCalendars,
+	// 		// @ts-expect-error bad lib types
+	// 		detailedResult: true
+	// 	})) as unknown as { updated: DAVCalendar[] };
+	//
+	// 	// console.log(updated);
+	// 	if (updated.length === 0) {
+	// 		return;
+	// 	}
+	// 	const lc = updated[0];
+	// 	const objects = await CalendarObjectModel.scan({
+	// 		calendarUrl: lc.url,
+	// 		user: this.username,
+	// 		icalType: 'vevent',
+	// 	}).exec();
+	// 	const localObjects = objects.map((o): DAVObject => ({ etag: o.etag, url: o.url, data: o.data }))
+	// 	const res =
+	// 		await this.client.smartCollectionSync({
+	// 			collection: {
+	// 				url: oldCalendars[0].url,
+	// 				ctag: oldCalendars[0].ctag,
+	// 				syncToken: oldCalendars[0].syncToken,
+	// 				objects: localObjects,
+	// 				objectMultiGet: this.client.calendarMultiGet,
+	// 			},
+	// 			method: 'basic',
+	// 			// @ts-expect-error bad lib types
+	// 			detailedResult: true,
+	// 		})
+	//
+	// 	const {
+	// 		created: createdObjects,
+	// 			updated: updatedObjects,
+	// 			deleted: deletedObjects,
+	// 	} = res.objects;
+	//
+	//
+	// }
 }
 
 const CustomPropName = {
