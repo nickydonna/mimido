@@ -29,7 +29,7 @@
 	import { nord } from '@milkdown/theme-nord';
 	import { EStatus } from '$lib/parser/index.js';
 	import { rruleToText } from '$lib/utils/rrule.js';
-	import { isLoading, loading, selectedEvent } from '$lib/stores';
+	import { isLoading, loading, upsert } from '$lib/stores';
 	import type { EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
 	import { add, format } from 'date-fns/fp';
@@ -328,7 +328,7 @@
 				<Button
 					disabled={$isLoading}
 					on:click={() => {
-						event && selectedEvent.set(event);
+						event && upsert.update(event);
 						onClose();
 					}}
 					class="mr-2"

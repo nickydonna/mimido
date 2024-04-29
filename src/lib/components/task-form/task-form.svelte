@@ -9,12 +9,12 @@
 		Label,
 		MultiSelect,
 		Select,
-		Spinner,
+		Spinner
 	} from 'flowbite-svelte';
-	import { formatISODuration } from 'date-fns/fp';
+	import { format, formatISODuration } from 'date-fns/fp';
 	import { formatDuration } from 'date-fns';
 	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser/index.js';
-	import { isBlock, isReminder, isTask } from '$lib/util.js';
+	import { isBlock, isDefined, isReminder, isTask } from '$lib/util.js';
 	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
 	import { commonmark } from '@milkdown/preset-commonmark';
 	import { nord } from '@milkdown/theme-nord';
@@ -23,23 +23,24 @@
 	import { enhance } from '$app/forms';
 	import { rruleToText } from '$lib/utils/rrule.js';
 	import { createEventDispatcher, type EventDispatcher } from 'svelte';
-	import type { TAllTypesWithId } from '$lib/server/calendar';
 	import '@milkdown/theme-nord/style.css';
 	import { page } from '$app/stores';
-
-	export let event: TAllTypesWithId | undefined = undefined;
+	import { upsert } from '$lib/stores';
 
 	const typeOptions = Object.values(EType).map((type) => ({ value: type, name: type }));
 	const statusOptions = Object.values(EStatus).map((type) => ({ value: type, name: type }));
 
 	const today = new Date();
 	const offset = today.getTimezoneOffset();
+	const { editing, date } = $upsert;
 	const tag = $page.url.searchParams.get('tag') ?? undefined;
 	let originalText: string = '';
-	if (event) {
-		originalText = unparseTaskText(event);
+	if (editing) {
+		originalText = unparseTaskText(editing);
 	} else if (tag) {
 		originalText = `#${tag} `;
+	} else if (date) {
+		originalText = `(today at ${format('HH:mm', date)}) `;
 	}
 
 	const dispatch: EventDispatcher<{ success: null }> = createEventDispatcher();
@@ -47,7 +48,7 @@
 
 	let taskText = originalText;
 	let description = '';
-	let editting = false;
+	let isEditting = isDefined(editing);
 	let upserting = false;
 	let taskInfo = parseTaskText(taskText);
 
@@ -57,12 +58,11 @@
 	let formAction = '/form';
 	$: {
 		taskInfo = parseTaskText(taskText);
-		editting = typeof event !== 'undefined';
 		alarmsValue = taskInfo.alarms.map((alarm) => ({
 			name: `${formatDuration({ ...alarm.duration }, { format: ['days', 'hours', 'minutes'] })} before`,
 			value: formatISODuration(alarm.duration)
 		}));
-		formAction = editting ? `/form/${event?.eventId}` : '/form';
+		formAction = isEditting ? `/form/${editing?.eventId}` : '/form';
 	}
 
 	function editor(dom: HTMLElement) {
@@ -73,8 +73,8 @@
 				ctx.get(listenerCtx).markdownUpdated((ctx, md) => {
 					description = md;
 				});
-				if (event?.description) {
-					ctx.set(defaultValueCtx, event.description);
+				if (editing?.description) {
+					ctx.set(defaultValueCtx, editing.description);
 				}
 			})
 			.config(nord)
@@ -87,7 +87,7 @@
 <div class="flex h-full w-full flex-row items-center align-middle">
 	<div class="flex-1 p-10">
 		<h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-			{editting ? 'Edit Event' : 'New Event'}
+			{isEditting ? 'Edit Event' : 'New Event'}
 		</h5>
 		<p>For creating tasks we use text rather than controls.</p>
 		<Accordion flush>
@@ -352,7 +352,7 @@
 						{#if upserting}
 							<Spinner class="me-3" size="4" />
 						{/if}
-						{editting ? 'Update' : 'Create'}
+						{isEditting ? 'Update' : 'Create'}
 					</Button>
 				</div>
 			</form>

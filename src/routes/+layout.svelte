@@ -23,7 +23,7 @@
 	import { onMount } from 'svelte';
 	import { Drawer } from 'flowbite-svelte';
 	import TaskForm from '$lib/components/task-form';
-	import { isLoading, selectedEvent } from '$lib/stores';
+	import { isLoading, isUpserting, upsert } from '$lib/stores';
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
@@ -57,21 +57,11 @@
 		duration: 200,
 		easing: sineIn
 	};
-	let hideUpsertDrawer = true;
 
 	$: webManifest = pwaInfo ? pwaInfo.webManifest.linkTag : '';
 
-	$: {
-		if ($selectedEvent) {
-			hideUpsertDrawer = false;
-		}
-	}
-
 	function closeDrawer() {
-		if ($selectedEvent) {
-			selectedEvent.set(undefined);
-		}
-		hideUpsertDrawer = true;
+		upsert.reset();
 	}
 
 	let date: string;
@@ -115,10 +105,10 @@
 			transitionType="fly"
 			placement="bottom"
 			{transitionParams}
-			bind:hidden={hideUpsertDrawer}
+			hidden={!$isUpserting}
 		>
 			<div class="mb-10">
-				<TaskForm event={$selectedEvent} on:success={closeDrawer} />
+				<TaskForm on:success={closeDrawer} />
 			</div>
 		</Drawer>
 		<BottomNav position="fixed" classInner="grid-cols-4" navType="application">
@@ -132,12 +122,8 @@
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-			{#if hideUpsertDrawer}
-				<BottomNavItem
-					btnName="Add"
-					on:click={() => (hideUpsertDrawer = false)}
-					appBtnPosition="middle"
-				>
+			{#if !$isUpserting}
+				<BottomNavItem btnName="Add" on:click={() => upsert.create()} appBtnPosition="middle">
 					<PlusOutline
 						class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 					/>

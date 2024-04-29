@@ -11,8 +11,13 @@
 	} from 'date-fns/fp';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
-	import { AngleLeftOutline, AngleRightOutline, BarsFromLeftOutline } from 'flowbite-svelte-icons';
-	import { EStatus, EType } from '$lib/parser/index.js';
+	import {
+		AngleLeftOutline,
+		AngleRightOutline,
+		BarsFromLeftOutline,
+		CloseOutline
+	} from 'flowbite-svelte-icons';
+	import { EType } from '$lib/parser/index.js';
 	import {
 		formatISO,
 		getMinutes,
@@ -51,7 +56,7 @@
 
 	import { Drawer, CloseButton } from 'flowbite-svelte';
 	import { sineIn } from 'svelte/easing';
-	import { isLoading, loading, selectedEvent } from '$lib/stores';
+	import { isLoading, loading, upsert } from '$lib/stores';
 
 	let hideTaskDrawer = true;
 	let transitionParams = {
@@ -153,7 +158,6 @@
 
 	async function handleDragDrop(e: Event, timeSlot: Date) {
 		e.preventDefault();
-		console.log('dropped in ', timeSlot);
 		if (!dragging) return;
 		loading.increase();
 		await fetch(`/event/${dragging.eventId}/date`, {
@@ -167,6 +171,10 @@
 		// TODO manage error
 		loading.decrease();
 		await invalidateAll();
+	}
+
+	function handleTimeDoubleClick(time: Date) {
+		upsert.create(time);
 	}
 </script>
 
@@ -197,7 +205,7 @@
 		</ButtonGroup>
 	</div>
 
-	<Modal open={$isLoading && !selectedEvent} dismissable={false} autoclose={false}>
+	<Modal open={$isLoading} dismissable={false} autoclose={false}>
 		<div class="text-center text-lg font-bold">
 			<p>Working...</p>
 			<Spinner color="green" size={10} class="mt-2" />
@@ -283,7 +291,8 @@
 
 		{#each timeBlocks as { time, check } (time)}
 			<h2
-				class="time-slot m-0.5 text-center text-xs"
+				on:dblclick={() => !dragging && handleTimeDoubleClick(time)}
+				class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
 				style:grid-row={`time-${format('HHmm', time)}`}
 			>
 				{format('HH:mm', time)}
@@ -344,11 +353,25 @@
 	</div>
 </div>
 
+{#if dragging}
+	<div
+		aria-hidden="true"
+		class="flex fixed w-full z-[51] bg-rose-900 border-rose-800 h-16 max-w-lg -translate-x-1/2 rtl:translate-x-1/2 border rounded-full bottom-4 start-1/2"
+		on:dragenter={() => (hoverTime = undefined) }
+		on:drop={() => { dragging = undefined}}
+		ondragover="return false"
+	>
+		<div class="flex-1"></div>
+		<CloseOutline class="self-center" />
+		<div class="flex-1"></div>
+	</div>
+{/if}
+
 <Drawer
 	backdrop={false}
 	transitionType="fly"
 	{transitionParams}
-	bind:hidden={hideTaskDrawer}
+	hidden={hideTaskDrawer || !!dragging}
 	id="sidebar1"
 >
 	<div class="flex items-center">
@@ -372,7 +395,7 @@
 					<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}">
 						<TableBodyCell
 							on:click={() => {
-								selectedEvent.set(event);
+								upsert.update(event);
 								hideTaskDrawer = true;
 							}}
 							class={isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'}
