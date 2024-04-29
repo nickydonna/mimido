@@ -10,7 +10,7 @@ import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
 import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
 import { CalendarObjectModel, type User } from '../db';
-import type {  UserCalendar } from '../../../app';
+import type { UserCalendar } from '../../../app';
 import dynamoose from 'dynamoose';
 
 export enum EType {

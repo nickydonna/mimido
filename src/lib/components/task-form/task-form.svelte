@@ -46,22 +46,12 @@
 	let upserting = false;
 	let taskInfo = parseTaskText('');
 
-	// AI Variables
-	let useAI = false;
-	let taskTextAi = '';
-	let parsing = false;
-
 	// Form variables
 	let alarmsValue: { name: string; value: string }[] = [];
 	let errors: string[] | undefined;
 	let formAction = '/form';
 	$: {
-		if (!useAI) {
-			// Use local timezone
-			taskInfo = parseTaskText(taskText);
-		} else {
-			taskText = unparseTaskText(taskInfo);
-		}
+		taskInfo = parseTaskText(taskText);
 		editting = typeof event !== 'undefined';
 		alarmsValue = taskInfo.alarms.map((alarm) => ({
 			name: `${formatDuration({ ...alarm.duration }, { format: ['days', 'hours', 'minutes'] })} before`,
@@ -87,29 +77,6 @@
 			.use(listener)
 			.create();
 	}
-
-	/** Get the prompt result */
-	const prompt = async () => {
-		parsing = true;
-		const res = fetch('/parse', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				prompt: taskTextAi,
-				offset: new Date().getTimezoneOffset()
-			})
-		});
-		const json = await res.then((res) => res.json());
-		taskInfo = {
-			...json,
-			date: json.date ? parseISO(json.date) : undefined,
-			endDate: json.endDate ? parseISO(json.endDate) : undefined
-		};
-
-		parsing = false;
-	};
 </script>
 
 <div class="flex h-full w-full flex-row items-center align-middle">
@@ -193,56 +160,19 @@
 				<input type="number" class="hidden" name="offset" value={offset} />
 				<div class="flex">
 					<div class="mr-2 flex-1">
-						{#if useAI}
-							<Label>
-								Type your task to be parsed by AI:
-								<Input
-									id="original_text"
-									class="mt-2"
-									name="originalText"
-									type="text"
-									label="Type your event"
-									required
-									autofocus
-									disabled={parsing || upserting}
-									bind:value={taskTextAi}
-								>
-									<button
-										slot="right"
-										on:click={prompt}
-										aria-label="Prompt"
-										type="button"
-										disabled={parsing}
-									>
-										{#if parsing}
-											<ArrowsRepeatOutline class="h-6 w-6" />
-										{:else}
-											<ArrowUpFromBracketOutline class="h-6 w-6" />
-										{/if}
-									</button>
-								</Input>
-							</Label>
-						{:else}
-							<FloatingLabelInput
-								disable={upserting}
-								id="original_text"
-								name="originalText"
-								type="text"
-								label="Type your event"
-								required
-								autofocus
-								bind:value={taskText}
-							>
-								Type your task
-							</FloatingLabelInput>
-						{/if}
+						<FloatingLabelInput
+							disable={upserting}
+							id="original_text"
+							name="originalText"
+							type="text"
+							label="Type your event"
+							required
+							autofocus
+							bind:value={taskText}
+						>
+							Type your task
+						</FloatingLabelInput>
 					</div>
-					<Toggle
-						class="self-center {useAI ? 'mt-6' : ''}"
-						id="use_ai"
-						name="useAI"
-						bind:checked={useAI}
-					></Toggle>
 				</div>
 				{#if errors}
 					<Helper class="pt-2 text-red-950">
