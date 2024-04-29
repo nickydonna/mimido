@@ -10,10 +10,9 @@
 		MultiSelect,
 		Select,
 		Spinner,
-		Toggle
 	} from 'flowbite-svelte';
 	import { formatISODuration } from 'date-fns/fp';
-	import { formatDuration, parseISO } from 'date-fns';
+	import { formatDuration } from 'date-fns';
 	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser/index.js';
 	import { isBlock, isReminder, isTask } from '$lib/util.js';
 	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
@@ -23,10 +22,10 @@
 
 	import { enhance } from '$app/forms';
 	import { rruleToText } from '$lib/utils/rrule.js';
-	import { ArrowUpFromBracketOutline, ArrowsRepeatOutline } from 'flowbite-svelte-icons';
 	import { createEventDispatcher, type EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
 	import '@milkdown/theme-nord/style.css';
+	import { page } from '$app/stores';
 
 	export let event: TAllTypesWithId | undefined = undefined;
 
@@ -35,7 +34,13 @@
 
 	const today = new Date();
 	const offset = today.getTimezoneOffset();
-	const originalText = event ? unparseTaskText(event) : '';
+	const tag = $page.url.searchParams.get('tag') ?? undefined;
+	let originalText: string = '';
+	if (event) {
+		originalText = unparseTaskText(event);
+	} else if (tag) {
+		originalText = `#${tag} `;
+	}
 
 	const dispatch: EventDispatcher<{ success: null }> = createEventDispatcher();
 	const onSuccess = () => dispatch('success');
@@ -44,7 +49,7 @@
 	let description = '';
 	let editting = false;
 	let upserting = false;
-	let taskInfo = parseTaskText('');
+	let taskInfo = parseTaskText(taskText);
 
 	// Form variables
 	let alarmsValue: { name: string; value: string }[] = [];
