@@ -52,7 +52,7 @@
 	import { inview } from 'svelte-inview';
 	import type { Options, ObserverEventDetails } from 'svelte-inview';
 	import type { PageData } from './$types';
-	import type { TAllTypesWithId } from '$lib/server/calendar';
+	import type { TAllTypesWithId, TBlockSchema } from '$lib/server/calendar';
 
 	import { Drawer, CloseButton } from 'flowbite-svelte';
 	import { sineIn } from 'svelte/easing';
@@ -70,6 +70,7 @@
 	let dragging: TAllTypesWithId | undefined;
 	let showEventDetail: TAllTypesWithId | undefined;
 	let hoverTime: Date | undefined;
+	let hoverBlock: TBlockSchema | undefined;
 	let current: Date;
 	let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }>;
 	let showingToday = false;
@@ -156,7 +157,7 @@
 		});
 	};
 
-	async function handleDragDrop(e: Event, timeSlot: Date) {
+	async function handleDropOnTime(e: Event, timeSlot: Date) {
 		e.preventDefault();
 		if (!dragging) return;
 		loading.increase();
@@ -168,14 +169,25 @@
 		dragging = undefined;
 		hideTaskDrawer = true;
 		hoverTime = undefined;
+		hoverBlock = undefined
 		// TODO manage error
 		loading.decrease();
 		await invalidateAll();
 	}
 
+	function handleDropOnBlock(dropEvent: Event, e: TAllTypesWithId) {
+		if (!isBlock(e)) return;
+		console.log('add to block', e.title)
+		dragging = undefined;
+		hideTaskDrawer = true
+		hoverTime = undefined
+		hoverBlock = undefined
+	}
 	function handleTimeDoubleClick(time: Date) {
 		upsert.create(time);
 	}
+
+
 </script>
 
 <div>
@@ -255,7 +267,7 @@
 				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
 			</div>
 		{/if}
-		{#if !currentTimeInView}
+		{#if !currentTimeInView && !dragging}
 			<Button class="fixed bottom-[6rem] end-6 z-40" on:click={scrollCurrentIntoView}>
 				Current Time
 			</Button>
@@ -299,8 +311,8 @@
 			</h2>
 			<div
 				class:hidden={hoverTime !== time}
-				class="z-40 text-center font-bold text-lg bg-blue-800"
-				style:grid-column="event / time"
+				class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
+				style:grid-column="task / time"
 				style:grid-row="time-{format('HHmm', time)}"
 			>
 				{format('HH:mm', time)}
@@ -314,13 +326,42 @@
 					class:border-gray-300={getMinutes(time) === 30}
 					style:grid-column={type}
 					style:grid-row="time-{format('HHmm', time)}"
-					on:dragenter={() => (hoverTime = time)}
+					on:dragenter={() => {
+						hoverTime = time
+						hoverBlock = undefined;
+					}}
 					on:drop={(e) => {
-						handleDragDrop(e, time);
+						handleDropOnTime(e, time);
 					}}
 					ondragover="return false"
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
+					{#if dragging && isBlock(e)}
+						<div
+							aria-hidden="true"
+							class="bg-teal-500 z-[51] m-px rounded-lg"
+							style:grid-column="event"
+							on:dragenter={() => {
+								hoverTime = undefined;
+								hoverBlock = e;
+							}}
+							on:drop={(dropEvent) => {
+								handleDropOnBlock(dropEvent, e)
+							}}
+							ondragover="return false"
+							style:grid-row={getScheduleSlot(e)}
+						>
+							<div class="flex h-full flex-col items-center justify-center">
+								<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
+									{#if hoverBlock === e}
+										ADD TO {e.title.toUpperCase()}
+									{:else}
+										{e.title.toUpperCase()}
+									{/if}
+								</p>
+							</div>
+						</div>
+					{/if}
 					<div
 						tabindex={i * 10 + k}
 						role="button"
@@ -357,8 +398,12 @@
 	<div
 		aria-hidden="true"
 		class="flex fixed w-full z-[51] bg-rose-900 border-rose-800 h-16 max-w-lg -translate-x-1/2 rtl:translate-x-1/2 border rounded-full bottom-4 start-1/2"
-		on:dragenter={() => (hoverTime = undefined) }
-		on:drop={() => { dragging = undefined}}
+		on:dragenter={() => {
+			hoverTime = undefined
+		}}
+		on:drop={() => {
+			dragging = undefined;
+		}}
 		ondragover="return false"
 	>
 		<div class="flex-1"></div>
