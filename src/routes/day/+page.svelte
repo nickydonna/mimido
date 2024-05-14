@@ -169,7 +169,7 @@
 		dragging = undefined;
 		hideTaskDrawer = true;
 		hoverTime = undefined;
-		hoverBlock = undefined
+		hoverBlock = undefined;
 		// TODO manage error
 		loading.decrease();
 		await invalidateAll();
@@ -177,17 +177,17 @@
 
 	function handleDropOnBlock(dropEvent: Event, e: TAllTypesWithId) {
 		if (!isBlock(e)) return;
-		console.log('add to block', e.title)
+		console.log('add to block', e.title);
 		dragging = undefined;
-		hideTaskDrawer = true
-		hoverTime = undefined
-		hoverBlock = undefined
+		hideTaskDrawer = true;
+		hoverTime = undefined;
+		hoverBlock = undefined;
 	}
 	function handleTimeDoubleClick(time: Date) {
 		upsert.create(time);
 	}
 
-
+	const notypecheck = (x: any) => x;
 </script>
 
 <div>
@@ -327,13 +327,13 @@
 					style:grid-column={type}
 					style:grid-row="time-{format('HHmm', time)}"
 					on:dragenter={() => {
-						hoverTime = time
+						hoverTime = time;
 						hoverBlock = undefined;
 					}}
 					on:drop={(e) => {
 						handleDropOnTime(e, time);
 					}}
-					ondragover="return false"
+					{...notypecheck({ ondragover: 'return false' })}
 				></div>
 				{#each events.filter((e) => timeCheck(e, check)) as e, k}
 					{#if dragging && isBlock(e)}
@@ -346,9 +346,9 @@
 								hoverBlock = e;
 							}}
 							on:drop={(dropEvent) => {
-								handleDropOnBlock(dropEvent, e)
+								handleDropOnBlock(dropEvent, e);
 							}}
-							ondragover="return false"
+							{...notypecheck({ ondragover: 'return false' })}
 							style:grid-row={getScheduleSlot(e)}
 						>
 							<div class="flex h-full flex-col items-center justify-center">
@@ -399,12 +399,12 @@
 		aria-hidden="true"
 		class="flex fixed w-full z-[51] bg-rose-900 border-rose-800 h-16 max-w-lg -translate-x-1/2 rtl:translate-x-1/2 border rounded-full bottom-4 start-1/2"
 		on:dragenter={() => {
-			hoverTime = undefined
+			hoverTime = undefined;
 		}}
 		on:drop={() => {
 			dragging = undefined;
 		}}
-		ondragover="return false"
+		{...notypecheck({ ondragover: 'return false ' })}
 	>
 		<div class="flex-1"></div>
 		<CloseOutline class="self-center" />

@@ -9,9 +9,8 @@ import { isValidRRule } from '$lib/utils/rrule';
 import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
 import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
-import { CalendarObjectModel, type User } from '../db';
-import type { UserCalendar } from '../../../app';
-import dynamoose from 'dynamoose';
+import type { Calendar } from '@prisma/client';
+import { prisma } from '../prisma';
 
 export enum EType {
 	EVENT = 'event',
@@ -118,36 +117,21 @@ export type TAllTypesWithId =
 	| WithId<TEventSchema>
 	| WithId<TTaskSchema>;
 
-function chunkArray<T>(array: Array<T>, chunkSize: number) {
-	return array.reduce(
-		(resultArray, item, index) => {
-			const chunkIndex = Math.floor(index / chunkSize);
-			if (!resultArray[chunkIndex]) {
-				resultArray[chunkIndex] = [];
-			}
-			resultArray[chunkIndex].push(item);
-			return resultArray;
-		},
-		[] as Array<T[]>
-	);
-}
 
 export class CalendarBackend {
-	client: DAVClient;
+	private client: DAVClient;
 	logged: Promise<void>;
 	calendar: DAVCalendar | undefined;
 	calendars: DAVCalendar[] | undefined;
 
 	constructor(
-		private readonly username: string,
-		private readonly auth: UserCalendar
+		readonly calendarInfo: Omit<Calendar, 'createdAt' | 'updatedAt'>
 	) {
-		/** @private */
 		this.client = new DAVClient({
-			serverUrl: auth.server,
+			serverUrl: calendarInfo.server,
 			credentials: {
-				username: auth.email,
-				password: auth.password
+				username: calendarInfo.email,
+				password: calendarInfo.password
 			},
 			authMethod: 'Basic',
 			defaultAccountType: 'caldav'
@@ -167,7 +151,7 @@ export class CalendarBackend {
 	async getCalendar(calendarName?: string | undefined, force: boolean = false) {
 		if (this.calendar && !force) return this.calendar;
 		const calendars = await this.getCalendars();
-		const auth = this.auth;
+		const auth = this.calendarInfo;
 		let calendar;
 		if (calendarName) {
 			calendar = calendars.find((c) => c.displayName === calendarName);
@@ -186,39 +170,25 @@ export class CalendarBackend {
 		await registerAllTz();
 		await this.logged;
 		await this.getCalendar(calendarName, true);
-		return true;
+		return true
 	}
 
-	/**
-	 * @param {boolean} includeTodo
-	 * @param {string} [calendarName]
-	 */
-	async initialSync(includeTodo: boolean, calendarName?: string) {
-		const calendar = await this.getCalendar(calendarName, true);
+	async initialSync(includeTodo: boolean, syncCalendarInfo: Omit<Calendar, 'createdAt' | 'updatedAt'> = this.calendarInfo) {
+		const calendar = await this.getCalendar(syncCalendarInfo.calendar, true);
 
-		if (!calendarName) {
-			const oldTodos = await this.listTodos();
-			const batched = chunkArray(
-				oldTodos.map((t) => t.eventId),
-				5
-			);
-			await Promise.all(batched.map((c) => CalendarObjectModel.batchDelete(c)));
+		if (includeTodo) {
+			await prisma.calendarObject.deleteMany({
+				where: {
+					icalType: 'vtodo',
+					calendarId: syncCalendarInfo.id,
+				}
+			})
 		}
-		const oldEvents = await CalendarObjectModel.scan({
-			calendarUrl: calendar.url,
-			user: this.username
-		}).exec();
 
-		const batched = chunkArray(
-			oldEvents.map((t) => t.id),
-			5
-		);
-		await Promise.all(batched.map((c) => CalendarObjectModel.batchDelete(c)));
+		await prisma.calendarObject.deleteMany({ where: { calendarId: syncCalendarInfo.id } })
 		const [todoObjs, eventObjs] = await Promise.all([
 			this.listTodosRaw(),
-			this.client.fetchCalendarObjects({
-				calendar
-			})
+			this.client.fetchCalendarObjects({ calendar })
 		]);
 		const modelEvents = eventObjs.map((obj) => {
 			const comp = ICAL.Component.fromString(obj.data);
@@ -232,21 +202,19 @@ export class CalendarBackend {
 				recur = icalRecur.toString();
 			}
 			return {
-				id: event.uid,
-				user: this.username,
-				calendarUrl: calendar.url,
+				eventId: event.uid,
 				data: obj.data,
 				date: event.startDate.toJSDate(),
 				endDate: event.endDate.toJSDate(),
 				etag: obj.etag,
 				url: obj.url,
 				recur: recur,
-				icalType: 'vevent'
+				icalType: 'vevent',
+				calendarId: syncCalendarInfo.id,
 			};
 		});
-		const eventsRes = Promise.all(
-			chunkArray(modelEvents, 4).map((chunk) => CalendarObjectModel.batchPut(chunk))
-		);
+
+		const eventsRes = prisma.calendarObject.createMany({ data: modelEvents })
 
 		if (!includeTodo) {
 			await eventsRes;
@@ -261,19 +229,16 @@ export class CalendarBackend {
 			const comp = ICAL.Component.fromString(obj.data);
 			const vtodo = comp.getFirstSubcomponent('vtodo');
 			return {
-				id: vtodo?.getFirstPropertyValue('uid'),
-				user: this.username,
-				calendarUrl: calendar.url,
+				eventId: vtodo?.getFirstPropertyValue<string>('uid')!,
 				data: obj.data,
 				etag: obj.etag,
 				url: obj.url,
-				icalType: 'vtodo'
+				icalType: 'vtodo',
+				calendarId: syncCalendarInfo.id,
 			};
 		});
 
-		const todosRes = Promise.all(
-			chunkArray(modelTodos, 4).map((chunk) => CalendarObjectModel.batchPut(chunk))
-		);
+		const todosRes = prisma.calendarObject.createMany({ data: modelTodos })
 
 		await Promise.all([eventsRes, todosRes]);
 		return {
@@ -291,15 +256,18 @@ export class CalendarBackend {
 
 		const { id, component, meta } = this.toComponent(eventData);
 
-		const model = await CalendarObjectModel.create({
-			id,
-			calendarUrl: calendar.url,
-			url: await this.getEventUrl(id),
-			user: this.username,
-			data: component.toString(),
-			date: eventData.date,
-			endDate: eventData.endDate,
-			icalType: meta.icalType
+		const model = await prisma.calendarObject.create({
+			data: {
+				eventId: id,
+				url: await this.getEventUrl(id),
+				data: component.toString(),
+				date: eventData.date,
+				endDate: eventData.endDate,
+				icalType: meta.icalType,
+				calendar: {
+					connect: { id: this.calendarInfo.id }
+				}
+			}
 		});
 
 		const calendarPush = this.client.createCalendarObject({
@@ -313,7 +281,7 @@ export class CalendarBackend {
 			const newE = await this.getEventRaw(id);
 			const etag = newE.raw.props?.getetag;
 			if (etag) {
-				await CalendarObjectModel.update({ id, etag });
+				await prisma.calendarObject.update({ where: { id: model.id }, data: { etag } })
 			}
 			console.log('Create calendar object');
 		});
@@ -342,15 +310,12 @@ export class CalendarBackend {
 	}
 
 	async listTodos({ excludeDone }: { excludeDone?: boolean } = {}) {
-		const calendar = await this.getCalendar();
-		// const objects = await this.listTodosRaw();
-		const objects = await CalendarObjectModel.scan({
-			calendarUrl: calendar.url,
-			user: this.username,
-			icalType: 'vtodo'
+		const objects = await prisma.calendarObject.findMany({
+			where: {
+				calendarId: this.calendarInfo.id,
+				icalType: 'vtodo'
+			}
 		})
-			.using('calendarUrl')
-			.exec();
 
 		const todos = objects
 			.map((e) => {
@@ -364,33 +329,35 @@ export class CalendarBackend {
 		return excludeDone ? todos.filter((t) => !isDone(t)) : todos;
 	}
 
-	async listDayEvent(day: Date, calendar?: string) {
+	async listDayEvent(day: Date, calendarId?: number) {
 		const from = startOfDay(day);
 		const to = addMinutes(1, endOfDay(day));
-		return this.listEvents(from, to, calendar);
+		return this.listEvents(from, to, calendarId);
 	}
 
-	async listExternalDayEvents(day: Date, calendar: string) {
-		const events = await this.listDayEvent(day, calendar);
+	async listExternalDayEvents(day: Date, calendarId: number) {
+		const events = await this.listDayEvent(day, calendarId);
 		return events.map((e) => ({
 			...e,
 			type: EType.EVENT,
-			externalName: calendar
+			externalId: calendarId,
 		}));
 	}
 
-	async listEvents(from: Date, to: Date, calendarName?: string) {
-		const calendar = await this.getCalendar(calendarName);
+	async listEvents(from: Date, to: Date, calendarId?: number) {
+		const objects = await prisma.calendarObject.findMany({
+			where: {
+				calendarId: calendarId ?? this.calendarInfo.id,
+				icalType: 'vevent',
+				OR: [
+					// Check end time for recur
+					{ NOT: { recur: null } },
+					{ date: from, endDate: to },
+					{ date: from, endDate: null },
 
-		let cond = new dynamoose.Condition({
-			calendarUrl: calendar.url,
-			user: this.username,
-			icalType: 'vevent'
-		}).parenthesis((condition) =>
-			condition.where('date').between(from.valueOf(), to.valueOf()).or().where('recur').exists()
-		);
-
-		const objects = await CalendarObjectModel.scan(cond).using('calendarUrl').exec();
+				]
+			}
+		})
 
 		return objects
 			.map((o) => o.data)
@@ -480,7 +447,7 @@ export class CalendarBackend {
 	}
 
 	async getEvent(id: string) {
-		const dbEvent = await CalendarObjectModel.get({ id });
+		const dbEvent = await prisma.calendarObject.findFirstOrThrow({ where: { eventId: id } })
 		const comp = ICAL.Component.fromString(dbEvent.data);
 
 		let result:
@@ -531,15 +498,17 @@ export class CalendarBackend {
 			return { id: newId };
 		}
 
-		await CalendarObjectModel.update(
-			{ id },
-			{
+		// await CalendarObjectModel.update(
+		await prisma.calendarObject.updateMany({
+			where: { eventId: id },
+			data: {
 				data: component.toString(),
 				date: eventData.date,
 				endDate: eventData.endDate,
 				recur: eventData.recur,
 				postponed: eventData.postponed ?? 0
 			}
+		}
 		);
 
 		this.client
@@ -597,7 +566,7 @@ export class CalendarBackend {
 		const event = await this.getEvent(id);
 		if (!event) throw new Error('Event does not exists');
 
-		await CalendarObjectModel.delete({ id });
+		await prisma.calendarObject.deleteMany({ where: { eventId: id } });
 
 		this.client
 			.deleteCalendarObject({
@@ -616,7 +585,7 @@ export class CalendarBackend {
 		return `${calUrl}${typeof eventOrId === 'string' ? eventOrId : eventOrId.eventId}.ics`;
 	}
 
-	private async getCalendarUrl(calendarName?: string): Promise<string> {
+	async getCalendarUrl(calendarName?: string): Promise<string> {
 		return (await this.getCalendar(calendarName)).url;
 	}
 
@@ -934,11 +903,11 @@ const CustomPropName = {
 
 const backends: Record<string, CalendarBackend> = {};
 
-export async function getBackend(user: User) {
-	if (!backends[user.username]) {
-		const back = new CalendarBackend(user.username, user.main);
+export async function getBackend(calendarId: number, info: Calendar) {
+	if (!backends[calendarId]) {
+		const back = new CalendarBackend(info)
 		await back.check();
-		backends[user.username] = back;
+		backends[calendarId] = back;
 	}
-	return backends[user.username];
+	return backends[calendarId]
 }

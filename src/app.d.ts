@@ -3,7 +3,7 @@
 // See https://kit.svelte.dev/docs/types#app
 import 'vite-plugin-pwa/pwa-assets';
 import type { CalendarBackend } from '$lib/server/calendar';
-import { type User } from '$lib/server/db';
+import { Prisma, User, Calendar } from '@prisma/client'
 import { LRUCache } from 'lru-cache';
 
 interface CalendarAccess {
@@ -41,15 +41,19 @@ interface CognitoToken {
 	expires_in: number;
 }
 
+
+// 3: This type will include a user and all their posts
+type UserWithCalendars = Prisma.UserGetPayload<typeof userWithPosts>
+
 // for information about these interfaces
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
 			loggedIn: boolean;
-			user: { email: string, id: number };
+			user: User & { calendars: Calendar[] };
 			backend: CalendarBackend;
-			loginCache: LRUCache<string, User>;
+			loginCache: LRUCache<number, User>;
 		}
 		// interface PageData {}
 		// interface PageState {}
@@ -57,4 +61,3 @@ declare global {
 	}
 }
 
-export { UserCalendar, GoogleCalendarAccess, CognitoToken, ExtendCalendarAccess };

@@ -38,13 +38,13 @@ model Calendar {
 
 model CalendarObject {
   id Int @id @default(autoincrement())
-  eventId String
+  eventId String @unique
   url String
   etag String?
   calendarId Int
   calendar Calendar @relation(fields: [calendarId], references: [id])
-  date DateTime
-  endDate DateTime
+  date DateTime?
+  endDate DateTime?
   data String
   icalType String
   recur String?

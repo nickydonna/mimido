@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { parseISO } from 'date-fns/fp';
 import type { TAllTypesWithId } from '$lib/server/calendar';
+import { prisma } from '$lib/server/prisma';
 
 export const load: PageServerLoad<{
 	date: Date;
@@ -12,18 +13,14 @@ export const load: PageServerLoad<{
 	const queryDate = url.searchParams.get('date');
 	const date = queryDate ? parseISO(queryDate) : new Date();
 
-	const { backend } = locals;
+	const { backend, user } = locals;
 	// await backend.initialSync(true);
 	const events = backend.listDayEvent(date);
+
+
 	const externalEvents = Promise.all(
-		locals.user.calendars.map(async (c) => {
-			if (c.type === 'extend') {
-				// await backend.initialSync(false, c.name);
-				return backend.listExternalDayEvents(date, c.name);
-			} else {
-				// support google and other
-				return [];
-			}
+		user.calendars.filter(c => c.type === 'extend-basic').map(async (c) => {
+			return backend.listExternalDayEvents(date, c.id);
 		})
 	);
 

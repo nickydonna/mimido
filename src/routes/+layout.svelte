@@ -27,6 +27,7 @@
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
+	import type { LayoutData } from './$types';
 	// Move to store
 
 	onMount(async () => {
@@ -48,6 +49,8 @@
 			});
 		}
 	});
+
+	export let data: LayoutData;
 
 	let transitionParams = {
 		y: 320,
@@ -93,53 +96,49 @@
 		<slot />
 	</div>
 </div>
-{#await Promise.resolve(false)}
-	<div></div>
-{:then user}
-	{#if user}
-		<Drawer
-			width="w-full"
-			transitionType="fly"
-			placement="bottom"
-			{transitionParams}
-			hidden={!$isUpserting}
-		>
-			<div class="mb-10">
-				<TaskForm on:success={closeDrawer} />
-			</div>
-		</Drawer>
-		<BottomNav position="fixed" classInner="grid-cols-4" navType="application">
-			<BottomNavItem btnName="Tasks" href="/list?date={date}" appBtnPosition="left">
-				<RectangleListOutline
+{#if data.loggedIn}
+	<Drawer
+		width="w-full"
+		transitionType="fly"
+		placement="bottom"
+		{transitionParams}
+		hidden={!$isUpserting}
+	>
+		<div class="mb-10">
+			<TaskForm on:success={closeDrawer} />
+		</div>
+	</Drawer>
+	<BottomNav position="fixed" classInner="grid-cols-4" navType="application">
+		<BottomNavItem btnName="Tasks" href="/list?date={date}" appBtnPosition="left">
+			<RectangleListOutline
+				class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+			/>
+		</BottomNavItem>
+		<BottomNavItem btnName="Day" href="/day?date={date}" appBtnPosition="middle">
+			<CalendarEditOutline
+				class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+			/>
+		</BottomNavItem>
+		{#if !$isUpserting}
+			<BottomNavItem btnName="Add" on:click={() => upsert.create()} appBtnPosition="middle">
+				<PlusOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-			<BottomNavItem btnName="Day" href="/day?date={date}" appBtnPosition="middle">
-				<CalendarEditOutline
+		{:else}
+			<BottomNavItem btnName="Close" on:click={closeDrawer} appBtnPosition="middle">
+				<CloseOutline
 					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
 				/>
 			</BottomNavItem>
-			{#if !$isUpserting}
-				<BottomNavItem btnName="Add" on:click={() => upsert.create()} appBtnPosition="middle">
-					<PlusOutline
-						class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
-					/>
-				</BottomNavItem>
-			{:else}
-				<BottomNavItem btnName="Close" on:click={closeDrawer} appBtnPosition="middle">
-					<CloseOutline
-						class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
-					/>
-				</BottomNavItem>
-			{/if}
-			<BottomNavItem btnName="Account" href="/account" appBtnPosition="right">
-				<UserOutline
-					class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
-				/>
-			</BottomNavItem>
-		</BottomNav>
-	{/if}
-{/await}
+		{/if}
+		<BottomNavItem btnName="Account" href="/account" appBtnPosition="right">
+			<UserOutline
+				class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
+			/>
+		</BottomNavItem>
+	</BottomNav>
+{/if}
 
 {#await import('$lib/components/reload-prompt/index.js') then { default: ReloadPrompt }}
 	<ReloadPrompt />

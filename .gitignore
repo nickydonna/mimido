@@ -34,3 +34,4 @@ amplifytools.xcconfig
 #amplify-do-not-edit-end
 .idea
 dev-dist
+prisma/dev.db

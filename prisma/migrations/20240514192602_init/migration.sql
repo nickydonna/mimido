@@ -31,8 +31,8 @@ CREATE TABLE "CalendarObject" (
     "url" TEXT NOT NULL,
     "etag" TEXT,
     "calendarId" INTEGER NOT NULL,
-    "date" DATETIME NOT NULL,
-    "endDate" DATETIME NOT NULL,
+    "date" DATETIME,
+    "endDate" DATETIME,
     "data" TEXT NOT NULL,
     "icalType" TEXT NOT NULL,
     "recur" TEXT,
@@ -44,3 +44,6 @@ CREATE TABLE "CalendarObject" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CalendarObject_eventId_key" ON "CalendarObject"("eventId");

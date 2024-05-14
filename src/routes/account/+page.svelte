@@ -93,7 +93,7 @@
 						{cal.type}
 					</TableBodyCell>
 					<TableBodyCell>
-						{cal.name}
+						{cal.calendar}
 					</TableBodyCell>
 				{/each}
 			</TableBodyRow>

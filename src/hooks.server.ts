@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { LRUCache } from 'lru-cache';
 import jwt from 'jsonwebtoken'
 import { SUDO_PASSWORD } from '$env/static/private';
+import { prisma } from '$lib/server/prisma';
 
 const unProtectedRoutes = ['/', '/create', '/sign-in', '/sign-up'];
 
@@ -10,7 +11,7 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 	const token = event.cookies.get('session');
 	let user;
 	try {
-		user = jwt.verify(token ?? '', SUDO_PASSWORD)
+		user = jwt.verify(token ?? '', SUDO_PASSWORD) as { id: number, email: string }
 	} catch (e) { /* noop */ }
 
 	if (!token || !user) {
@@ -22,9 +23,15 @@ export const handle: import('@sveltejs/kit').Handle = async ({ resolve, event })
 
 	event.locals.loggedIn = true;
 
-	event.locals.user = user as { email: string, id: number };
-	// if (user.main) {
-	// event.locals.backend = await getBackend(user);
-	// }
+	event.locals.user = await prisma.user.findUniqueOrThrow({
+		where: { id: user.id },
+		include: { calendars: true }
+	})
+
+	const main = event.locals.user.calendars.find(c => c.type === 'main')
+
+	if (main) {
+		event.locals.backend = await getBackend(main.id, main);
+	}
 	return resolve(event);
 };

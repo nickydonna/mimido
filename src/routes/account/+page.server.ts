@@ -1,10 +1,22 @@
 import { error, redirect } from '@sveltejs/kit';
 import { CalendarBackend } from '$lib/server/calendar/index.js';
 import type { Actions, PageServerLoad } from './$types';
+import { prisma } from '$lib/server/prisma';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load: PageServerLoad = async ({ locals }) => {
-	return { main: locals.user.main, calendars: locals.user.calendars };
+	const user = await prisma.user.findUniqueOrThrow({
+		where: { id: locals.user.id },
+		include: { calendars: true }
+	})
+	const mainIdx = user.calendars.findIndex(c => c.type === 'main')
+	if (mainIdx >= 0) {
+		return {
+			main: user.calendars[mainIdx], calendars: [...user.calendars].splice(mainIdx, 1)
+		}
+	}
+	return { calendars: user.calendars }
+
 };
 
 export const actions: Actions = {
@@ -15,16 +27,37 @@ export const actions: Actions = {
 		const server = data.get('server') as string;
 		const calendar = data.get('calendar') as string;
 		const auth = { email, password, server, calendar };
-		const back = new CalendarBackend(locals.user.username, auth);
+		// Fake id for checking
+		const checkBack = new CalendarBackend({ ...auth, id: -1, ctag: null, syncToken: null, url: '', userId: locals.user.id, type: 'basic' });
 		try {
-			await back.check();
+			await checkBack.check();
+			const { id } = locals.user;
+			const user = await prisma.user.findUniqueOrThrow({ where: { id }, include: { calendars: true } })
+			const main = user.calendars.find(c => c.type === 'main')
+			let calendar;
+			if (main) {
+				calendar = await prisma.calendar.update({
+					where: { id: main.id }, data: {
+						...auth,
+					}
+				})
+			} else {
+				calendar = await prisma.calendar.create({
+					data: {
+						...auth,
+						type: 'main',
+						url: await checkBack.getCalendarUrl(),
+						user: {
+							connect: {
+								id: user.id
+							}
+						}
+					},
+				})
+			}
+			const back = new CalendarBackend(calendar);
 			const syncResult = await back.initialSync(true);
-			locals.user.main = {
-				...auth,
-				...syncResult
-			};
-			await locals.user.save();
-			locals.loginCache.delete(locals.user.username);
+			await prisma.calendarObject.update({ where: { id: calendar.id }, data: syncResult })
 		} catch (e) {
 			return error(500, e instanceof Error ? e.message : '');
 		}
@@ -35,35 +68,28 @@ export const actions: Actions = {
 		const calendarName = data.get('calendarName') as string;
 
 		await locals.backend.check(calendarName);
-		const syncResult = await locals.backend.initialSync(false, calendarName);
-		const calendars = locals.user.calendars ?? [];
-		locals.user.calendars = [
-			...calendars,
-			{
-				provider: 'parent',
-				type: 'extend',
-				name: calendarName,
-				...syncResult
+		const { id, ...calendarInfo } = locals.backend.calendarInfo;
+		await prisma.calendar.create({
+			data: {
+				...calendarInfo,
+				calendar: calendarName,
+				userId: locals.user.id,
+				type: 'extend-basic',
 			}
-		];
-		await locals.user.save();
-		locals.loginCache.delete(locals.user.username);
+		})
+		locals.loginCache.delete(locals.user.id);
 		throw redirect(302, '/day');
 	},
 	resync: async ({ locals }) => {
 		const { backend, user } = locals;
-		const syncResult = await backend.initialSync(true);
-		console.log('main', syncResult);
-		user.calendars = await Promise.all(
-			user.calendars.map(async (c) => {
-				const syncResult = await backend.initialSync(false, c.name);
-				console.log(c.name, syncResult);
-				return { ...c, ...syncResult };
+		const calendars = await prisma.calendar.findMany({ where: { userId: user.id } });
+		await Promise.all(
+			calendars.map(async (c) => {
+				const syncResult = await backend.initialSync(c.type === 'main', c);
+				console.log(c.calendar, syncResult);
+				await prisma.calendar.update({ where: { id: c.id }, data: syncResult })
 			})
 		);
-		user.main = { ...user.main, ...syncResult };
-		console.log(user.toJSON());
-		await user.save();
 		return { ok: true };
 	}
 };
