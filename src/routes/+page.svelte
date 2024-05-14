@@ -3,74 +3,47 @@
 	import { Button, Label, Input, Skeleton } from 'flowbite-svelte';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { cognitoLogin, tryGetToken } from '$lib/utils/cognitoClient';
 	import { loading } from '$lib/stores';
+	import type { ActionData, PageData } from './$types';
 
-	let username: string;
-	let password: string;
-	let promise: ReturnType<typeof tryGetToken> = new Promise(() => {});
+	export let data: PageData;
 
-	onMount(async () => {
-		promise = tryGetToken();
-
-		const user = await promise;
-
-		if (user) {
-			await goto('/day');
-		}
-	});
-
-	async function login() {
-		loading.increase();
-		await cognitoLogin(username, password);
-		await goto('/day');
-		loading.decrease();
-	}
+	export let form: ActionData;
+	console.log(form);
 </script>
 
 <Section name="login">
-	{#await promise}
-		<Skeleton size="sm" class="my-8" />
-		<Skeleton size="md" class="my-8" />
-		<Skeleton size="lg" class="my-8" />
-		<Skeleton size="xl" class="my-8" />
-		<Skeleton size="xxl" class="mt-8 mb-2.5" />
-	{:then user}
-		{#if user}
-			Redirecting...
-		{:else}
-			<Register href="/">
-				<svelte:fragment slot="top">
-					<img class="w-8 h-8 mr-2" src="/frog.jpg" alt="logo" />
-					MimiDo
-				</svelte:fragment>
-				<div class="p-6 space-y-4 md:space-y-6 sm:p-8">
-					<form class="flex flex-col space-y-6" action="/?login" on:submit|preventDefault={login}>
-						<h3 class="text-xl font-medium text-gray-900 dark:text-white p-0">Login</h3>
-						<Label class="space-y-2">
-							<span>Your email</span>
-							<Input
-								bind:value={username}
-								type="email"
-								name="email"
-								placeholder="name@company.com"
-								required
-							/>
-						</Label>
-						<Label class="space-y-2">
-							<span>Your password</span>
-							<Input
-								bind:value={password}
-								type="password"
-								name="password"
-								placeholder="•••••"
-								required
-							/>
-						</Label>
-						<Button type="submit" class="w-full1">Sign in</Button>
-					</form>
-				</div>
-			</Register>
-		{/if}
-	{/await}
+	{#if data.loggedIn}
+		Redirecting...
+	{:else}
+		<Register href="/">
+			<svelte:fragment slot="top">
+				<img class="w-8 h-8 mr-2" src="/frog.jpg" alt="logo" />
+				MimiDo
+			</svelte:fragment>
+			<div class="p-6 space-y-4 md:space-y-6 sm:p-8">
+				<form class="flex flex-col space-y-6" method="POST" action="?/login">
+					<h3 class="text-xl font-medium text-gray-900 dark:text-white p-0">Login</h3>
+					{#if form?.error}
+						{form.error}
+					{/if}
+					<Label class="space-y-2">
+						<span>Your email</span>
+						<Input
+							value={form?.email ?? ''}
+							type="email"
+							name="email"
+							placeholder="name@company.com"
+							required
+						/>
+					</Label>
+					<Label class="space-y-2">
+						<span>Your password</span>
+						<Input type="password" name="password" placeholder="•••••" required />
+					</Label>
+					<Button type="submit" class="w-full1">Sign in</Button>
+				</form>
+			</div>
+		</Register>
+	{/if}
 </Section>

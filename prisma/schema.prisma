@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  email String @unique
+  password String
+  calendars Calendar[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Calendar {
+  id Int @id @default(autoincrement())
+  calendar String
+  server String
+  password String
+  email String
+  ctag String?
+  url String
+  syncToken String?
+  type String
+  userId Int
+  user User @relation(fields: [userId], references: [id])
+  objects CalendarObject[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CalendarObject {
+  id Int @id @default(autoincrement())
+  eventId String
+  url String
+  etag String?
+  calendarId Int
+  calendar Calendar @relation(fields: [calendarId], references: [id])
+  date DateTime
+  endDate DateTime
+  data String
+  icalType String
+  recur String?
+  postponed Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

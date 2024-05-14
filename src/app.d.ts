@@ -11,13 +11,6 @@ interface CalendarAccess {
 	provider: 'parent' | 'google';
 }
 
-interface GoogleCalendarAccess extends CalendarAccess {
-	type: 'oauth';
-	provider: 'google';
-	accessToken: string;
-	refreshToken: string;
-}
-
 /**
  * Used to reuse the same credentials but query another calendar
  */
@@ -54,7 +47,7 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			loggedIn: boolean;
-			user: User;
+			user: { email: string, id: number };
 			backend: CalendarBackend;
 			loginCache: LRUCache<string, User>;
 		}

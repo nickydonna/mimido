@@ -27,10 +27,7 @@
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
-	import { tryGetToken } from '$lib/utils/cognitoClient.js';
-
 	// Move to store
-	const user = tryGetToken();
 
 	onMount(async () => {
 		if (pwaInfo) {
@@ -96,7 +93,7 @@
 		<slot />
 	</div>
 </div>
-{#await user}
+{#await Promise.resolve(false)}
 	<div></div>
 {:then user}
 	{#if user}
