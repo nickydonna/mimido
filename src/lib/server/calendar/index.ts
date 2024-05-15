@@ -352,8 +352,8 @@ export class CalendarBackend {
 				OR: [
 					// Check end time for recur
 					{ NOT: { recur: null } },
-					{ date: from, endDate: to },
-					{ date: from, endDate: null },
+					{ date: { gte: from }, endDate: { lte: to } },
+					{ date: { gte: from }, endDate: null },
 
 				]
 			}
