@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for mimido on 2024-05-14T11:04:39-03:00
+# fly.toml app configuration file generated for mimido-spring-brook-8896 on 2024-05-14T18:02:31-03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -9,7 +9,7 @@ primary_region = 'gru'
 [build]
 
 [http_service]
-  internal_port = 3000
+  internal_port = 8080
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
@@ -17,10 +17,10 @@ primary_region = 'gru'
   processes = ['app']
 
 [[vm]]
-  memory = '1gb'
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
 
-[mount]
-  source = "litefs"
+[mounts]
+  source = 'litefs'
   destination = "/var/lib/litefs"

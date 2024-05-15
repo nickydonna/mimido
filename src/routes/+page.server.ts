@@ -3,7 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/prisma';
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { SUDO_PASSWORD } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.loggedIn) {
@@ -31,7 +31,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Bad Password', email })
 		}
 
-		const session = jwt.sign({ email: user.email, id: user.id }, SUDO_PASSWORD)
+		const session = jwt.sign({ email: user.email, id: user.id }, env.SUDO_PASSWORD)
 
 		cookies.set('session', session, { path: '/' });
 		return redirect(303, '/account')

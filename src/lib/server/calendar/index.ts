@@ -2,10 +2,10 @@ import type { DAVCalendar } from 'tsdav';
 import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { v4 } from 'uuid';
-import { add, addMinutes, isWithinInterval, startOfDay } from 'date-fns/fp';
+import { add, addMinutes, isSameSecond, isWithinInterval, startOfDay } from 'date-fns/fp';
 import { endOfDay, isAfter } from 'date-fns';
 import yup, { type InferType } from 'yup';
-import { isValidRRule } from '$lib/utils/rrule';
+import { addUntilDate, isValidRRule, parseRRule } from '$lib/utils/rrule';
 import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
 import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
@@ -498,7 +498,18 @@ export class CalendarBackend {
 			return { id: newId };
 		}
 
-		// await CalendarObjectModel.update(
+		// const isRecur = !eventData.recur
+		//
+		// const isDiffDate = eventData.date && res.event.date && !isSameSecond(eventData.date, res.event.date)
+		// const isDiffEndDate = eventData.endDate && res.event.endDate && !isSameSecond(eventData.endDate, res.event.endDate)
+		//
+		// if (isRecur && (isDiffDate || isDiffEndDate)) {
+		// 	const newRrule = addUntilDate(eventData.recur!, new Date());
+		// 	res.event.recur = newRrule;
+		//
+		//
+		// }
+
 		await prisma.calendarObject.updateMany({
 			where: { eventId: id },
 			data: {
@@ -735,7 +746,7 @@ export class CalendarBackend {
 	 */
 	toComponent(
 		eventData: TAllTypes,
-		eventId?: string
+		eventId?: string,
 	): { id: string; component: ICAL.Component; meta: TEventMeta } {
 		const {
 			postponed,

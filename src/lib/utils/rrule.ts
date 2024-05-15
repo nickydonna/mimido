@@ -4,11 +4,13 @@
  * - typings for rrule library
  * - weird imports
  */
+import type { RRule as TRRule, rrulestr as Trrulestr } from 'rrule';
 import * as rrulepkg from 'rrule';
 // @ts-expect-error - see https://github.com/jkbrzt/rrule/issues/548
-const rrule = /** @type {import('rrule')} */ rrulepkg.default || rrulepkg;
+const rrule = rrulepkg.default || rrulepkg;
 
-const { rrulestr, RRule } = rrule;
+const RRule: typeof TRRule = rrule.RRule;
+const rrulestr: typeof Trrulestr = rrule.rrulestr;
 
 /**
  * Parse string from RRule
@@ -63,4 +65,13 @@ export function tryParseTextForRRule(text: string) {
 
 export function rruleToText(rrule: string) {
 	return tryParseRRule(rrule)?.toText();
+}
+
+export function addUntilDate(rrule: string, until: Date) {
+	const parsed = parseRRule(rrule);
+	const newRrule = new RRule({
+		...parsed.origOptions,
+		until,
+	})
+	return newRrule.toString()
 }

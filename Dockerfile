@@ -16,7 +16,6 @@ ENV NODE_ENV="production"
 ARG PNPM_VERSION=8.15.4
 RUN npm install -g pnpm@$PNPM_VERSION
 
-
 # Throw-away build stage to reduce size of final image
 FROM base as build
 
@@ -24,17 +23,14 @@ FROM base as build
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
 
-# for debian/ubuntu-based images
-RUN apt-get update -y && apt-get install -y ca-certificates fuse3 sqlite3
-
-COPY --from=flyio/litefs:0.5 /usr/local/bin/litefs /usr/local/bin/litefs
-
 # Install node modules
 COPY --link .npmrc package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod=false
 
 # Copy application code
 COPY --link . .
+
+RUN pnpm dlx prisma generate
 
 # Build application
 RUN --mount=type=secret,id=MY_SUPER_SECRET \
@@ -45,12 +41,18 @@ RUN --mount=type=secret,id=MY_SUPER_SECRET \
 # Remove development dependencies
 RUN pnpm prune --prod
 
-
 # Final stage for app image
 FROM base
 
+# for debian/ubuntu-based images
+RUN apt-get update -y && apt-get install -y ca-certificates fuse3 sqlite3
+
+COPY --from=flyio/litefs:0.5 /usr/local/bin/litefs /usr/local/bin/litefs
+ADD etc/litefs.yml /etc/litefs.yml
+
 # Copy built application
 COPY --from=build /app/build /app/build
+COPY --from=build /app/prisma /app/prisma
 COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/package.json /app
 
