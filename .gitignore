@@ -35,3 +35,6 @@ amplifytools.xcconfig
 .idea
 dev-dist
 prisma/dev.db
+
+# Sentry Config File
+.sentryclirc
