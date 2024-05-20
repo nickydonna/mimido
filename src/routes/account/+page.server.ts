@@ -77,8 +77,7 @@ export const actions: Actions = {
 				type: 'extend-basic',
 			}
 		})
-		locals.loginCache.delete(locals.user.id);
-		throw redirect(302, '/day');
+		throw redirect(302, '/account');
 	},
 	resync: async ({ locals }) => {
 		const { backend, user } = locals;

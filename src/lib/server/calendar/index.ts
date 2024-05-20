@@ -2,10 +2,10 @@ import type { DAVCalendar } from 'tsdav';
 import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { v4 } from 'uuid';
-import { add, addMinutes, isSameSecond, isWithinInterval, startOfDay } from 'date-fns/fp';
-import { endOfDay, isAfter } from 'date-fns';
+import { add, addMinutes, addDays, isWithinInterval } from 'date-fns/fp';
+import { isAfter } from 'date-fns';
 import yup, { type InferType } from 'yup';
-import { addUntilDate, isValidRRule, parseRRule } from '$lib/utils/rrule';
+import { isValidRRule } from '$lib/utils/rrule';
 import { isBlock, isDefined, isDone, isReminder, isTask } from '$lib/util';
 import registerAllTz from './timezones';
 import { alarmSchema, type TAlarmSchema } from './alarmSchema';
@@ -329,9 +329,9 @@ export class CalendarBackend {
 		return excludeDone ? todos.filter((t) => !isDone(t)) : todos;
 	}
 
-	async listDayEvent(day: Date, calendarId?: number) {
-		const from = startOfDay(day);
-		const to = addMinutes(1, endOfDay(day));
+	async listDayEvent(startTime: Date, calendarId?: number) {
+		const from = startTime;
+		const to = addDays(1, startTime)
 		return this.listEvents(from, to, calendarId);
 	}
 
