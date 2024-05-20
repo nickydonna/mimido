@@ -498,18 +498,6 @@ export class CalendarBackend {
 			return { id: newId };
 		}
 
-		// const isRecur = !eventData.recur
-		//
-		// const isDiffDate = eventData.date && res.event.date && !isSameSecond(eventData.date, res.event.date)
-		// const isDiffEndDate = eventData.endDate && res.event.endDate && !isSameSecond(eventData.endDate, res.event.endDate)
-		//
-		// if (isRecur && (isDiffDate || isDiffEndDate)) {
-		// 	const newRrule = addUntilDate(eventData.recur!, new Date());
-		// 	res.event.recur = newRrule;
-		//
-		//
-		// }
-
 		await prisma.calendarObject.updateMany({
 			where: { eventId: id },
 			data: {
@@ -747,6 +735,7 @@ export class CalendarBackend {
 	toComponent(
 		eventData: TAllTypes,
 		eventId?: string,
+		rootComponent?: ICAL.Component,
 	): { id: string; component: ICAL.Component; meta: TEventMeta } {
 		const {
 			postponed,
@@ -760,8 +749,11 @@ export class CalendarBackend {
 			type,
 			tags
 		} = eventData;
-		const component = new ICAL.Component(['vcalendar', [], []]);
-		component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
+		let component = rootComponent
+		if (!component) {
+			component = new ICAL.Component(['vcalendar', [], []]);
+			component.updatePropertyWithValue('prodid', '-//CyrusIMAP.org/Cyrus');
+		}
 
 		let vcomponent: ICAL.Component;
 		// Remove type in ids in case it changes
