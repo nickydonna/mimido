@@ -39,6 +39,7 @@
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import {
+		Datepicker,
 		GradientButton,
 		Modal,
 		Spinner,
@@ -104,6 +105,7 @@
 			time: h,
 			check: isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) })
 		}));
+		console.log(eachHour);
 
 		if (showEventDetail) {
 			showEventDetail = data.events.find((e) => e.eventId === showEventDetail?.eventId);
@@ -203,7 +205,7 @@
 		</GradientButton>
 		<div class="flex-1">
 			<p class="text-lg md:text-4xl dark:text-white">
-				{format('do MMM yy ', data.date)}
+				{format('E do MMM yy ', data.date)}
 			</p>
 		</div>
 		<ButtonGroup size="xs">

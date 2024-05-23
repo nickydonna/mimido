@@ -40,7 +40,7 @@
 	} else if (tag) {
 		originalText = `#${tag} `;
 	} else if (date) {
-		originalText = `(today at ${format('HH:mm', date)}) `;
+		originalText = `(${format("dd 'of' MMM", date)} at ${format('HH:mm', date)}) `;
 	}
 
 	const dispatch: EventDispatcher<{ success: null }> = createEventDispatcher();
