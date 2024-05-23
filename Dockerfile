@@ -33,8 +33,8 @@ COPY --link . .
 RUN pnpm dlx prisma generate
 
 # Build application
-RUN --mount=type=secret,id=MY_SUPER_SECRET \
-    MY_SUPER_SECRET="$(cat /run/secrets/MY_SUPER_SECRET)" \
+RUN --mount=type=secret,id=PUBLIC_SENTRY_DNS \
+    PUBLIC_SENTRY_DNS="$(cat /run/secrets/PUBLIC_SENTRY_DNS)" \
     pnpm run build
 
 
