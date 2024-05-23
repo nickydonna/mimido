@@ -1,14 +1,15 @@
-import {sequence} from '@sveltejs/kit/hooks';
+import { sequence } from '@sveltejs/kit/hooks';
 import * as Sentry from '@sentry/sveltekit';
 import { getBackend } from '$lib/server/calendar/index.js';
 import { redirect } from '@sveltejs/kit';
 import jwt from 'jsonwebtoken'
 import { env } from '$env/dynamic/private';
+import { PUBLIC_SENTRY_DNS } from '$env/static/public'
 import { prisma } from '$lib/server/prisma';
 
 Sentry.init({
-    dsn: "https://c01f9c49dc4385f4be4cdc857df84049@o4507261265707008.ingest.us.sentry.io/4507261266034688",
-    tracesSampleRate: 1
+	dsn: PUBLIC_SENTRY_DNS,
+	tracesSampleRate: 1
 })
 
 const unProtectedRoutes = ['/', '/create', '/sign-in', '/sign-up'];
