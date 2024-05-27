@@ -277,27 +277,7 @@
 				aria-hidden="true"
 				style="grid-column: reminder; grid-row: tracks;">Reminder</span
 			>
-			{#if showingToday && !dragging}
-				<!-- Blur time before current slot -->
-				<div
-					class="blurred-time pointer-events-none"
-					style:z-index={modalZIndex - 4}
-					style:grid-column="times / reminder"
-					style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
-						'HHmm',
-						timeIndicator.nearestSlot
-					)}"
-				/>
-				<!-- Blur percentage time of current slot -->
-				<div
-					class="pointer-events-none"
-					style:z-index={modalZIndex - 4}
-					style:grid-column="times / reminder"
-					style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
-				>
-					<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
-				</div>
-			{/if}
+
 			{#if !currentTimeInView && !dragging}
 				<Button class="fixed bottom-[6rem] end-6 z-40" on:click={scrollCurrentIntoView}>
 					Current Time
@@ -311,7 +291,7 @@
 				style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
 			>
 				<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
-					<span class="relative px-2">
+					<span class="relative px-2 text-pink-600 font-bold">
 						{format('HH:mm', currentTime)}
 					</span>
 				</div>
@@ -328,7 +308,7 @@
 			>
 				<div
 					style:top="{timeIndicator.offset}%"
-					class="relative w-full border-b-2 border-dotted border-gray-700"
+					class="relative w-full border-b-2 border border-pink-600"
 				/>
 			</div>
 
@@ -336,6 +316,7 @@
 				<h2
 					on:dblclick={() => !dragging && handleTimeDoubleClick(time)}
 					class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
+					class:brightness-50={timeIndicator.nearestSlot >= time}
 					style:grid-row={`time-${format('HHmm', time)}`}
 				>
 					{format('HH:mm', time)}
@@ -370,6 +351,7 @@
 							tabindex={i * 10 + k}
 							role="button"
 							class="{getEventCardClass(e)} group relative rounded-lg border p-0.5 shadow-2xl"
+							class:brightness-50={timeIndicator.nearestSlot > time}
 							class:m-px={type === EType.BLOCK}
 							class:m-0.5={type !== EType.BLOCK}
 							class:glass={type !== EType.BLOCK}
