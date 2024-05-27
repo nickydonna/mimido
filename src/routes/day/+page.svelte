@@ -39,7 +39,6 @@
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import {
-		Datepicker,
 		GradientButton,
 		Modal,
 		Spinner,
@@ -105,11 +104,6 @@
 			time: h,
 			check: isWithinInterval({ start: subSeconds(1, h), end: subSeconds(1, addMinutes(30, h)) })
 		}));
-		console.log(eachHour);
-
-		if (showEventDetail) {
-			showEventDetail = data.events.find((e) => e.eventId === showEventDetail?.eventId);
-		}
 	}
 
 	let timeCheck = (event: TAllTypesWithId, slotCheck: (d: Date) => boolean) =>
@@ -179,7 +173,6 @@
 
 	function handleDropOnBlock(dropEvent: Event, e: TAllTypesWithId) {
 		if (!isBlock(e)) return;
-		console.log('add to block', e.title);
 		dragging = undefined;
 		hideTaskDrawer = true;
 		hoverTime = undefined;
@@ -231,168 +224,216 @@
 		on:close={() => (showEventDetail = undefined)}
 		on:delete={() => (showEventDetail = undefined)}
 	/>
+	<div class="flex">
+		<div class="flex-0 mt-6 sticky top-16 self-start">
+			<div class="flex items-center">
+				<h5
+					id="drawer-label"
+					class="inline-flex items-center mb-4 text-base font-semibold text-gray-500 dark:text-gray-400"
+				>
+					Tasks
+				</h5>
+			</div>
 
-	<div class="schedule">
-		<span
-			class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
-			aria-hidden="true"
-			style="grid-column: event; grid-row: tracks;">Events</span
-		>
-		<span
-			class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
-			aria-hidden="true"
-			style="grid-column: task; grid-row: tracks;">Tasks</span
-		>
-		<span
-			class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
-			aria-hidden="true"
-			style="grid-column: reminder; grid-row: tracks;">Reminder</span
-		>
-		{#if showingToday && !dragging}
-			<!-- Blur time before current slot -->
-			<div
-				class="blurred-time pointer-events-none"
-				style:z-index={modalZIndex - 4}
-				style:grid-column="times / reminder"
-				style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
-					'HHmm',
-					timeIndicator.nearestSlot
-				)}"
-			/>
-			<!-- Blur percentage time of current slot -->
+			<div class="pr-1">
+				<Table hoverable divClass="overflow-hidden">
+					<TableHead>
+						<TableHeadCell>Title</TableHeadCell>
+					</TableHead>
+					<TableBody>
+						{#each data.tasks as event}
+							<TableBodyRow
+								class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}"
+							>
+								<TableBodyCell
+									on:click={() => {
+										showEventDetail = event;
+									}}
+									class={`${
+										isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'
+									} max-w-48 md:max-w-full `}
+								>
+									<div
+										draggable="true"
+										aria-hidden="true"
+										on:dragstart={() => (dragging = event)}
+										on:dragend={() => {
+											dragging = undefined;
+											hoverTime = undefined;
+										}}
+									>
+										{event.title}
+									</div>
+								</TableBodyCell>
+							</TableBodyRow>
+						{/each}
+					</TableBody>
+				</Table>
+			</div>
+		</div>
+
+		<div class="schedule flex-1">
+			<span
+				class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+				aria-hidden="true"
+				style="grid-column: event; grid-row: tracks;">Events</span
+			>
+			<span
+				class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+				aria-hidden="true"
+				style="grid-column: task; grid-row: tracks;">Tasks</span
+			>
+			<span
+				class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+				aria-hidden="true"
+				style="grid-column: reminder; grid-row: tracks;">Reminder</span
+			>
+			{#if showingToday && !dragging}
+				<!-- Blur time before current slot -->
+				<div
+					class="blurred-time pointer-events-none"
+					style:z-index={modalZIndex - 4}
+					style:grid-column="times / reminder"
+					style:grid-row="time-{format('HHmm', timeBlocks[0].time)} / time-{format(
+						'HHmm',
+						timeIndicator.nearestSlot
+					)}"
+				/>
+				<!-- Blur percentage time of current slot -->
+				<div
+					class="pointer-events-none"
+					style:z-index={modalZIndex - 4}
+					style:grid-column="times / reminder"
+					style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+				>
+					<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
+				</div>
+			{/if}
+			{#if !currentTimeInView && !dragging}
+				<Button class="fixed bottom-[6rem] end-6 z-40" on:click={scrollCurrentIntoView}>
+					Current Time
+				</Button>
+			{/if}
+			<!-- Time indicator -->
 			<div
 				class="pointer-events-none"
-				style:z-index={modalZIndex - 4}
+				style:z-index={modalZIndex - 3}
 				style:grid-column="times / reminder"
 				style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
 			>
-				<div class="blurred-time relative w-full" style:height="{timeIndicator.offset}%" />
+				<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
+					<span class="relative px-2">
+						{format('HH:mm', currentTime)}
+					</span>
+				</div>
 			</div>
-		{/if}
-		{#if !currentTimeInView && !dragging}
-			<Button class="fixed bottom-[6rem] end-6 z-40" on:click={scrollCurrentIntoView}>
-				Current Time
-			</Button>
-		{/if}
-		<!-- Time indicator -->
-		<div
-			class="pointer-events-none"
-			style:z-index={modalZIndex - 3}
-			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
-		>
-			<div class="relative w-full" style:top="calc({timeIndicator.offset}% - 25px)">
-				<span class="relative px-2">
-					{format('HH:mm', currentTime)}
-				</span>
-			</div>
-		</div>
-		<!-- Dotted line for current time -->
-		<div
-			use:inview={inviewOption}
-			on:inview_change={handleViewChange}
-			id="current-time"
-			class="pointer-events-none"
-			style:z-index={modalZIndex - 3}
-			style:grid-column="times / reminder"
-			style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
-		>
+			<!-- Dotted line for current time -->
 			<div
-				style:top="{timeIndicator.offset}%"
-				class="relative w-full border-b-2 border-dotted border-gray-700"
-			/>
-		</div>
-
-		{#each timeBlocks as { time, check } (time)}
-			<h2
-				on:dblclick={() => !dragging && handleTimeDoubleClick(time)}
-				class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
-				style:grid-row={`time-${format('HHmm', time)}`}
+				use:inview={inviewOption}
+				on:inview_change={handleViewChange}
+				id="current-time"
+				class="pointer-events-none"
+				style:z-index={modalZIndex - 3}
+				style:grid-column="times / reminder"
+				style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
 			>
-				{format('HH:mm', time)}
-			</h2>
-			<div
-				class:hidden={hoverTime !== time}
-				class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
-				style:grid-column="task / time"
-				style:grid-row="time-{format('HHmm', time)}"
-			>
-				{format('HH:mm', time)}
-			</div>
-			{#each sortedEvents as [type, events], i}
 				<div
-					aria-hidden="true"
-					class="border-t border-dotted"
-					class:z-50={dragging}
-					class:border-gray-600={getMinutes(time) === 0}
-					class:border-gray-300={getMinutes(time) === 30}
-					style:grid-column={type}
+					style:top="{timeIndicator.offset}%"
+					class="relative w-full border-b-2 border-dotted border-gray-700"
+				/>
+			</div>
+
+			{#each timeBlocks as { time, check } (time)}
+				<h2
+					on:dblclick={() => !dragging && handleTimeDoubleClick(time)}
+					class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
+					style:grid-row={`time-${format('HHmm', time)}`}
+				>
+					{format('HH:mm', time)}
+				</h2>
+				<div
+					class:hidden={hoverTime !== time}
+					class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
+					style:grid-column="task / time"
 					style:grid-row="time-{format('HHmm', time)}"
-					on:dragenter={() => {
-						hoverTime = time;
-						hoverBlock = undefined;
-					}}
-					on:drop={(e) => {
-						handleDropOnTime(e, time);
-					}}
-					{...notypecheck({ ondragover: 'return false' })}
-				></div>
-				{#each events.filter((e) => timeCheck(e, check)) as e, k}
-					{#if dragging && isBlock(e)}
-						<div
-							aria-hidden="true"
-							class="bg-teal-500 z-[51] m-px rounded-lg"
-							style:grid-column="event"
-							on:dragenter={() => {
-								hoverTime = undefined;
-								hoverBlock = e;
-							}}
-							on:drop={(dropEvent) => {
-								handleDropOnBlock(dropEvent, e);
-							}}
-							{...notypecheck({ ondragover: 'return false' })}
-							style:grid-row={getScheduleSlot(e)}
-						>
-							<div class="flex h-full flex-col items-center justify-center">
-								<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
-									{#if hoverBlock === e}
-										ADD TO {e.title.toUpperCase()}
-									{:else}
-										{e.title.toUpperCase()}
-									{/if}
-								</p>
-							</div>
-						</div>
-					{/if}
+				>
+					{format('HH:mm', time)}
+				</div>
+				{#each sortedEvents as [type, events], i}
 					<div
-						tabindex={i * 10 + k}
-						role="button"
-						class="{getEventCardClass(e)} group relative rounded-lg border p-0.5 shadow-2xl"
-						class:m-px={type === EType.BLOCK}
-						class:m-0.5={type !== EType.BLOCK}
-						class:glass={type !== EType.BLOCK}
-						style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
-						style:grid-row={getScheduleSlot(e)}
-						style:z-index={type === EType.BLOCK ? 0 : k}
-						on:click={() => (showEventDetail = e)}
-						on:keypress={(event) => {
-							if (event.code === 'Enter') showEventDetail = e;
+						aria-hidden="true"
+						class="border-t border-dotted"
+						class:z-50={dragging}
+						class:border-gray-600={getMinutes(time) === 0}
+						class:border-gray-300={getMinutes(time) === 30}
+						style:grid-column={type}
+						style:grid-row="time-{format('HHmm', time)}"
+						on:dragenter={() => {
+							hoverTime = time;
+							hoverBlock = undefined;
 						}}
-					>
-						<div class="absolute right-2 hidden group-hover:block"></div>
-						{#if e.type === EType.BLOCK}
-							<div class="flex h-full flex-col items-center justify-center">
-								<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
-									{e.title.toUpperCase()}
-								</p>
+						on:drop={(e) => {
+							handleDropOnTime(e, time);
+						}}
+						{...notypecheck({ ondragover: 'return false' })}
+					></div>
+					{#each events.filter((e) => timeCheck(e, check)) as e, k}
+						{#if dragging && isBlock(e)}
+							<div
+								aria-hidden="true"
+								class="bg-teal-500 z-[51] m-px rounded-lg"
+								style:grid-column="event"
+								on:dragenter={() => {
+									hoverTime = undefined;
+									hoverBlock = e;
+								}}
+								on:drop={(dropEvent) => {
+									handleDropOnBlock(dropEvent, e);
+								}}
+								{...notypecheck({ ondragover: 'return false' })}
+								style:grid-row={getScheduleSlot(e)}
+							>
+								<div class="flex h-full flex-col items-center justify-center">
+									<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
+										{#if hoverBlock === e}
+											ADD TO {e.title.toUpperCase()}
+										{:else}
+											{e.title.toUpperCase()}
+										{/if}
+									</p>
+								</div>
 							</div>
-						{:else}
-							<EventCard event={e} />
 						{/if}
-					</div>
+						<div
+							tabindex={i * 10 + k}
+							role="button"
+							class="{getEventCardClass(e)} group relative rounded-lg border p-0.5 shadow-2xl"
+							class:m-px={type === EType.BLOCK}
+							class:m-0.5={type !== EType.BLOCK}
+							class:glass={type !== EType.BLOCK}
+							style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
+							style:grid-row={getScheduleSlot(e)}
+							style:z-index={type === EType.BLOCK ? 0 : k}
+							on:click={() => (showEventDetail = e)}
+							on:keypress={(event) => {
+								if (event.code === 'Enter') showEventDetail = e;
+							}}
+						>
+							<div class="absolute right-2 hidden group-hover:block"></div>
+							{#if e.type === EType.BLOCK}
+								<div class="flex h-full flex-col items-center justify-center">
+									<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
+										{e.title.toUpperCase()}
+									</p>
+								</div>
+							{:else}
+								<EventCard event={e} />
+							{/if}
+						</div>
+					{/each}
 				{/each}
 			{/each}
-		{/each}
+		</div>
 	</div>
 </div>
 
@@ -420,51 +461,7 @@
 	{transitionParams}
 	hidden={hideTaskDrawer || !!dragging}
 	id="sidebar1"
->
-	<div class="flex items-center">
-		<h5
-			id="drawer-label"
-			class="inline-flex items-center mb-4 text-base font-semibold text-gray-500 dark:text-gray-400"
-		>
-			Tasks
-		</h5>
-		<CloseButton on:click={() => (hideTaskDrawer = true)} class="mb-4 dark:text-white" />
-	</div>
-	<p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Drop your task on time slots</p>
-
-	<div class="pr-1">
-		<Table hoverable divClass="overflow-hidden">
-			<TableHead>
-				<TableHeadCell>Title</TableHeadCell>
-			</TableHead>
-			<TableBody>
-				{#each data.tasks as event}
-					<TableBodyRow class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}">
-						<TableBodyCell
-							on:click={() => {
-								upsert.update(event);
-								hideTaskDrawer = true;
-							}}
-							class={isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'}
-						>
-							<div
-								draggable="true"
-								aria-hidden="true"
-								on:dragstart={() => (dragging = event)}
-								on:dragend={() => {
-									dragging = undefined;
-									hoverTime = undefined;
-								}}
-							>
-								{event.title}
-							</div>
-						</TableBodyCell>
-					</TableBodyRow>
-				{/each}
-			</TableBody>
-		</Table>
-	</div>
-</Drawer>
+></Drawer>
 
 <style>
 	.glass {

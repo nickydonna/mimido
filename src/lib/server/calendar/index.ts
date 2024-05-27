@@ -2,7 +2,7 @@ import type { DAVCalendar } from 'tsdav';
 import { DAVClient, DAVNamespaceShort, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { v4 } from 'uuid';
-import { add, addMinutes, addDays, isWithinInterval } from 'date-fns/fp';
+import { add, addMinutes, addDays, isWithinInterval, startOfDay, subMinutes } from 'date-fns/fp';
 import { isAfter } from 'date-fns';
 import yup, { type InferType } from 'yup';
 import { isValidRRule } from '$lib/utils/rrule';
@@ -329,14 +329,14 @@ export class CalendarBackend {
 		return excludeDone ? todos.filter((t) => !isDone(t)) : todos;
 	}
 
-	async listDayEvent(startTime: Date, calendarId?: number) {
-		const from = startTime;
-		const to = addDays(1, startTime)
+	async listDayEvent(startTime: Date, offset: number, calendarId?: number) {
+		const from = addMinutes(offset, startOfDay(startTime));
+		const to = addDays(1, from)
 		return this.listEvents(from, to, calendarId);
 	}
 
-	async listExternalDayEvents(day: Date, calendarId: number) {
-		const events = await this.listDayEvent(day, calendarId);
+	async listExternalDayEvents(day: Date, offset: number, calendarId: number) {
+		const events = await this.listDayEvent(day, offset, calendarId);
 		return events.map((e) => ({
 			...e,
 			type: EType.EVENT,
@@ -840,57 +840,71 @@ export class CalendarBackend {
 	}
 
 	// TODO fix this
-	// async smartSync(otherCalendars: ExtendCalendarAccess[]) {
-	// 	// @ts-expect-error
-	// 	const oldCalendars: DAVCalendar[] = [
-	// 		{
-	// 			name: this.auth.calendar,
-	// 			syncToken: this.auth.syncToken,
-	// 			ctag: this.auth.ctag,
-	// 			url: this.auth.url
-	// 		},
-	// 		...otherCalendars
-	// 	].filter((c) => isDefined(c.url));
-	//
-	// 	const { updated } = (await this.client.syncCalendars({
-	// 		oldCalendars: oldCalendars,
-	// 		// @ts-expect-error bad lib types
-	// 		detailedResult: true
-	// 	})) as unknown as { updated: DAVCalendar[] };
-	//
-	// 	// console.log(updated);
-	// 	if (updated.length === 0) {
-	// 		return;
-	// 	}
-	// 	const lc = updated[0];
-	// 	const objects = await CalendarObjectModel.scan({
-	// 		calendarUrl: lc.url,
-	// 		user: this.username,
-	// 		icalType: 'vevent',
-	// 	}).exec();
-	// 	const localObjects = objects.map((o): DAVObject => ({ etag: o.etag, url: o.url, data: o.data }))
-	// 	const res =
-	// 		await this.client.smartCollectionSync({
-	// 			collection: {
-	// 				url: oldCalendars[0].url,
-	// 				ctag: oldCalendars[0].ctag,
-	// 				syncToken: oldCalendars[0].syncToken,
-	// 				objects: localObjects,
-	// 				objectMultiGet: this.client.calendarMultiGet,
-	// 			},
-	// 			method: 'basic',
-	// 			// @ts-expect-error bad lib types
-	// 			detailedResult: true,
-	// 		})
-	//
-	// 	const {
-	// 		created: createdObjects,
-	// 			updated: updatedObjects,
-	// 			deleted: deletedObjects,
-	// 	} = res.objects;
-	//
-	//
-	// }
+	async smartSync() {
+		const { syncToken, calendar, ctag, url } = this.calendarInfo
+		// const oldCalendars: DAVCalendar[] = [
+		// 	{
+		// 		name: calendar,
+		// 		syncToken,
+		// 		ctag,
+		// 		url,
+		// 	},
+		// ].filter((c) => isDefined(c.url));
+		//
+		// const { updated } = (await this.client.syncCalendars({
+		// 	oldCalendars: oldCalendars,
+		// 	// @ts-expect-error bad lib types
+		// 	detailedResult: true
+		// })) as unknown as { updated: DAVCalendar[] };
+		//
+		// // console.log(updated);
+		// if (updated.length === 0) {
+		// 	return;
+		// }
+
+		const objects = await prisma.calendarObject.findMany({
+			where: {
+				icalType: 'vevent',
+				calendarId: this.calendarInfo.id,
+			}
+		})
+		const localObjects = objects.map((o): DAVObject => ({
+			etag: o.etag?.replace(/"/g, '',) ?? undefined,
+			url: o.url,
+			data: o.data
+		}))
+		console.log(localObjects.map(o => o.url))
+		const res = await this.client.smartCollectionSync({
+			collection: {
+				url: url ?? undefined,
+				ctag: ctag ?? undefined,
+				syncToken: syncToken ?? undefined,
+				objects: localObjects,
+				objectMultiGet: this.client.calendarMultiGet,
+			},
+			method: 'webdav',
+			// @ts-expect-error bad lib types
+			detailedResult: true,
+		})
+		//
+		// const {
+		// 	created: createdObjects,
+		// 	updated: updatedObjects,
+		// 	deleted: deletedObjects,
+		// } = res.objects;
+		//
+		// console.log(res.objects.deleted)
+
+		// const d = await Promise.all(
+		// 	res.objects.deleted.map(o =>
+		// 		prisma.calendarObject.findMany({ where: { etag: o.etag } })
+		// 	)
+		// )
+		// console.log(d);
+
+
+
+	}
 }
 
 const CustomPropName = {
