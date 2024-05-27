@@ -18,7 +18,6 @@ export const load: PageServerLoad<{
 	// Hardcoded timezoneOffset, move to user model
 	const events = backend.listDayEvent(date, 180);
 
-
 	const externalEvents = Promise.all(
 		user.calendars.filter(c => c.type === 'extend-basic').map(async (c) => {
 			// Hardcoded timezoneOffset, move to user model

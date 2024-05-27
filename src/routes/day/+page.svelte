@@ -11,12 +11,7 @@
 	} from 'date-fns/fp';
 	import Button from 'flowbite-svelte/Button.svelte';
 	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
-	import {
-		AngleLeftOutline,
-		AngleRightOutline,
-		BarsFromLeftOutline,
-		CloseOutline
-	} from 'flowbite-svelte-icons';
+	import { AngleLeftOutline, AngleRightOutline, CloseOutline } from 'flowbite-svelte-icons';
 	import { EType } from '$lib/parser/index.js';
 	import {
 		formatISO,
@@ -30,6 +25,7 @@
 	import {
 		getEventCardClass,
 		isBlock,
+		isDefined,
 		isDone,
 		isEvent,
 		isReminder,
@@ -37,9 +33,8 @@
 		timeStore
 	} from '$lib/util.js';
 	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import {
-		GradientButton,
 		Modal,
 		Spinner,
 		Table,
@@ -54,23 +49,15 @@
 	import type { PageData } from './$types';
 	import type { TAllTypesWithId, TBlockSchema } from '$lib/server/calendar';
 
-	import { Drawer, CloseButton } from 'flowbite-svelte';
-	import { sineIn } from 'svelte/easing';
 	import { isLoading, loading, upsert } from '$lib/stores';
-
-	let hideTaskDrawer = true;
-	let transitionParams = {
-		x: -320,
-		duration: 200,
-		easing: sineIn
-	};
+	import { page } from '$app/stores';
+	import FilterDropwdown from '$lib/components/filter-dropdown/filter-dropwdown.svelte';
 
 	export let data: PageData;
 
 	let dragging: TAllTypesWithId | undefined;
 	let showEventDetail: TAllTypesWithId | undefined;
 	let hoverTime: Date | undefined;
-	let hoverBlock: TBlockSchema | undefined;
 	let current: Date;
 	let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }>;
 	let showingToday = false;
@@ -91,8 +78,18 @@
 			offset: (minutes * 100) / 15
 		};
 	});
-
+	let tags: string[] = [];
+	let tagFilter: string | undefined;
+	let tasks = data.tasks;
 	$: {
+		tags = [...new Set(data.tasks.map((e) => e.tags).flat())];
+		tagFilter = $page.url.searchParams.get('tag') ?? undefined;
+		if (isDefined(tagFilter)) {
+			tasks = data.tasks.filter((e) => e.tags.includes(tagFilter as string));
+		} else {
+			tasks = data.tasks;
+		}
+
 		showingToday = isSameDay(new Date(), data.date);
 		current = startOfDay(data.date);
 		let start = setHours(8, current);
@@ -117,6 +114,10 @@
 			[EType.TASK, data.events.filter(isTask)],
 			[EType.REMINDER, data.events.filter(isReminder)]
 		];
+
+		showEventDetail = [...data.events, ...data.tasks].find(
+			(c) => c.eventId === showEventDetail?.eventId
+		);
 	}
 
 	/**
@@ -163,39 +164,31 @@
 		});
 
 		dragging = undefined;
-		hideTaskDrawer = true;
 		hoverTime = undefined;
-		hoverBlock = undefined;
 		// TODO manage error
 		loading.decrease();
 		await invalidateAll();
 	}
 
-	function handleDropOnBlock(dropEvent: Event, e: TAllTypesWithId) {
-		if (!isBlock(e)) return;
-		dragging = undefined;
-		hideTaskDrawer = true;
-		hoverTime = undefined;
-		hoverBlock = undefined;
-	}
 	function handleTimeDoubleClick(time: Date) {
 		upsert.create(time);
 	}
 
 	const notypecheck = (x: any) => x;
+
+	function setTag(tag?: string) {
+		let query = new URLSearchParams($page.url.searchParams.toString());
+		if (tag) {
+			query.set('tag', tag);
+		} else {
+			query.delete('tag');
+		}
+		goto(`?${query.toString()}`);
+	}
 </script>
 
 <div>
 	<div class="flex sticky top-0 bg-gray-900 py-3 px-1" style:z-index={modalZIndex - 2}>
-		<GradientButton
-			class="flex-0 mr-2"
-			color="greenToBlue"
-			size="sm"
-			disabled={$isLoading}
-			on:click={() => (hideTaskDrawer = false)}
-		>
-			<BarsFromLeftOutline class="w-4 h-4" />
-		</GradientButton>
 		<div class="flex-1">
 			<p class="text-lg md:text-4xl dark:text-white">
 				{format('E do MMM yy ', data.date)}
@@ -226,13 +219,14 @@
 	/>
 	<div class="flex">
 		<div class="flex-0 mt-6 sticky top-16 self-start">
-			<div class="flex items-center">
+			<div class="flex items-center gap-2 mb-2">
 				<h5
 					id="drawer-label"
-					class="inline-flex items-center mb-4 text-base font-semibold text-gray-500 dark:text-gray-400"
+					class="inline-flex text-base font-semibold text-gray-500 dark:text-gray-400"
 				>
 					Tasks
 				</h5>
+				<FilterDropwdown {tags} on:select={(e) => setTag(e.detail)} on:clear={() => setTag()} />
 			</div>
 
 			<div class="pr-1">
@@ -241,7 +235,7 @@
 						<TableHeadCell>Title</TableHeadCell>
 					</TableHead>
 					<TableBody>
-						{#each data.tasks as event}
+						{#each tasks as event}
 							<TableBodyRow
 								class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}"
 							>
@@ -354,7 +348,7 @@
 				<div
 					class:hidden={hoverTime !== time}
 					class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
-					style:grid-column="task / time"
+					style:grid-column="event / reminder"
 					style:grid-row="time-{format('HHmm', time)}"
 				>
 					{format('HH:mm', time)}
@@ -370,7 +364,6 @@
 						style:grid-row="time-{format('HHmm', time)}"
 						on:dragenter={() => {
 							hoverTime = time;
-							hoverBlock = undefined;
 						}}
 						on:drop={(e) => {
 							handleDropOnTime(e, time);
@@ -378,32 +371,6 @@
 						{...notypecheck({ ondragover: 'return false' })}
 					></div>
 					{#each events.filter((e) => timeCheck(e, check)) as e, k}
-						{#if dragging && isBlock(e)}
-							<div
-								aria-hidden="true"
-								class="bg-teal-500 z-[51] m-px rounded-lg"
-								style:grid-column="event"
-								on:dragenter={() => {
-									hoverTime = undefined;
-									hoverBlock = e;
-								}}
-								on:drop={(dropEvent) => {
-									handleDropOnBlock(dropEvent, e);
-								}}
-								{...notypecheck({ ondragover: 'return false' })}
-								style:grid-row={getScheduleSlot(e)}
-							>
-								<div class="flex h-full flex-col items-center justify-center">
-									<p class="inline-block text-2xl font-medium text-blue-900 opacity-65">
-										{#if hoverBlock === e}
-											ADD TO {e.title.toUpperCase()}
-										{:else}
-											{e.title.toUpperCase()}
-										{/if}
-									</p>
-								</div>
-							</div>
-						{/if}
 						<div
 							tabindex={i * 10 + k}
 							role="button"
@@ -454,14 +421,6 @@
 		<div class="flex-1"></div>
 	</div>
 {/if}
-
-<Drawer
-	backdrop={false}
-	transitionType="fly"
-	{transitionParams}
-	hidden={hideTaskDrawer || !!dragging}
-	id="sidebar1"
-></Drawer>
 
 <style>
 	.glass {

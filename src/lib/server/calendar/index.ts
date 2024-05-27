@@ -808,6 +808,11 @@ export class CalendarBackend {
 			if (description) {
 				vcomponent.addPropertyWithValue('description', description);
 			}
+			if (isDone(eventData)) {
+				vcomponent.addPropertyWithValue('completed', ICAL.Time.fromJSDate(new Date(), true))
+			} else {
+				vcomponent.removeAllProperties('completed');
+			}
 		}
 
 		vcomponent.addPropertyWithValue(CustomPropName.ORIGINAL_TEXT, originalText);
