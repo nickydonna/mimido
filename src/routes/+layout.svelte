@@ -1,6 +1,7 @@
 <script lang="ts">
 	/* eslint-disable svelte/no-at-html-tags */
 	import '../app.pcss';
+	import Keydown from 'svelte-keydown';
 
 	import { navigating } from '$app/stores';
 	import { expoOut } from 'svelte/easing';
@@ -23,11 +24,12 @@
 	import { onMount } from 'svelte';
 	import { Drawer } from 'flowbite-svelte';
 	import TaskForm from '$lib/components/task-form';
-	import { isLoading, isUpserting, upsert } from '$lib/stores';
+	import { isLoading, isUpserting, upsert, selectedEvent } from '$lib/stores';
 
 	// @ts-expect-error virtual import
 	import { pwaInfo } from 'virtual:pwa-info';
 	import type { LayoutData } from './$types';
+	import DetailModal from '$lib/components/details-modal';
 	// Move to store
 
 	onMount(async () => {
@@ -66,6 +68,26 @@
 
 	let date: string;
 	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date());
+
+	function handleKey(e: CustomEvent<string>): void {
+		console.log(e.detail);
+		if (e.detail === 'a') {
+			setTimeout(() => upsert.create(), 1);
+			return;
+		}
+		if (e.detail === 'Escape' && isUpserting) {
+			upsert.reset();
+			return;
+		}
+		console.log('asdf', $selectedEvent);
+		if (e.detail === 'Escape' && $selectedEvent) {
+			$selectedEvent = undefined;
+			return;
+		}
+		if (e.detail === 'e' && $selectedEvent) {
+			upsert.update($selectedEvent);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -97,6 +119,12 @@
 	</div>
 </div>
 {#if data.loggedIn}
+	<Keydown pauseOnInput={!$selectedEvent} on:key={handleKey}></Keydown>
+	<DetailModal
+		event={$selectedEvent}
+		on:close={() => ($selectedEvent = undefined)}
+		on:delete={() => ($selectedEvent = undefined)}
+	/>
 	<Drawer
 		width="w-full"
 		transitionType="fly"

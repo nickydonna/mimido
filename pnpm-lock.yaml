@@ -187,6 +187,9 @@ devDependencies:
   svelte-inview:
     specifier: ^4.0.2
     version: 4.0.2(svelte@4.2.15)
+  svelte-keydown:
+    specifier: ^0.7.0
+    version: 0.7.0
   tailwindcss:
     specifier: ^3.3.6
     version: 3.4.3
@@ -8468,6 +8471,10 @@ packages:
       svelte: ^3.0.0 || ^4.0.0
     dependencies:
       svelte: 4.2.15
+    dev: true
+
+  /svelte-keydown@0.7.0:
+    resolution: {integrity: sha512-AKl3o0M9eHqpH6H4xA9VPFqp/0P/suBj3jUR19ZnqewQrqq5opd7Vvo06SLg3onpXyqfm8pWbDl2m/yF4pVgMw==}
     dev: true
 
   /svelte-kit-cookie-session@4.0.0:

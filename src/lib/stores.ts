@@ -11,21 +11,27 @@ export const loading = {
 };
 export const hideCreateDrawer = writable<boolean>(true);
 
+export const selectedEvent = writable<TAllTypesWithId | undefined>();
+
 const _upsert = writable({
 	editing: undefined as TAllTypesWithId | undefined,
 	creating: false,
 	date: undefined as Date | undefined
 });
 
+
 export const upsert = {
 	subscribe: _upsert.subscribe,
 	reset() {
+		selectedEvent.set(undefined);
 		_upsert.set({ editing: undefined, creating: false, date: undefined });
 	},
 	create(date?: Date) {
+		selectedEvent.set(undefined);
 		_upsert.set({ date, creating: true, editing: undefined });
 	},
 	update(event: TAllTypesWithId) {
+		selectedEvent.set(undefined);
 		_upsert.set({ editing: event, creating: false, date: undefined });
 	}
 };

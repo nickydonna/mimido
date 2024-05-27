@@ -47,16 +47,15 @@
 	import { inview } from 'svelte-inview';
 	import type { Options, ObserverEventDetails } from 'svelte-inview';
 	import type { PageData } from './$types';
-	import type { TAllTypesWithId, TBlockSchema } from '$lib/server/calendar';
+	import type { TAllTypesWithId } from '$lib/server/calendar';
 
-	import { isLoading, loading, upsert } from '$lib/stores';
+	import { isLoading, loading, upsert, selectedEvent } from '$lib/stores';
 	import { page } from '$app/stores';
 	import FilterDropwdown from '$lib/components/filter-dropdown/filter-dropwdown.svelte';
 
 	export let data: PageData;
 
 	let dragging: TAllTypesWithId | undefined;
-	let showEventDetail: TAllTypesWithId | undefined;
 	let hoverTime: Date | undefined;
 	let current: Date;
 	let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }>;
@@ -115,8 +114,9 @@
 			[EType.REMINDER, data.events.filter(isReminder)]
 		];
 
-		showEventDetail = [...data.events, ...data.tasks].find(
-			(c) => c.eventId === showEventDetail?.eventId
+		// Update reference in events change
+		$selectedEvent = [...data.events, ...data.tasks].find(
+			(c) => c.eventId === $selectedEvent?.eventId
 		);
 	}
 
@@ -212,13 +212,8 @@
 		</div>
 	</Modal>
 
-	<DetailModal
-		event={showEventDetail}
-		on:close={() => (showEventDetail = undefined)}
-		on:delete={() => (showEventDetail = undefined)}
-	/>
 	<div class="flex">
-		<div class="flex-0 mt-6 sticky top-16 self-start">
+		<div class="hidden md:block flex-0 mt-6 sticky top-16 self-start">
 			<div class="flex items-center gap-2 mb-2">
 				<h5
 					id="drawer-label"
@@ -241,7 +236,7 @@
 							>
 								<TableBodyCell
 									on:click={() => {
-										showEventDetail = event;
+										$selectedEvent = event;
 									}}
 									class={`${
 										isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'
@@ -381,9 +376,9 @@
 							style:grid-column={type === EType.BLOCK ? 'event / reminder' : type}
 							style:grid-row={getScheduleSlot(e)}
 							style:z-index={type === EType.BLOCK ? 0 : k}
-							on:click={() => (showEventDetail = e)}
+							on:click={() => ($selectedEvent = e)}
 							on:keypress={(event) => {
-								if (event.code === 'Enter') showEventDetail = e;
+								if (event.code === 'Enter') $selectedEvent = e;
 							}}
 						>
 							<div class="absolute right-2 hidden group-hover:block"></div>
