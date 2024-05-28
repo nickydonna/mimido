@@ -198,7 +198,7 @@
 			<Button size="xs" href="/day?date={formatISO(subDays(1, startOfDay(data.date)))}">
 				<AngleLeftOutline />
 			</Button>
-			<Button size="xs" href="/day?date={formatISO(startOfDay(data.date))}">Today</Button>
+			<Button size="xs" href="/day?date={formatISO(startOfDay(currentTime))}">Today</Button>
 			<Button size="xs" href="/day?date={formatISO(addDays(1, startOfDay(data.date)))}">
 				<AngleRightOutline />
 			</Button>
