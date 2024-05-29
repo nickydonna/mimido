@@ -78,7 +78,6 @@
 			upsert.reset();
 			return;
 		}
-		console.log('asdf', $selectedEvent);
 		if (e.detail === 'Escape' && $selectedEvent) {
 			$selectedEvent = undefined;
 			return;

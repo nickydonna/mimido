@@ -22,6 +22,7 @@
 		startOfDay
 	} from 'date-fns';
 	import EventCard from '$lib/components/event-card/event-card.svelte';
+	import TaskList from '$lib/components/task-list';
 	import {
 		getEventCardClass,
 		isBlock,
@@ -32,18 +33,8 @@
 		isTask,
 		timeStore
 	} from '$lib/util.js';
-	import DetailModal from '$lib/components/details-modal/detail-modal.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
-	import {
-		Modal,
-		Spinner,
-		Table,
-		TableBody,
-		TableBodyCell,
-		TableBodyRow,
-		TableHead,
-		TableHeadCell
-	} from 'flowbite-svelte';
+	import { Modal, Spinner } from 'flowbite-svelte';
 	import { inview } from 'svelte-inview';
 	import type { Options, ObserverEventDetails } from 'svelte-inview';
 	import type { PageData } from './$types';
@@ -51,7 +42,6 @@
 
 	import { isLoading, loading, upsert, selectedEvent } from '$lib/stores';
 	import { page } from '$app/stores';
-	import FilterDropwdown from '$lib/components/filter-dropdown/filter-dropwdown.svelte';
 
 	export let data: PageData;
 
@@ -175,16 +165,6 @@
 	}
 
 	const notypecheck = (x: any) => x;
-
-	function setTag(tag?: string) {
-		let query = new URLSearchParams($page.url.searchParams.toString());
-		if (tag) {
-			query.set('tag', tag);
-		} else {
-			query.delete('tag');
-		}
-		goto(`?${query.toString()}`);
-	}
 </script>
 
 <div>
@@ -213,52 +193,15 @@
 	</Modal>
 
 	<div class="flex">
-		<div class="hidden md:block flex-0 mt-6 sticky top-16 self-start">
-			<div class="flex items-center gap-2 mb-2">
-				<h5
-					id="drawer-label"
-					class="inline-flex text-base font-semibold text-gray-500 dark:text-gray-400"
-				>
-					Tasks
-				</h5>
-				<FilterDropwdown {tags} on:select={(e) => setTag(e.detail)} on:clear={() => setTag()} />
-			</div>
-
-			<div class="pr-1">
-				<Table hoverable divClass="overflow-hidden">
-					<TableHead>
-						<TableHeadCell>Title</TableHeadCell>
-					</TableHead>
-					<TableBody>
-						{#each tasks as event}
-							<TableBodyRow
-								class="cursor-pointer {isDone(event) ? 'line-through !text-gray-400' : ''}"
-							>
-								<TableBodyCell
-									on:click={() => {
-										$selectedEvent = event;
-									}}
-									class={`${
-										isDone(event) ? 'text-ellipsis line-through !text-gray-400' : 'text-ellipsis'
-									} max-w-48 md:max-w-full `}
-								>
-									<div
-										draggable="true"
-										aria-hidden="true"
-										on:dragstart={() => (dragging = event)}
-										on:dragend={() => {
-											dragging = undefined;
-											hoverTime = undefined;
-										}}
-									>
-										{event.title}
-									</div>
-								</TableBodyCell>
-							</TableBodyRow>
-						{/each}
-					</TableBody>
-				</Table>
-			</div>
+		<div class="hidden md:block w-80 flex-0 mt-6 sticky top-16 self-start">
+			<TaskList
+				tasks={data.tasks}
+				on:dragtask={(e) => (dragging = e.detail)}
+				on:dragend={() => {
+					dragging = undefined;
+					hoverTime = undefined;
+				}}
+			/>
 		</div>
 
 		<div class="schedule flex-1">

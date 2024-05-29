@@ -29,7 +29,7 @@ export const load: PageServerLoad<{
 		date,
 		externalEvents: (await externalEvents).flat(),
 		events: await events,
-		tasks: await backend.listTodos({ excludeDone: true })
+		tasks: await backend.listTodos()
 	};
 };
 
