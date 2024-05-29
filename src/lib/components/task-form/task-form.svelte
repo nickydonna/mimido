@@ -15,10 +15,7 @@
 	import { formatDuration } from 'date-fns';
 	import { EStatus, EType, parseTaskText, unparseTaskText } from '$lib/parser/index.js';
 	import { isBlock, isDefined, isReminder, isTask } from '$lib/util.js';
-	import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core';
-	import { commonmark } from '@milkdown/preset-commonmark';
-	import { nord } from '@milkdown/theme-nord';
-	import { listener, listenerCtx } from '@milkdown/plugin-listener';
+	import MdEditor from '$lib/components/md-editor';
 
 	import { enhance } from '$app/forms';
 	import { rruleToText } from '$lib/utils/rrule.js';
@@ -63,24 +60,6 @@
 			value: formatISODuration(alarm.duration)
 		}));
 		formAction = isEditting ? `/form/${editing?.eventId}` : '/form';
-	}
-
-	function editor(dom: HTMLElement) {
-		// to obtain the editor instance we need to store a reference of the editor.
-		Editor.make()
-			.config((ctx) => {
-				ctx.set(rootCtx, dom);
-				ctx.get(listenerCtx).markdownUpdated((ctx, md) => {
-					description = md;
-				});
-				if (editing?.description) {
-					ctx.set(defaultValueCtx, editing.description);
-				}
-			})
-			.config(nord)
-			.use(commonmark)
-			.use(listener)
-			.create();
 	}
 </script>
 
@@ -341,12 +320,17 @@
 						</div>
 					{/if}
 				</div>
-				<hr class="mt-3" />
 				<Label for="description" class="text-md my-2 block text-gray-500 dark:text-gray-400">
 					Description
 				</Label>
-				<div use:editor />
-				<textarea name="description" class="hidden" bind:value={description} />
+				<div class="my-3">
+					<MdEditor
+						name="description"
+						bind:value={description}
+						placeholder="[Enter an optional Description ...]"
+						editable
+					/>
+				</div>
 				<div class="">
 					<Button type="submit" disabled={upserting}>
 						{#if upserting}

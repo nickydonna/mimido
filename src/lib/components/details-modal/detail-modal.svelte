@@ -24,14 +24,12 @@
 		TrashBinOutline,
 		UndoOutline
 	} from 'flowbite-svelte-icons';
-	import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/core';
-	import { commonmark } from '@milkdown/preset-commonmark';
-	import { nord } from '@milkdown/theme-nord';
 	import { EStatus } from '$lib/parser/index.js';
 	import { rruleToText } from '$lib/utils/rrule.js';
 	import { isLoading, loading, upsert } from '$lib/stores';
 	import type { EventDispatcher } from 'svelte';
 	import type { TAllTypesWithId } from '$lib/server/calendar';
+	import MdEditor from '../md-editor';
 	import { add, format } from 'date-fns/fp';
 	import { invalidateAll } from '$app/navigation';
 
@@ -60,21 +58,6 @@
 			status = event.status as EStatus;
 			statusIdx = statuses.indexOf(status);
 		}
-	}
-
-	function editor(dom: HTMLElement) {
-		// to obtain the editor instance we need to store a reference of the editor.
-		Editor.make()
-			.config((ctx) => {
-				ctx.set(rootCtx, dom);
-				ctx.set(editorViewOptionsCtx, { editable: () => false });
-				if (event?.description) {
-					ctx.set(defaultValueCtx, event.description);
-				}
-			})
-			.config(nord)
-			.use(commonmark)
-			.create();
 	}
 
 	const handleStatusChange = async (status: EStatus) => {
@@ -310,7 +293,7 @@
 			{loadToString(event?.load)}
 		</p>
 	{/if}
-	<div use:editor />
+	<MdEditor placeholder="No description" value={event?.description} editable={false} />
 	<svelte:fragment slot="footer">
 		<div class="flex w-full">
 			<div class="flex-1">

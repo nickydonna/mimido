@@ -18,6 +18,7 @@
 		"test:unit": "TZ=UTC vitest"
 	},
 	"devDependencies": {
+		"@cartamd/plugin-emoji": "^4.0.2",
 		"@flydotio/dockerfile": "^0.5.7",
 		"@playwright/test": "^1.28.1",
 		"@svelte-put/shortcut": "^3.1.0",
@@ -33,6 +34,7 @@
 		"@vite-pwa/assets-generator": "^0.2.4",
 		"@vite-pwa/sveltekit": "^0.4.0",
 		"autoprefixer": "^10.4.16",
+		"carta-md": "^4.0.4",
 		"color": "^4.2.3",
 		"eslint": "^8.57.0",
 		"eslint-config-prettier": "^9.1.0",
@@ -41,6 +43,7 @@
 		"flowbite-svelte": "^0.44.24",
 		"flowbite-svelte-blocks": "^1.1.0",
 		"globals": "^15.0.0",
+		"isomorphic-dompurify": "^2.11.0",
 		"jsonwebtoken": "^9.0.2",
 		"just-memoize": "^2.2.0",
 		"lru-cache": "^10.2.0",
@@ -66,13 +69,6 @@
 	"type": "module",
 	"dependencies": {
 		"@eslint/js": "^9.0.0",
-		"@milkdown/core": "^7.3.5",
-		"@milkdown/ctx": "^7.3.5",
-		"@milkdown/plugin-listener": "^7.3.5",
-		"@milkdown/preset-commonmark": "^7.3.5",
-		"@milkdown/prose": "^7.3.5",
-		"@milkdown/theme-nord": "^7.3.5",
-		"@milkdown/transformer": "^7.3.5",
 		"@prisma/client": "5.14.0",
 		"@sentry/sveltekit": "^8.0.0",
 		"bcrypt": "^5.1.1",

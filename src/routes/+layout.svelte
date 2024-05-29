@@ -70,7 +70,6 @@
 	$: date = $page.url.searchParams.get('date') ?? formatISO(new Date());
 
 	function handleKey(e: CustomEvent<string>): void {
-		console.log(e.detail);
 		if (e.detail === 'a') {
 			setTimeout(() => upsert.create(), 1);
 			return;
