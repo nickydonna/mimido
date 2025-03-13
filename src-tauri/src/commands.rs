@@ -3,10 +3,8 @@ use crate::{
     calendar_items::extract_event,
     establish_connection,
     models::{Calendar, NewEvent, NewServer, Server},
-    schema::{calendars, servers},
 };
-use chrono::Utc;
-use diesel::{associations::HasTable, prelude::*};
+use diesel::prelude::*;
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn create_server(server_url: String, user: String, password: String) -> Server {
@@ -73,7 +71,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    let events = items
+    items
         .into_iter()
         .flat_map(|fetched_resource| extract_event(calendar_id, fetched_resource))
         .flatten()

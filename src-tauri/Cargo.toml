@@ -22,7 +22,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-diesel = { version = "2.1.0", features = [
+diesel = { version = "2.2.8", features = [
   "sqlite",
   "chrono",
   "returning_clauses_for_sqlite_3_35",
@@ -34,7 +34,11 @@ libdav = "0.9.1"
 icalendar = { version = "0.16.12", features = ["serde", "serde_json"] }
 http = "1.2.0"
 tower-http = { version = "0.6.2", features = ["auth"] }
-hyper-util = { version = "0.1.10", features = ["client", "client-legacy", "tokio"] }
+hyper-util = { version = "0.1.10", features = [
+  "client",
+  "client-legacy",
+  "tokio",
+] }
 hyper-rustls = "0.27.5"
 anyhow = "1.0.96"
 futures = "0.3.31"

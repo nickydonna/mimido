@@ -12,7 +12,7 @@ use libdav::{
 use libdav::{CalDavClient, FetchedResource};
 use tower_http::auth::AddAuthorization;
 
-use crate::models::{Calendar, NewCalendar, Server};
+use crate::models::{NewCalendar, Server};
 
 pub type HyperAuthClient =
     CalDavClient<AddAuthorization<HyperClient<HttpsConnector<HttpConnector>, String>>>;

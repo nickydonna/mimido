@@ -1,12 +1,4 @@
-diesel::table! {
-    servers (id) {
-        server_url -> Text,
-        user -> Text,
-        password -> Text,
-        id -> Integer,
-        last_sync -> Nullable<BigInt>,
-    }
-}
+// @generated automatically by Diesel CLI.
 
 diesel::table! {
     calendars (id) {
@@ -22,15 +14,25 @@ diesel::table! {
     events (id) {
         id -> Integer,
         calendar_id -> Integer,
-        href -> Text,
-        ical_data -> Text,
         uid -> Text,
-        summary -> Text,
-        description -> Nullable<Text>,
-        starts_at -> diesel::sql_types::TimestamptzSqlite,
-        ends_at -> diesel::sql_types::TimestamptzSqlite,
-        recur -> Nullable<Text>,
+        ical_data -> Text,
         last_modified -> BigInt,
+        summary -> Text,
+        href -> Text,
+        ends_at -> TimestamptzSqlite,
+        recur -> Nullable<Text>,
+        description -> Nullable<Text>,
+        starts_at -> TimestamptzSqlite,
+    }
+}
+
+diesel::table! {
+    servers (id) {
+        server_url -> Text,
+        user -> Text,
+        password -> Text,
+        id -> Integer,
+        last_sync -> Nullable<BigInt>,
     }
 }
 
@@ -60,4 +62,4 @@ diesel::joinable!(calendars -> servers (server_id));
 diesel::joinable!(events -> calendars (calendar_id));
 diesel::joinable!(todos -> todo_lists (list_id));
 
-diesel::allow_tables_to_appear_in_same_query!(calendars, events, todo_lists, todos, servers);
+diesel::allow_tables_to_appear_in_same_query!(calendars, events, servers, todo_lists, todos,);
