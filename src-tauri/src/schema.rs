@@ -19,10 +19,10 @@ diesel::table! {
         last_modified -> BigInt,
         summary -> Text,
         href -> Text,
-        ends_at -> TimestamptzSqlite,
+        ends_at -> Text,
         recur -> Nullable<Text>,
         description -> Nullable<Text>,
-        starts_at -> TimestamptzSqlite,
+        starts_at -> Text,
     }
 }
 
