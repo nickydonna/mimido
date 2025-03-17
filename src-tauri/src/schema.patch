@@ -1,0 +1,23 @@
+diff --git a/src-tauri/src/schema.rs b/src-tauri/src/schema.rs
+index 4381330..e91bed8 100644
+--- a/src-tauri/src/schema.rs
++++ b/src-tauri/src/schema.rs
+@@ -16,16 +16,16 @@ diesel::table! {
+         calendar_id -> Integer,
+         uid -> Text,
+         ical_data -> Text,
+         last_modified -> BigInt,
+         summary -> Text,
+         href -> Text,
+-        ends_at -> Text,
++        ends_at -> TimestamptzSqlite,
+         recur -> Nullable<Text>,
+         description -> Nullable<Text>,
+-        starts_at -> Text,
++        starts_at -> TimestamptzSqlite,
+     }
+ }
+ 
+ diesel::table! {
+     servers (id) {
+         server_url -> Text,

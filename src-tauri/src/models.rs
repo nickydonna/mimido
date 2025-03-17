@@ -1,5 +1,5 @@
 use crate::schema::*;
-use chrono::Local;
+use chrono::Utc;
 use diesel::prelude::*;
 
 #[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize)]
@@ -50,8 +50,8 @@ pub struct Event {
     pub ical_data: String,
     pub summary: String,
     pub description: Option<String>,
-    pub starts_at: chrono::DateTime<chrono_tz::Tz>,
-    pub ends_at: chrono::DateTime<chrono_tz::Tz>,
+    pub starts_at: chrono::DateTime<Utc>,
+    pub ends_at: chrono::DateTime<Utc>,
     pub recur: Option<String>,
     pub last_modified: i64,
 }
@@ -65,8 +65,8 @@ pub struct NewEvent {
     pub ical_data: String,
     pub summary: String,
     pub description: Option<String>,
-    pub starts_at: chrono::DateTime<chrono_tz::Tz>,
-    pub ends_at: chrono::DateTime<chrono_tz::Tz>,
+    pub starts_at: chrono::DateTime<Utc>,
+    pub ends_at: chrono::DateTime<Utc>,
     pub recur: Option<String>,
     pub last_modified: i64,
 }

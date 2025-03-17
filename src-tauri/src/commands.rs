@@ -71,13 +71,13 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    items
+    let events = items
         .into_iter()
         .flat_map(|fetched_resource| extract_event(calendar_id, fetched_resource))
         .flatten()
         .collect::<Vec<NewEvent>>();
 
-    // println!("{:#?}", events.first());
+    println!("{:#?}", events.first());
 
     Ok(())
 }
