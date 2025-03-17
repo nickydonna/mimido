@@ -1,11 +1,18 @@
-use std::str::FromStr;
-
+use crate::models::NewEvent;
 use chrono::{DateTime, NaiveTime, TimeZone, Utc};
+use component_props::{
+    get_int_property, get_property_or_default, get_string_property, ComponentProps,
+};
+use event_status::EventStatus;
+use event_type::EventType;
 use icalendar::{Component, DatePerhapsTime};
 use libdav::FetchedResource;
-use strum_macros;
+use recur::parse_rrule;
 
-use crate::models::NewEvent;
+pub(crate) mod component_props;
+pub(crate) mod event_status;
+pub(crate) mod event_type;
+pub(crate) mod recur;
 
 pub fn extract_event(
     calendar_id: i32,
@@ -45,7 +52,6 @@ pub fn extract_event(
     let end = first_event
         .get_end()
         .and_then(|e| date_from_calendar_to_sql(e, calendar_offset));
-    let recur = get_string_property(first_event, ComponentProps::Recur);
     let values = match (uid, start, end) {
         (Some(uid), Some(start), Some(end)) => Some((uid, start, end)),
         _ => None,
@@ -57,6 +63,7 @@ pub fn extract_event(
     let importance = get_int_property(first_event, ComponentProps::Importance);
     let urgency = get_int_property(first_event, ComponentProps::Urgency);
     let load = get_int_property(first_event, ComponentProps::Load);
+    let postponed = get_int_property(first_event, ComponentProps::Postponed);
 
     let Some((uid, starts_at, ends_at)) = values else {
         return Ok(None);
@@ -76,73 +83,16 @@ pub fn extract_event(
         last_modified,
         summary: summary.to_string(),
         description,
-        recur,
+        has_rrule: parse_rrule(first_event).is_some(),
+        status,
+        original_text,
+        tag,
+        event_type,
+        importance,
+        load,
+        urgency,
+        postponed,
     }))
-}
-
-#[derive(Debug, PartialEq, strum_macros::AsRefStr)]
-enum ComponentProps {
-    #[strum(serialize = "lowercase")]
-    Recur,
-    #[strum(serialize = "X-TYPE")]
-    Type,
-    #[strum(serialize = "X-TAG")]
-    Tag,
-    #[strum(serialize = "X-URGENCY")]
-    Urgency,
-    #[strum(serialize = "X-STATUS")]
-    Status,
-    #[strum(serialize = "X-ORIGINAL-TEXT")]
-    OriginalText,
-    #[strum(serialize = "X-IMPORTANCE")]
-    Importance,
-    #[strum(serialize = "X-LOAD")]
-    Load,
-}
-
-#[derive(Debug, PartialEq, strum_macros::AsRefStr, strum_macros::EnumString)]
-#[strum(serialize_all = "lowercase")]
-enum EventType {
-    Event,
-    Block,
-    Reminder,
-    Task,
-}
-
-#[derive(Debug, PartialEq, strum_macros::AsRefStr, strum_macros::EnumString)]
-#[strum(serialize_all = "lowercase")]
-enum EventStatus {
-    #[strum(serialize = "back")]
-    Backlog,
-    Todo,
-    Doing,
-    Done,
-}
-
-fn get_property_or_default<T: FromStr>(
-    event: &icalendar::Event,
-    property: ComponentProps,
-    default: T,
-) -> T {
-    let raw_type = event.property_value(property.as_ref());
-    let Some(raw_type) = raw_type else {
-        return default;
-    };
-    T::from_str(raw_type).ok().unwrap_or(default)
-}
-
-fn get_string_property(event: &icalendar::Event, property: ComponentProps) -> Option<String> {
-    event
-        .property_value(property.as_ref())
-        .map(|e| e.to_string())
-}
-
-fn get_int_property(event: &icalendar::Event, property: ComponentProps) -> i32 {
-    event
-        .property_value(property.as_ref())
-        .map(|e| e.to_string())
-        .and_then(|e| e.parse::<i32>().ok())
-        .unwrap_or(0)
 }
 
 fn date_from_calendar_to_sql(

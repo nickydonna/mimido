@@ -1,4 +1,6 @@
-use crate::schema::*;
+use crate::{
+    calendar_items::event_status::EventStatus, calendar_items::event_type::EventType, schema::*,
+};
 use chrono::Utc;
 use diesel::prelude::*;
 
@@ -52,7 +54,15 @@ pub struct Event {
     pub description: Option<String>,
     pub starts_at: chrono::DateTime<Utc>,
     pub ends_at: chrono::DateTime<Utc>,
-    pub recur: Option<String>,
+    pub has_rrule: bool,
+    pub tag: Option<String>,
+    pub status: EventStatus,
+    pub event_type: EventType,
+    pub original_text: Option<String>,
+    pub load: i32,
+    pub urgency: i32,
+    pub importance: i32,
+    pub postponed: i32,
     pub last_modified: i64,
 }
 
@@ -67,7 +77,15 @@ pub struct NewEvent {
     pub description: Option<String>,
     pub starts_at: chrono::DateTime<Utc>,
     pub ends_at: chrono::DateTime<Utc>,
-    pub recur: Option<String>,
+    pub has_rrule: bool,
+    pub tag: Option<String>,
+    pub status: EventStatus,
+    pub event_type: EventType,
+    pub original_text: Option<String>,
+    pub load: i32,
+    pub urgency: i32,
+    pub importance: i32,
+    pub postponed: i32,
     pub last_modified: i64,
 }
 

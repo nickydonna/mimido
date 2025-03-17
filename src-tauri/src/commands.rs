@@ -4,7 +4,7 @@ use crate::{
     establish_connection,
     models::{Calendar, NewEvent, NewServer, Server},
 };
-use diesel::prelude::*;
+use diesel::{insert_into, prelude::*};
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn create_server(server_url: String, user: String, password: String) -> Server {
@@ -53,6 +53,7 @@ pub fn list_calendars() -> Vec<Calendar> {
 #[tauri::command(rename_all = "snake_case")]
 pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
     use crate::schema::calendars::dsl as calendars_dsl;
+    use crate::schema::events::dsl as event_dsl;
     use crate::schema::servers::dsl as server_dsl;
 
     let conn = &mut establish_connection();
@@ -77,9 +78,11 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .flatten()
         .collect::<Vec<NewEvent>>();
 
-    println!("{:#?}", events.first());
-
-    Ok(())
+    insert_into(event_dsl::events)
+        .values(events)
+        .execute(conn)
+        .map(|_| ())
+        .map_err(stringify)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -148,6 +151,6 @@ fn find_calendar_by_name(
         .map_err(|err| err.to_string())
 }
 
-fn stringify(e: anyhow::Error) -> String {
-    format!("Error code: {}", e)
+fn stringify<T: ToString>(e: T) -> String {
+    format!("Error code: {}", e.to_string())
 }

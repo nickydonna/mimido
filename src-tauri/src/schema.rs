@@ -20,9 +20,17 @@ diesel::table! {
         summary -> Text,
         href -> Text,
         ends_at -> TimestamptzSqlite,
-        recur -> Nullable<Text>,
         description -> Nullable<Text>,
         starts_at -> TimestamptzSqlite,
+        event_type -> Text,
+        tag -> Nullable<Text>,
+        status -> Text,
+        original_text -> Nullable<Text>,
+        importance -> Integer,
+        load -> Integer,
+        urgency -> Integer,
+        postponed -> Integer,
+        has_rrule -> Bool,
     }
 }
 
@@ -62,10 +70,4 @@ diesel::joinable!(calendars -> servers (server_id));
 diesel::joinable!(events -> calendars (calendar_id));
 diesel::joinable!(todos -> todo_lists (list_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    calendars,
-    events,
-    servers,
-    todo_lists,
-    todos,
-);
+diesel::allow_tables_to_appear_in_same_query!(calendars, events, servers, todo_lists, todos,);
