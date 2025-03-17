@@ -10,6 +10,10 @@
 
   onMount(async () => {
     calendars = await invoke("list_calendars");
+    const a = await invoke("list_events_for_day", {
+      datetime: new Date().toISOString(),
+    });
+    console.log(a);
   });
   async function createServer(event: Event) {
     event.preventDefault();

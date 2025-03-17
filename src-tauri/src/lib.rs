@@ -51,6 +51,7 @@ pub fn run() {
             commands::list_calendars,
             commands::fetch_calendars,
             commands::sync_calendar,
+            commands::list_events_for_day,
         ])
         .setup(|app| {
             let app_path = app.path().app_config_dir().expect("No App path was found!");

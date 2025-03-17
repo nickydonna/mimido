@@ -2,9 +2,11 @@ use crate::{
     caldav::Caldav,
     calendar_items::extract_event,
     establish_connection,
-    models::{Calendar, NewEvent, NewServer, Server},
+    models::{Calendar, Event, NewEvent, NewServer, Server},
 };
-use diesel::{insert_into, prelude::*};
+use chrono::DateTime;
+use diesel::{delete, insert_into, prelude::*};
+use now::DateTimeNow;
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn create_server(server_url: String, user: String, password: String) -> Server {
@@ -72,6 +74,12 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
+    // Clean the events from that calendar
+    delete(event_dsl::events)
+        .filter(event_dsl::calendar_id.eq(calendar_id))
+        .execute(conn)
+        .map_err(stringify)?;
+
     let events = items
         .into_iter()
         .flat_map(|fetched_resource| extract_event(calendar_id, fetched_resource))
@@ -82,6 +90,29 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .values(events)
         .execute(conn)
         .map(|_| ())
+        .map_err(stringify)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub async fn list_events_for_day(datetime: String) -> Result<Vec<Event>, String> {
+    use crate::schema::events::dsl as event_dsl;
+
+    let conn = &mut establish_connection();
+
+    let parsed = DateTime::parse_from_rfc3339(&datetime)
+        .map_err(stringify)?
+        .to_utc();
+    let start = parsed.beginning_of_day();
+    let end = parsed.end_of_day();
+
+    event_dsl::events
+        .filter(
+            event_dsl::has_rrule.eq(true).or(event_dsl::starts_at
+                .ge(start)
+                .and(event_dsl::ends_at.le(end))),
+        )
+        .select(Event::as_select())
+        .load(conn)
         .map_err(stringify)
 }
 
