@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { commands } from "../bindings";
+  import { unwrap } from "../result";
 
   let user = $state("");
   let password = $state("");
@@ -9,11 +11,9 @@
   let calendars = $state<{ id: number; name: string }[] | undefined>(undefined);
 
   onMount(async () => {
-    calendars = await invoke("list_calendars");
-    const a = await invoke("list_events_for_day", {
-      datetime: new Date().toISOString(),
-    });
-    console.log(a);
+    calendars = await commands.listCalendars();
+    const a = await commands.listEventsForDay(new Date().toISOString());
+    console.log(unwrap(a));
   });
   async function createServer(event: Event) {
     event.preventDefault();

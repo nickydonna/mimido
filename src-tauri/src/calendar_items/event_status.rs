@@ -15,6 +15,7 @@ use diesel::{
     strum_macros::Display,
     FromSqlRow,
     AsExpression,
+    specta::Type,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
 #[strum(serialize_all = "lowercase")]

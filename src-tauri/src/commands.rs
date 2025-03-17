@@ -9,6 +9,7 @@ use diesel::{delete, insert_into, prelude::*};
 use now::DateTimeNow;
 
 #[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
 pub async fn create_server(server_url: String, user: String, password: String) -> Server {
     use crate::schema::servers;
 
@@ -28,6 +29,7 @@ pub async fn create_server(server_url: String, user: String, password: String) -
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
 pub async fn list_servers() -> Vec<Server> {
     use crate::schema::servers::dsl::*;
 
@@ -39,6 +41,7 @@ pub async fn list_servers() -> Vec<Server> {
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
 pub fn list_calendars() -> Vec<Calendar> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::servers::dsl as server_dsl;
@@ -53,6 +56,7 @@ pub fn list_calendars() -> Vec<Calendar> {
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
 pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::events::dsl as event_dsl;
@@ -94,6 +98,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
 pub async fn list_events_for_day(datetime: String) -> Result<Vec<Event>, String> {
     use crate::schema::events::dsl as event_dsl;
 
@@ -117,6 +122,7 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<Event>, String>
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
 pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, String> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::servers::dsl as server_dsl;

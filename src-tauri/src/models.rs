@@ -4,7 +4,7 @@ use crate::{
 use chrono::Utc;
 use diesel::prelude::*;
 
-#[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize)]
+#[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize, specta::Type)]
 #[diesel(table_name = servers)]
 pub struct Server {
     pub id: i32,
@@ -23,7 +23,7 @@ pub struct NewServer {
     pub last_sync: Option<i64>,
 }
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
+#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type)]
 #[diesel(table_name = calendars)]
 pub struct Calendar {
     pub id: i32,
@@ -42,7 +42,7 @@ pub struct NewCalendar {
     pub server_id: i32,
 }
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
+#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type)]
 #[diesel(table_name = events)]
 pub struct Event {
     pub id: i32,
