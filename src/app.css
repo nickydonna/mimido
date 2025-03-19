@@ -18,3 +18,10 @@
 }
 
 @source "../node_modules/flowbite-svelte/dist";
+
+@utility bg-polka-* {
+  background-image: radial-gradient(--value(--color- *) 1px, transparent 1px);
+  /* background-color: --value(--color- *); */
+  background-color: color-mix(in hsl, --value(--color- *) 60%, white);
+  background-size: 16px 16px;
+}

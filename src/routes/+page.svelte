@@ -144,129 +144,136 @@
   $inspect(events).with(console.log);
 </script>
 
-<div class="schedule flex-1">
-  <span
-    class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
-    aria-hidden="true"
-    style="grid-column: event; grid-row: tracks;">Events</span
-  >
-  <span
-    class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
-    aria-hidden="true"
-    style="grid-column: task; grid-row: tracks;">Tasks</span
-  >
-  <span
-    class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
-    aria-hidden="true"
-    style="grid-column: reminder; grid-row: tracks;">Reminder</span
-  >
-
-  {#if !currentTimeInView && !dragging}
-    <Button
-      class="fixed bottom-[6rem] end-6 z-40"
-      on:click={scrollCurrentIntoView}
-    >
-      Current Time
-    </Button>
-  {/if}
-  <!-- Time indicator -->
+<div>
   <div
-    class="pointer-events-none"
-    style:z-index={modalZIndex - 3}
-    style:grid-column="times / reminder"
-    style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+    class="flex sticky top-0 bg-gray-900 py-3 px-1"
+    style:z-index={modalZIndex - 2}
   >
-    <div
-      class="relative w-full"
-      style:top="calc({timeIndicator.offset}% - 25px)"
-    >
-      <span class="relative px-2 text-pink-600 font-bold">
-        {format("HH:mm", currentTime)}
-      </span>
-    </div>
-  </div>
-  <!-- Dotted line for current time -->
-  <div
-    id="current-time"
-    class="pointer-events-none"
-    style:z-index={modalZIndex - 3}
-    style:grid-column="times / reminder"
-    style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
-  >
-    <div
-      style:top="{timeIndicator.offset}%"
-      class="relative w-full border-b-2 border border-pink-600"
-    ></div>
-  </div>
-
-  {#each timeBlocks as { time, check } (time)}
-    <h2
-      ondblclick={() => !dragging && handleTimeDoubleClick(time)}
-      class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
-      class:brightness-50={timeIndicator.nearestSlot >= time}
-      style:grid-row={`time-${format("HHmm", time)}`}
-    >
-      {format("HH:mm", time)}
-    </h2>
-    <div
-      class:hidden={hoverTime !== time}
-      class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
-      style:grid-column="event / reminder"
-      style:grid-row="time-{format('HHmm', time)}"
-    >
-      {format("HH:mm", time)}
-    </div>
-    {#each sortedEvents as [type, events], i}
-      <div
+    <div class="schedule flex-1">
+      <span
+        class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
         aria-hidden="true"
-        class="border-t border-dotted"
-        class:z-50={dragging}
-        class:border-gray-600={getMinutes(time) === 0}
-        class:border-gray-300={getMinutes(time) === 30}
-        style:grid-column={type}
-        style:grid-row="time-{format('HHmm', time)}"
-        ondragenter={() => {
-          hoverTime = time;
-        }}
-        ondrop={(e) => {
-          // handleDropOnTime(e, time);
-        }}
-        ondragover={() => false}
-      ></div>
-      {#each events.filter((e) => timeCheck(e, check)) as e, k}
-        <div
-          tabindex={i * 10 + k}
-          role="button"
-          class="{getEventCardClass(
-            e,
-          )} group relative rounded-lg border p-0.5 shadow-2xl"
-          class:brightness-50={timeIndicator.nearestSlot > time}
-          class:m-px={type === "Block"}
-          class:m-0.5={type !== "Block"}
-          class:glass={type !== "Block"}
-          style:grid-column={type === "Block"
-            ? "event / reminder"
-            : type.toLowerCase()}
-          style:grid-row={getScheduleSlot(e)}
-          style:z-index={type === "Block" ? 0 : k}
+        style="grid-column: event; grid-row: tracks;">Events</span
+      >
+      <span
+        class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+        aria-hidden="true"
+        style="grid-column: task; grid-row: tracks;">Tasks</span
+      >
+      <span
+        class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+        aria-hidden="true"
+        style="grid-column: reminder; grid-row: tracks;">Reminder</span
+      >
+
+      {#if !currentTimeInView && !dragging}
+        <Button
+          class="fixed bottom-[6rem] end-6 z-40"
+          on:click={scrollCurrentIntoView}
         >
-          <div class="absolute right-2 hidden group-hover:block"></div>
-          {#if e.event_type === "Block"}
-            <div class="flex h-full flex-col items-center justify-center">
-              <p
-                class="inline-block text-2xl font-medium text-blue-900 opacity-65"
-              >
-                {e.summary.toUpperCase()}
-              </p>
-            </div>
-          {:else}
-            Card
-            <!-- <EventCard event={e} /> -->
-          {/if}
+          Current Time
+        </Button>
+      {/if}
+      <!-- Time indicator -->
+      <div
+        class="pointer-events-none"
+        style:z-index={modalZIndex - 3}
+        style:grid-column="times / reminder"
+        style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+      >
+        <div
+          class="relative w-full"
+          style:top="calc({timeIndicator.offset}% - 25px)"
+        >
+          <span class="relative px-2 text-pink-600 font-bold">
+            {format("HH:mm", currentTime)}
+          </span>
         </div>
+      </div>
+      <!-- Dotted line for current time -->
+      <div
+        id="current-time"
+        class="pointer-events-none"
+        style:z-index={modalZIndex - 3}
+        style:grid-column="times / reminder"
+        style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+      >
+        <div
+          style:top="{timeIndicator.offset}%"
+          class="relative w-full border-b-2 border border-pink-600"
+        ></div>
+      </div>
+
+      {#each timeBlocks as { time, check } (time)}
+        <h2
+          ondblclick={() => !dragging && handleTimeDoubleClick(time)}
+          class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
+          class:brightness-50={timeIndicator.nearestSlot >= time}
+          style:grid-row={`time-${format("HHmm", time)}`}
+        >
+          {format("HH:mm", time)}
+        </h2>
+        <div
+          class:hidden={hoverTime !== time}
+          class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
+          style:grid-column="event / reminder"
+          style:grid-row="time-{format('HHmm', time)}"
+        >
+          {format("HH:mm", time)}
+        </div>
+        {#each sortedEvents as [type, events], i}
+          <div
+            aria-hidden="true"
+            class="border-t border-dotted"
+            class:z-50={dragging}
+            class:border-gray-600={getMinutes(time) === 0}
+            class:border-gray-300={getMinutes(time) === 30}
+            style:grid-column={type}
+            style:grid-row="time-{format('HHmm', time)}"
+            ondragenter={() => {
+              hoverTime = time;
+            }}
+            ondrop={(e) => {
+              // handleDropOnTime(e, time);
+            }}
+            ondragover={() => false}
+          ></div>
+          {#each events.filter((e) => timeCheck(e, check)) as e, k}
+            <div
+              tabindex={i * 10 + k}
+              role="button"
+              class="{getEventCardClass(
+                e,
+              )} group relative rounded-lg border p-0.5 shadow-2xl"
+              class:brightness-50={timeIndicator.nearestSlot > time}
+              class:m-px={type === "Block"}
+              class:m-0.5={type !== "Block"}
+              class:glass={type !== "Block"}
+              style:grid-column={type === "Block"
+                ? "event / reminder"
+                : type.toLowerCase()}
+              style:grid-row={getScheduleSlot(e)}
+              style:z-index={type === "Block" ? 0 : k}
+            >
+              <div class="absolute right-2 hidden group-hover:block"></div>
+              {#if e.event_type === "Block"}
+                <div class="flex h-full flex-col items-center justify-center">
+                  <p
+                    class="inline-block text-2xl font-medium text-blue-900 opacity-65"
+                  >
+                    {e.summary.toUpperCase()}
+                  </p>
+                </div>
+              {:else}
+                Card
+                <!-- <EventCard event={e} /> -->
+              {/if}
+            </div>
+          {/each}
+        {/each}
       {/each}
-    {/each}
-  {/each}
+    </div>
+  </div>
 </div>
 
 <style>

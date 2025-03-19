@@ -1,7 +1,10 @@
 use crate::{
-    calendar_items::recur::parse_rrule, establish_connection, models::Event, util::stringify,
+    calendar_items::{event_type::EventType, recur::parse_rrule},
+    establish_connection,
+    models::Event,
+    util::stringify,
 };
-use chrono::DateTime;
+use chrono::{DateTime, Days};
 use diesel::prelude::*;
 use now::DateTimeNow;
 
@@ -34,12 +37,16 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<Event>, String>
             if !event.has_rrule {
                 return Some(event.to_owned());
             }
-
             let duration = event.ends_at - event.starts_at;
 
             let ical_event: icalendar::Event = event.clone().try_into().ok()?;
 
-            let r_rule = parse_rrule(&ical_event)?.after(parsed.with_timezone(&rrule::Tz::UTC));
+            let r_rule = parse_rrule(&ical_event)?
+                .after(parsed.with_timezone(&rrule::Tz::UTC) - Days::new(1));
+            if event.event_type == EventType::Block {
+                let a = r_rule.clone().all(2).dates;
+                println!("{}: {:#?}", event.summary, a);
+            }
             let rrecurence = r_rule
                 .all(2)
                 .dates
