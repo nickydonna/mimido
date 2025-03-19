@@ -1,205 +1,385 @@
 <script lang="ts">
+  import {
+    parseISO,
+    formatISO,
+    getMinutes,
+    isSameDay,
+    isSameMinute,
+    roundToNearestMinutes,
+    startOfDay,
+  } from "date-fns";
+  import {
+    addMinutes,
+    eachHourOfInterval,
+    format,
+    isWithinInterval,
+    setHours,
+    subDays,
+    addDays,
+    subSeconds,
+  } from "date-fns/fp";
+  import { getEventCardClass, type ParsedEvent } from "../lib//util";
+  import Button from "flowbite-svelte/Button.svelte";
+  import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
+  import {
+    AngleLeftOutline,
+    AngleRightOutline,
+    CloseOutline,
+  } from "flowbite-svelte-icons";
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
-  import { commands } from "../bindings";
+  import { commands, type Event, type EventType } from "../bindings";
   import { unwrap } from "../result";
+  import { timeStore } from "../stores/times";
+  import { page } from "$app/state";
 
-  let user = $state("");
-  let password = $state("");
-  let server_url = $state("");
-  let greetMsg = $state("");
-  let calendars = $state<{ id: number; name: string }[] | undefined>(undefined);
+  let dateParam = page.url.searchParams.get("date");
+  let date = dateParam != null ? parseISO(dateParam) : new Date();
+  let events = $state<ParsedEvent[] | undefined>(undefined);
+  let loading = $state(false);
+  let dragging = $state<Event | undefined>(undefined);
+  let currentTimeInView = $state(false);
+  let currentTime: Date = $state(new Date());
+  let hoverTime: Date | undefined = $state(undefined);
+  let tags: string[] = $state([]);
+  let tagFilter: string | undefined = $state();
+  let current = $derived(startOfDay(date));
+  let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }> =
+    $derived.by(() => {
+      let start = setHours(8, current);
+      let end = setHours(23, current);
+      let eachHour = eachHourOfInterval({ start, end })
+        .map((d) => [
+          d,
+          addMinutes(15, d),
+          addMinutes(30, d),
+          addMinutes(45, d),
+        ])
+        .flat();
+      return eachHour.map((h) => ({
+        time: h,
+        check: isWithinInterval({
+          start: subSeconds(1, h),
+          end: subSeconds(1, addMinutes(30, h)),
+        }),
+      }));
+    });
 
-  onMount(async () => {
-    calendars = await commands.listCalendars();
-    const a = await commands.listEventsForDay(new Date().toISOString());
-    console.log(unwrap(a));
+  let timeCheck = (event: ParsedEvent, slotCheck: (d: Date) => boolean) =>
+    event.starts_at != null && slotCheck(event.starts_at);
+
+  let sortedEvents: Array<[EventType, Array<ParsedEvent>]> = $derived.by(() => {
+    if (events == null) return [];
+    return [
+      ["Block", events.filter((e) => e.event_type === "Block")],
+      ["Event", events.filter((e) => e.event_type === "Event")],
+      ["Task", events.filter((e) => e.event_type === "Task")],
+      ["Reminder", events.filter((e) => e.event_type === "Reminder")],
+    ];
   });
-  async function createServer(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    const server = (await invoke("create_server", {
-      server_url,
-      user,
-      password,
-    })) as {
-      id: string;
-      user: string;
+
+  const modalZIndex = 40;
+  onMount(async () => {
+    loading = true;
+    const result = await commands.listEventsForDay(new Date().toISOString());
+    const unwrapped = unwrap(result);
+    console.log(unwrapped);
+    events = unwrapped.map((e) => ({
+      ...e,
+      starts_at: parseISO(e.starts_at),
+      ends_at: parseISO(e.ends_at),
+    }));
+    loading = false;
+  });
+
+  const scrollCurrentIntoView = () => {
+    document.getElementById("current-time")?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  };
+
+  let timeIndicator: { nearestSlot: Date; offset: number } = $state({
+    nearestSlot: new Date(),
+    offset: 0,
+  });
+  timeStore.subscribe((storeTime) => {
+    currentTime = storeTime;
+    const nearestSlot = roundToNearestMinutes(storeTime, {
+      nearestTo: 15,
+      roundingMethod: "floor",
+    });
+    const minutes = getMinutes(storeTime) - getMinutes(nearestSlot);
+    timeIndicator = {
+      nearestSlot: nearestSlot,
+      offset: (minutes * 100) / 15,
     };
-    // users = await invoke("list_events", { server_id: server.id });
-    greetMsg = `Hello ${server.user}`;
+  });
+
+  /**
+   * Give a time slot find the start and end time grid slot
+   * if endTime is null, add 15 min to the start time
+   * if the time is not in a 15 min slot, move it to the nearest before
+   * if when moving start and end are the same, move the end 15 min later
+   */
+  function getScheduleSlot(e: ParsedEvent) {
+    let startDate = roundToNearestMinutes(e.starts_at, {
+      nearestTo: 15,
+      roundingMethod: "floor",
+    });
+    let endTime = e.ends_at ?? addMinutes(15, e.starts_at);
+    endTime = roundToNearestMinutes(endTime, {
+      nearestTo: 15,
+      roundingMethod: "floor",
+    });
+    if (isSameMinute(startDate, endTime)) {
+      endTime = addMinutes(15, startDate);
+    }
+    return `time-${format("HHmm", startDate)} / time-${format("HHmm", endTime)}`;
   }
 
-  async function syncCalendar(cal: {
-    id: number;
-    name: string;
-  }): Promise<void> {
-    await invoke("sync_calendar", { calendar_id: cal.id });
+  function handleTimeDoubleClick(time: Date) {
+    // upsert.create(time);
   }
+  $inspect(sortedEvents).with(console.log);
+  $inspect(events).with(console.log);
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<div class="schedule flex-1">
+  <span
+    class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+    aria-hidden="true"
+    style="grid-column: event; grid-row: tracks;">Events</span
+  >
+  <span
+    class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+    aria-hidden="true"
+    style="grid-column: task; grid-row: tracks;">Tasks</span
+  >
+  <span
+    class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+    aria-hidden="true"
+    style="grid-column: reminder; grid-row: tracks;">Reminder</span
+  >
 
-  <div class="row">
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://kit.svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
-
-  <form class="row" onsubmit={createServer}>
-    <input
-      id="server_url"
-      class="input"
-      placeholder="Server Url"
-      bind:value={server_url}
-    />
-    <input id="email" class="input" placeholder="Email" bind:value={user} />
-    <input
-      class="input"
-      id="password"
-      type="password"
-      placeholder="Password"
-      bind:value={password}
-    />
-    <button type="submit">Create</button>
-  </form>
-  <p>{greetMsg}</p>
-  {#if calendars != null}
-    <ul>
-      {#each calendars as cal}
-        <li>
-          {cal.name}
-          <button onclick={() => syncCalendar(cal)}>Sync Calendar</button>
-        </li>
-      {/each}
-    </ul>
+  {#if !currentTimeInView && !dragging}
+    <Button
+      class="fixed bottom-[6rem] end-6 z-40"
+      on:click={scrollCurrentIntoView}
+    >
+      Current Time
+    </Button>
   {/if}
-</main>
+  <!-- Time indicator -->
+  <div
+    class="pointer-events-none"
+    style:z-index={modalZIndex - 3}
+    style:grid-column="times / reminder"
+    style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+  >
+    <div
+      class="relative w-full"
+      style:top="calc({timeIndicator.offset}% - 25px)"
+    >
+      <span class="relative px-2 text-pink-600 font-bold">
+        {format("HH:mm", currentTime)}
+      </span>
+    </div>
+  </div>
+  <!-- Dotted line for current time -->
+  <div
+    id="current-time"
+    class="pointer-events-none"
+    style:z-index={modalZIndex - 3}
+    style:grid-column="times / reminder"
+    style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+  >
+    <div
+      style:top="{timeIndicator.offset}%"
+      class="relative w-full border-b-2 border border-pink-600"
+    ></div>
+  </div>
+
+  {#each timeBlocks as { time, check } (time)}
+    <h2
+      ondblclick={() => !dragging && handleTimeDoubleClick(time)}
+      class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
+      class:brightness-50={timeIndicator.nearestSlot >= time}
+      style:grid-row={`time-${format("HHmm", time)}`}
+    >
+      {format("HH:mm", time)}
+    </h2>
+    <div
+      class:hidden={hoverTime !== time}
+      class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
+      style:grid-column="event / reminder"
+      style:grid-row="time-{format('HHmm', time)}"
+    >
+      {format("HH:mm", time)}
+    </div>
+    {#each sortedEvents as [type, events], i}
+      <div
+        aria-hidden="true"
+        class="border-t border-dotted"
+        class:z-50={dragging}
+        class:border-gray-600={getMinutes(time) === 0}
+        class:border-gray-300={getMinutes(time) === 30}
+        style:grid-column={type}
+        style:grid-row="time-{format('HHmm', time)}"
+        ondragenter={() => {
+          hoverTime = time;
+        }}
+        ondrop={(e) => {
+          // handleDropOnTime(e, time);
+        }}
+        ondragover={() => false}
+      ></div>
+      {#each events.filter((e) => timeCheck(e, check)) as e, k}
+        <div
+          tabindex={i * 10 + k}
+          role="button"
+          class="{getEventCardClass(
+            e,
+          )} group relative rounded-lg border p-0.5 shadow-2xl"
+          class:brightness-50={timeIndicator.nearestSlot > time}
+          class:m-px={type === "Block"}
+          class:m-0.5={type !== "Block"}
+          class:glass={type !== "Block"}
+          style:grid-column={type === "Block"
+            ? "event / reminder"
+            : type.toLowerCase()}
+          style:grid-row={getScheduleSlot(e)}
+          style:z-index={type === "Block" ? 0 : k}
+        >
+          <div class="absolute right-2 hidden group-hover:block"></div>
+          {#if e.event_type === "Block"}
+            <div class="flex h-full flex-col items-center justify-center">
+              <p
+                class="inline-block text-2xl font-medium text-blue-900 opacity-65"
+              >
+                {e.summary.toUpperCase()}
+              </p>
+            </div>
+          {:else}
+            Card
+            <!-- <EventCard event={e} /> -->
+          {/if}
+        </div>
+      {/each}
+    {/each}
+  {/each}
+</div>
 
 <style>
-  .logo.vite:hover {
-    filter: drop-shadow(0 0 2em #747bff);
+  .glass {
+    /* From https://css.glass */
+    /* background: rgba(255, 255, 255, 0.47); */
+
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
   }
 
-  .logo.svelte-kit:hover {
-    filter: drop-shadow(0 0 2em #ff3e00);
+  .blurred-time {
+    /* background-color: rgba(0, 0, 0, 0.4); */
+    /* background: rgb(0, 0, 0, 0.4); */
+    /* background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 100%); */
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.2),
+      rgba(0, 0, 0, 0.2) 10px,
+      rgba(0, 0, 0, 0.3) 10px,
+      rgba(0, 0, 0, 0.3) 20px
+    );
   }
 
-  :root {
-    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-    font-size: 16px;
-    line-height: 24px;
-    font-weight: 400;
-
-    color: #0f0f0f;
-    background-color: #f6f6f6;
-
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    -webkit-text-size-adjust: 100%;
+  .card__bg-work {
+    background-position: center;
+    background-image: url("$lib/assets/work.jpg");
   }
 
-  .container {
-    margin: 0;
-    padding-top: 10vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    text-align: center;
+  /** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
+
+  .time-slot {
+    grid-column: times;
+    margin-right: 0.5em;
+    border-right: 1px solid gray;
   }
 
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: 0.75s;
-  }
-
-  .logo.tauri:hover {
-    filter: drop-shadow(0 0 2em #24c8db);
-  }
-
-  .row {
-    display: flex;
-    justify-content: center;
-  }
-
-  a {
-    font-weight: 500;
-    color: #646cff;
-    text-decoration: inherit;
-  }
-
-  a:hover {
-    color: #535bf2;
-  }
-
-  h1 {
-    text-align: center;
-  }
-
-  input,
-  button {
-    border-radius: 8px;
-    border: 1px solid transparent;
-    padding: 0.6em 1.2em;
-    font-size: 1em;
-    font-weight: 500;
-    font-family: inherit;
-    color: #0f0f0f;
-    background-color: #ffffff;
-    transition: border-color 0.25s;
-    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-  }
-
-  button {
-    cursor: pointer;
-  }
-
-  button:hover {
-    border-color: #396cd8;
-  }
-  button:active {
-    border-color: #396cd8;
-    background-color: #e8e8e8;
-  }
-
-  input,
-  button {
-    outline: none;
-  }
-
-  .input {
-    margin-right: 5px;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color: #f6f6f6;
-      background-color: #2f2f2f;
-    }
-
-    a:hover {
-      color: #24c8db;
-    }
-
-    input,
-    button {
-      color: #ffffff;
-      background-color: #0f0f0f98;
-    }
-    button:active {
-      background-color: #0f0f0f69;
-    }
+  .schedule {
+    margin: 20px 0;
+    display: grid;
+    grid-template-columns:
+      [times] 4em
+      [event-start] 1fr
+      [event-end task-start] 1fr
+      [task-end reminder-start] 1fr
+      [reminder-end];
+    grid-template-rows:
+      [tracks] auto
+      [time-0800] 1fr
+      [time-0815] 1fr
+      [time-0830] 1fr
+      [time-0845] 1fr
+      [time-0900] 1fr
+      [time-0915] 1fr
+      [time-0930] 1fr
+      [time-0945] 1fr
+      [time-1000] 1fr
+      [time-1015] 1fr
+      [time-1030] 1fr
+      [time-1045] 1fr
+      [time-1100] 1fr
+      [time-1115] 1fr
+      [time-1130] 1fr
+      [time-1145] 1fr
+      [time-1200] 1fr
+      [time-1215] 1fr
+      [time-1230] 1fr
+      [time-1245] 1fr
+      [time-1300] 1fr
+      [time-1315] 1fr
+      [time-1330] 1fr
+      [time-1345] 1fr
+      [time-1400] 1fr
+      [time-1415] 1fr
+      [time-1430] 1fr
+      [time-1445] 1fr
+      [time-1500] 1fr
+      [time-1515] 1fr
+      [time-1530] 1fr
+      [time-1545] 1fr
+      [time-1600] 1fr
+      [time-1615] 1fr
+      [time-1630] 1fr
+      [time-1645] 1fr
+      [time-1700] 1fr
+      [time-1715] 1fr
+      [time-1730] 1fr
+      [time-1745] 1fr
+      [time-1800] 1fr
+      [time-1815] 1fr
+      [time-1830] 1fr
+      [time-1845] 1fr
+      [time-1900] 1fr
+      [time-1915] 1fr
+      [time-1930] 1fr
+      [time-1945] 1fr
+      [time-2000] 1fr
+      [time-2015] 1fr
+      [time-2030] 1fr
+      [time-2045] 1fr
+      [time-2100] 1fr
+      [time-2115] 1fr
+      [time-2130] 1fr
+      [time-2145] 1fr
+      [time-2200] 1fr
+      [time-2215] 1fr
+      [time-2230] 1fr
+      [time-2245] 1fr
+      [time-2300] 1fr
+      [time-2315] 1fr
+      [time-2330] 1fr
+      [time-2345] 1fr
+      [time-0000] 1fr;
   }
 </style>

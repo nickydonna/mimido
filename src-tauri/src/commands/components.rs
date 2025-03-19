@@ -29,23 +29,33 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<Event>, String>
         .map_err(stringify)?;
 
     let events = events
-        .iter()
+        .into_iter()
         .filter_map(|event| {
             if !event.has_rrule {
-                return Some(event);
+                return Some(event.to_owned());
             }
 
-            let ical_event: icalendar::Event = event.try_into().ok()?;
+            let duration = event.ends_at - event.starts_at;
+
+            let ical_event: icalendar::Event = event.clone().try_into().ok()?;
 
             let r_rule = parse_rrule(&ical_event)?.after(parsed.with_timezone(&rrule::Tz::UTC));
-            let is_valid_for_date = r_rule.all(2).dates.iter().any(|d| d >= &start && d <= &end);
-            if is_valid_for_date {
-                Some(event)
+            let rrecurence = r_rule
+                .all(2)
+                .dates
+                .into_iter()
+                .find(|d| d >= &start && d <= &end);
+            if let Some(date) = rrecurence {
+                let new_event = Event {
+                    starts_at: date.to_utc(),
+                    ends_at: (date + duration).to_utc(),
+                    ..event
+                };
+                Some(new_event.to_owned())
             } else {
                 None
             }
         })
-        .cloned()
         .collect::<Vec<Event>>();
 
     Ok(events)

@@ -68,9 +68,9 @@ pub struct Event {
     pub last_modified: i64,
 }
 
-impl TryFrom<&Event> for icalendar::Event {
+impl TryFrom<Event> for icalendar::Event {
     type Error = String;
-    fn try_from(value: &Event) -> Result<Self, Self::Error> {
+    fn try_from(value: Event) -> Result<Self, Self::Error> {
         let cal: icalendar::Calendar = value.ical_data.parse()?;
         let events = cal
             .components
