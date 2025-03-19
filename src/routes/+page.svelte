@@ -31,6 +31,7 @@
   import { unwrap } from "../result";
   import { timeStore } from "../stores/times";
   import { page } from "$app/state";
+  import EventCard from "$lib/components/event-card";
 
   let dateParam = page.url.searchParams.get("date");
   let date = dateParam != null ? parseISO(dateParam) : new Date();
@@ -265,8 +266,7 @@
                   </p>
                 </div>
               {:else}
-                Card
-                <!-- <EventCard event={e} /> -->
+                <EventCard event={e} />
               {/if}
             </div>
           {/each}
