@@ -13,6 +13,7 @@ pub mod calendar_items;
 mod commands;
 pub mod models;
 pub mod schema;
+pub(crate) mod util;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
@@ -44,10 +45,10 @@ pub fn run() {
         .commands(collect_commands![
             commands::create_server,
             commands::list_servers,
-            commands::list_calendars,
-            commands::fetch_calendars,
-            commands::sync_calendar,
-            commands::list_events_for_day,
+            commands::calendar::list_calendars,
+            commands::calendar::fetch_calendars,
+            commands::calendar::sync_calendar,
+            commands::components::list_events_for_day,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

@@ -8,6 +8,7 @@ use diesel::{
 
 #[derive(
     Debug,
+    Clone,
     PartialEq,
     serde::Serialize,
     strum_macros::AsRefStr,
