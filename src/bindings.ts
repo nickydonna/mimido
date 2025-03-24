@@ -11,8 +11,13 @@ async createServer(serverUrl: string, user: string, password: string) : Promise<
 async listServers() : Promise<Server[]> {
     return await TAURI_INVOKE("list_servers");
 },
-async listCalendars() : Promise<Calendar[]> {
-    return await TAURI_INVOKE("list_calendars");
+async listCalendars() : Promise<Result<Calendar[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_calendars") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 },
 async fetchCalendars(serverId: number) : Promise<Result<Calendar[], string>> {
     try {
@@ -25,6 +30,14 @@ async fetchCalendars(serverId: number) : Promise<Result<Calendar[], string>> {
 async syncCalendar(calendarId: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("sync_calendar", { calendarId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async syncAllCalendars() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sync_all_calendars") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

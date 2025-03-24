@@ -29,7 +29,7 @@ pub fn establish_connection() -> SqliteConnection {
 }
 
 pub fn setup_db(connection_url: &str) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    println!("running migrations");
+    println!("running migrations 2");
     let mut locked_url = CONNECTION_URL.lock().unwrap();
     *locked_url = connection_url.to_owned();
     drop(locked_url); // Release the lock before establishing the connection
@@ -48,6 +48,7 @@ pub fn run() {
             commands::calendar::list_calendars,
             commands::calendar::fetch_calendars,
             commands::calendar::sync_calendar,
+            commands::calendar::sync_all_calendars,
             commands::components::list_events_for_day,
         ]);
 

@@ -7,10 +7,24 @@ use crate::{
 };
 use diesel::prelude::*;
 use diesel::{delete, insert_into};
+use futures::future::join_all;
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub fn list_calendars() -> Vec<Calendar> {
+pub async fn sync_all_calendars() -> Result<(), String> {
+    let calendars = list_calendars()?;
+    let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
+
+    let _ = join_all(syncs)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<()>, String>>()?;
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
+pub fn list_calendars() -> Result<Vec<Calendar>, String> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::servers::dsl as server_dsl;
 
@@ -20,7 +34,7 @@ pub fn list_calendars() -> Vec<Calendar> {
         .inner_join(calendars_dsl::calendars)
         .select(Calendar::as_select())
         .load(conn)
-        .unwrap()
+        .map_err(stringify)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -65,7 +79,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .map_err(stringify)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command()]
 #[specta::specta]
 pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, String> {
     use crate::schema::calendars::dsl as calendars_dsl;
@@ -81,6 +95,7 @@ pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, String> {
 
     let caldav = Caldav::new(server).await?;
     let found_calendars = caldav.list_calendars().await.map_err(stringify)?;
+    println!("{:#?}", found_calendars);
 
     let calendars = found_calendars
         .into_iter()

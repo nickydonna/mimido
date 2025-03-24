@@ -92,6 +92,18 @@
     loading = false;
   });
 
+  let syncingCalendars = $state(false);
+  const syncAllCalendars = async () => {
+    syncingCalendars = true;
+    await commands.syncAllCalendars();
+    syncingCalendars = false;
+  };
+  const fetchCalendars = async () => {
+    syncingCalendars = true;
+    await commands.fetchCalendars(1);
+    syncingCalendars = false;
+  };
+
   const scrollCurrentIntoView = () => {
     document.getElementById("current-time")?.scrollIntoView({
       block: "center",
@@ -146,6 +158,20 @@
 </script>
 
 <div>
+  <Button onclick={syncAllCalendars} disabled={syncingCalendars}>
+    {#if syncingCalendars}
+      Syncing ...
+    {:else}
+      Sync All Calendars
+    {/if}
+  </Button>
+  <Button onclick={fetchCalendars} disabled={syncingCalendars}>
+    {#if syncingCalendars}
+      Syncing ...
+    {:else}
+      Fetch Calendars
+    {/if}
+  </Button>
   <div
     class="flex sticky top-0 bg-gray-900 py-3 px-1"
     style:z-index={modalZIndex - 2}
