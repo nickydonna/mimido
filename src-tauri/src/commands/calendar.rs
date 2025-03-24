@@ -37,7 +37,7 @@ pub fn list_calendars() -> Result<Vec<Calendar>, String> {
         .map_err(stringify)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command()]
 #[specta::specta]
 pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
     use crate::schema::calendars::dsl as calendars_dsl;

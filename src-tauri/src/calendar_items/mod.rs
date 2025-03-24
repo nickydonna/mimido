@@ -68,10 +68,11 @@ pub fn extract_event(
     let Some((uid, starts_at, ends_at)) = values else {
         return Ok(None);
     };
-    println!(
-        "type: {:#?} {:#?} {:#?} {:#?} {:#?} {:#?} {:#?}",
-        event_type, tag, status, original_text, importance, urgency, load
-    );
+    // println!(
+    //     "type: {:#?} {:#?} {:#?} {:#?} {:#?} {:#?} {:#?}",
+    //     event_type, tag, status, original_text, importance, urgency, load
+    // );
+    println!("{} {:#?}-{:#?}", summary, start, end);
 
     Ok(Some(NewEvent {
         calendar_id,

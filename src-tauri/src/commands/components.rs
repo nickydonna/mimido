@@ -43,10 +43,6 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<Event>, String>
 
             let r_rule = parse_rrule(&ical_event)?
                 .after(parsed.with_timezone(&rrule::Tz::UTC) - Days::new(1));
-            if event.event_type == EventType::Block {
-                let a = r_rule.clone().all(2).dates;
-                println!("{}: {:#?}", event.summary, a);
-            }
             let rrecurence = r_rule
                 .all(2)
                 .dates

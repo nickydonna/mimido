@@ -33,8 +33,12 @@
   import { page } from "$app/state";
   import EventCard from "$lib/components/event-card";
 
-  let dateParam = page.url.searchParams.get("date");
-  let date = dateParam != null ? parseISO(dateParam) : new Date();
+  let dateParam = $derived(page.url.searchParams.get("date"));
+  $inspect(dateParam).with(console.log);
+  let date = $derived.by(() => {
+    return dateParam != null ? parseISO(dateParam) : new Date();
+  });
+  $inspect(date).with(console.log);
   let events = $state<ParsedEvent[] | undefined>(undefined);
   let loading = $state(false);
   let dragging = $state<Event | undefined>(undefined);
@@ -79,17 +83,18 @@
   });
 
   const modalZIndex = 40;
-  onMount(async () => {
+  $effect(() => {
     loading = true;
-    const result = await commands.listEventsForDay(new Date().toISOString());
-    const unwrapped = unwrap(result);
-    console.log(unwrapped);
-    events = unwrapped.map((e) => ({
-      ...e,
-      starts_at: parseISO(e.starts_at),
-      ends_at: parseISO(e.ends_at),
-    }));
-    loading = false;
+    commands.listEventsForDay(formatISO(date)).then((result) => {
+      const unwrapped = unwrap(result);
+      console.log(unwrapped);
+      events = unwrapped.map((e) => ({
+        ...e,
+        starts_at: parseISO(e.starts_at),
+        ends_at: parseISO(e.ends_at),
+      }));
+      loading = false;
+    });
   });
 
   let syncingCalendars = $state(false);
@@ -172,6 +177,28 @@
       Fetch Calendars
     {/if}
   </Button>
+
+  <div
+    class="flex sticky top-0 bg-gray-900 py-3 px-1"
+    style:z-index={modalZIndex - 2}
+  >
+    <div class="flex-1">
+      <p class="text-lg md:text-4xl dark:text-white">
+        {format("E do MMM yy ", date)}
+      </p>
+    </div>
+    <ButtonGroup size="xs">
+      <Button size="xs" href="/?date={formatISO(subDays(1, startOfDay(date)))}">
+        <AngleLeftOutline />
+      </Button>
+      <Button size="xs" href="/?date={formatISO(startOfDay(currentTime))}"
+        >Today</Button
+      >
+      <Button size="xs" href="/?date={formatISO(addDays(1, startOfDay(date)))}">
+        <AngleRightOutline />
+      </Button>
+    </ButtonGroup>
+  </div>
   <div
     class="flex sticky top-0 bg-gray-900 py-3 px-1"
     style:z-index={modalZIndex - 2}
