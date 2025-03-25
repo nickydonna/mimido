@@ -50,3 +50,4 @@ now = "0.1.3"
 specta = { version = "=2.0.0-rc.22", features = ["chrono"] }
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 specta-typescript = "0.0.9"
+regex = "1.11.1"

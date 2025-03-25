@@ -13,6 +13,7 @@ pub(crate) mod component_props;
 pub(crate) mod event_status;
 pub(crate) mod event_type;
 pub(crate) mod recur;
+pub(crate) mod rrule_parser;
 
 pub fn extract_event(
     calendar_id: i32,
