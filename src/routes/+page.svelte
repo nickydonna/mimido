@@ -352,10 +352,10 @@
     );
   }
 
-  .card__bg-work {
-    background-position: center;
-    background-image: url("$lib/assets/work.jpg");
-  }
+  /* .card__bg-work { */
+  /*   background-position: center; */
+  /*   background-image: url("$lib/assets/work.jpg"); */
+  /* } */
 
   /** Taken from https://css-tricks.com/building-a-conference-schedule-with-css-grid/ */
 

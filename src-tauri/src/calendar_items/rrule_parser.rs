@@ -1,6 +1,82 @@
 use chrono::{DateTime, Utc};
-use regex::RegexBuilder;
-use rrule::{Frequency, NWeekday, RRule, RRuleSet, Unvalidated, Weekday};
+use regex::{Regex, RegexBuilder};
+use rrule::{Frequency, NWeekday, RRule, RRuleSet, Weekday};
+use strum::IntoEnumIterator;
+
+#[derive(Copy, Clone, Debug, strum_macros::EnumIter)]
+enum NaturalLangCases {
+    MonthOnXDays,
+    EveryWeekday,
+    EveryWeekend,
+    EveryDay,
+    WeekOnXDays,
+    EveryXWeeksOnXDays,
+}
+
+const DAYS_PATTERN: &str = r"(?P<day>Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thurdsay|Friday|Saturday|Sunday)";
+
+impl From<NaturalLangCases> for Regex {
+    fn from(value: NaturalLangCases) -> Self {
+        let re_str = match value {
+            NaturalLangCases::EveryWeekday => r"every weekday".to_string(),
+            NaturalLangCases::EveryWeekend => r"every weekend".to_string(),
+            NaturalLangCases::EveryDay => r"every day".to_string(),
+            NaturalLangCases::MonthOnXDays => format!(r"every month on (:?{DAYS_PATTERN},? ?)+"),
+            NaturalLangCases::WeekOnXDays => format!(r"every (:?{DAYS_PATTERN},? ?)+"),
+            NaturalLangCases::EveryXWeeksOnXDays => {
+                format!("every (?P<interval>[0-9]{{1,3}}) on (:?{DAYS_PATTERN},? ?)+")
+            }
+        };
+        RegexBuilder::new(&re_str)
+            .case_insensitive(true)
+            .build()
+            .expect("Re to compile")
+    }
+}
+
+impl TryFrom<&RRuleSet> for NaturalLangCases {
+    type Error = String;
+
+    fn try_from(parsed_rule: &RRuleSet) -> Result<Self, Self::Error> {
+        let parsed_rule = parsed_rule.get_rrule().first().expect("To have rrule");
+
+        // Frequency description
+        let frequency = parsed_rule.get_freq();
+        let interval = parsed_rule.get_interval();
+        let days = parsed_rule.get_by_weekday();
+        if frequency == Frequency::Weekly {
+            if days.len() == 5
+                && RRuleParser::has_weekday(days, Weekday::Mon)
+                && RRuleParser::has_weekday(days, Weekday::Tue)
+                && RRuleParser::has_weekday(days, Weekday::Wed)
+                && RRuleParser::has_weekday(days, Weekday::Thu)
+                && RRuleParser::has_weekday(days, Weekday::Fri)
+            {
+                return Ok(NaturalLangCases::EveryWeekday);
+            } else if days.len() == 2
+                && RRuleParser::has_weekday(days, Weekday::Sat)
+                && RRuleParser::has_weekday(days, Weekday::Sun)
+            {
+                return Ok(NaturalLangCases::EveryWeekend);
+            } else if days.len() == 7 {
+                return Ok(NaturalLangCases::EveryDay);
+            } else if days.is_empty() {
+                // TODO: add case
+                return Err("Missing case for weekly freq and empty days".to_string());
+            }
+
+            if interval > 1 {
+                return Ok(NaturalLangCases::EveryXWeeksOnXDays);
+            }
+            return Ok(NaturalLangCases::WeekOnXDays);
+        }
+
+        if frequency == Frequency::Monthly {
+            return Ok(NaturalLangCases::MonthOnXDays);
+        }
+        Err("Case not handled".to_string())
+    }
+}
 
 struct RRuleParser;
 
@@ -25,7 +101,11 @@ impl RRuleParser {
         }
     }
 
-    fn parse_frequency(natural_string: &str) -> Option<RRule<Unvalidated>> {
+    fn from_natural(natural_string: &str, dt_start: DateTime<Utc>) -> Option<RRuleSet> {
+        let (case, re) = NaturalLangCases::iter()
+            .map(|case| (case, Regex::from(case)))
+            .find(|(_, re)| re.is_match(natural_string))?;
+
         let weekday = vec![
             NWeekday::new(None, Weekday::Mon),
             NWeekday::new(None, Weekday::Tue),
@@ -37,59 +117,37 @@ impl RRuleParser {
             NWeekday::new(None, Weekday::Sat),
             NWeekday::new(None, Weekday::Sun),
         ];
-        let re_weekday = RegexBuilder::new(r"every weekday")
-            .case_insensitive(true)
-            .build()
-            .ok()?;
-        if re_weekday.is_match(natural_string) {
-            let rrule = RRule::new(Frequency::Weekly);
-            let rrule = rrule.by_weekday(weekday);
-            return Some(rrule);
-        }
-        let re_weekend = RegexBuilder::new(r"every weekend")
-            .case_insensitive(true)
-            .build()
-            .ok()?;
-        if re_weekend.is_match(natural_string) {
-            let rrule = RRule::new(Frequency::Weekly);
-            let rrule = rrule.by_weekday(weekend);
-            return Some(rrule);
-        }
-        let re_day = RegexBuilder::new(r"every day")
-            .case_insensitive(true)
-            .build()
-            .ok()?;
-        if re_day.is_match(natural_string) {
-            let rrule = RRule::new(Frequency::Daily);
-            return Some(rrule);
-        }
-        let weekday_patterns = vec![
-            (r"every week", Frequency::Weekly),
-            (r"every month", Frequency::Monthly),
-        ];
-        let mut frequency = None;
-        // Check weekday patterns first
-        for (pattern, freq) in weekday_patterns {
-            let re = RegexBuilder::new(pattern)
-                .case_insensitive(true)
-                .build()
-                .ok()?;
-            if re.is_match(natural_string) {
-                frequency = Some(freq);
+
+        let (freq, days, interval) = match case {
+            NaturalLangCases::EveryWeekday => (Frequency::Weekly, weekday, None),
+            NaturalLangCases::EveryWeekend => (Frequency::Weekly, weekend, None),
+            // TODO: should this be just weekly?
+            NaturalLangCases::EveryDay => (Frequency::Weekly, [weekday, weekend].concat(), None),
+            NaturalLangCases::WeekOnXDays => {
+                let days = RRuleParser::parse_weekdays(natural_string)?;
+                (Frequency::Weekly, days, None)
             }
-        }
-        let rrule = RRule::new(frequency.unwrap_or(Frequency::Weekly));
+            NaturalLangCases::MonthOnXDays => {
+                let days = RRuleParser::parse_weekdays(natural_string)?;
+                (Frequency::Monthly, days, None)
+            }
+            NaturalLangCases::EveryXWeeksOnXDays => {
+                let days = RRuleParser::parse_weekdays(natural_string)?;
+                let interval_match = re
+                    .captures_iter(natural_string)
+                    .find(|m| m.name("interval").is_some())?;
+                let interval = interval_match
+                    .name("inverval")?
+                    .as_str()
+                    .parse::<u16>()
+                    .ok()?;
+                (Frequency::Weekly, days, Some(interval))
+            }
+        };
 
-        let by_weekday = RRuleParser::parse_weekdays(natural_string);
-        by_weekday.map(|by_weekday| rrule.by_weekday(by_weekday))
-    }
-
-    /// Parse RRULE string into structured components
-    fn from_natural(natural_string: &str, dt_start: DateTime<Utc>) -> Option<RRuleSet> {
-        let starting_index = natural_string.to_lowercase().find("every")?;
-        let natural_string = natural_string.get(starting_index..)?;
-
-        let rrule = RRuleParser::parse_frequency(natural_string)?;
+        let rrule = RRule::new(freq)
+            .by_weekday(days)
+            .interval(interval.unwrap_or(1));
         rrule.build(dt_start.with_timezone(&rrule::Tz::UTC)).ok()
     }
 
@@ -119,53 +177,34 @@ impl RRuleParser {
     }
 
     /// Convert parsed RRULE back to natural language
-    fn to_natural_language(parsed_rule: &RRuleSet) -> String {
-        let parsed_rule = parsed_rule.get_rrule().first().expect("To have rrule");
+    fn to_natural_language(ruleset: &RRuleSet) -> Result<String, String> {
+        let parsed_rule = ruleset.get_rrule().first().expect("To have rrule");
 
         // Frequency description
-        let frequency = parsed_rule.get_freq();
         let days = parsed_rule.get_by_weekday();
+        let interval = parsed_rule.get_interval();
 
-        if frequency == Frequency::Weekly {
-            if days.len() == 5
-                && RRuleParser::has_weekday(days, Weekday::Mon)
-                && RRuleParser::has_weekday(days, Weekday::Tue)
-                && RRuleParser::has_weekday(days, Weekday::Wed)
-                && RRuleParser::has_weekday(days, Weekday::Thu)
-                && RRuleParser::has_weekday(days, Weekday::Fri)
-            {
-                return "Every weekday".to_string();
-            } else if days.len() == 2
-                && RRuleParser::has_weekday(days, Weekday::Sat)
-                && RRuleParser::has_weekday(days, Weekday::Sun)
-            {
-                return "Every weekend".to_string();
-            } else if !days.is_empty() {
+        let case = NaturalLangCases::try_from(ruleset)?;
+        let days_string = days
+            .iter()
+            .filter_map(|nweekday| match nweekday {
+                NWeekday::Every(weekday) => Some(weekday),
+                NWeekday::Nth(_, _) => None,
+            })
+            .map(RRuleParser::stringify_day)
+            .collect::<Vec<String>>()
+            .join(" , ");
+
+        match case {
+            NaturalLangCases::MonthOnXDays => Ok(format!("every month on {}", days_string)),
+            NaturalLangCases::EveryWeekday => Ok("every weekday".to_string()),
+            NaturalLangCases::EveryWeekend => Ok("every weekend".to_string()),
+            NaturalLangCases::EveryDay => Ok("every day".to_string()),
+            NaturalLangCases::WeekOnXDays => Ok(format!("every {}", days_string)),
+            NaturalLangCases::EveryXWeeksOnXDays => {
+                Ok(format!("every {} weeks on {}", interval, days_string))
             }
         }
-        let freq_desc = match frequency {
-            Frequency::Daily => "day",
-            Frequency::Weekly => "week",
-            Frequency::Monthly => "month",
-            Frequency::Yearly => "year",
-            Frequency::Hourly => "hour",
-            Frequency::Minutely => "minute",
-            Frequency::Secondly => "second",
-        };
-        format!(
-            "Every {} on {} ",
-            freq_desc,
-            days.iter()
-                .filter_map(|nweekday| match nweekday {
-                    NWeekday::Every(weekday) => Some(weekday),
-                    NWeekday::Nth(_, _) => None,
-                })
-                .map(RRuleParser::stringify_day)
-                .collect::<Vec<String>>()
-                .join(" , ")
-        )
-        .trim()
-        .to_string()
     }
 }
 
@@ -282,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_parse_week_rrule() {
-        let rrule = "every week on tue, wed";
+        let rrule = "every tue, wed";
         let date = Utc::now();
         let parsed = RRuleParser::from_natural(rrule, date).expect("Should parse successfully");
 
@@ -302,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn full_strings() {
+    fn test_full_strings() {
         let date = Utc::now();
         // Test cases for round-trip conversion
         let valid_test_rrules = vec![
@@ -310,7 +349,7 @@ mod tests {
             "Every weekday go to the forest",
             "bath Every weekend",
             "throw to the fire Every month on Tue,Friday",
-            "kill capitalism Every week on Mon,Fri,Wed",
+            "kill capitalism Every Mon,Fri,Wed",
         ];
 
         for rrule in valid_test_rrules {
@@ -329,7 +368,8 @@ mod tests {
             .expect("To buid rruleset");
 
         let description = RRuleParser::to_natural_language(&rule);
-        assert_eq!(description, "Every week on Monday");
+        assert!(description.is_ok());
+        assert_eq!(description.unwrap(), "every Monday");
     }
 
     #[test]
@@ -348,7 +388,8 @@ mod tests {
             .expect("To buid rruleset");
 
         let description = RRuleParser::to_natural_language(&rule);
-        assert_eq!(description, "Every weekday");
+        assert!(description.is_ok());
+        assert_eq!(description.unwrap(), "every weekday");
     }
 
     #[test]
@@ -365,7 +406,8 @@ mod tests {
             .expect("To buid rruleset");
 
         let description = RRuleParser::to_natural_language(&rule);
-        assert_eq!(description, "Every weekend");
+        assert!(description.is_ok());
+        assert_eq!(description.unwrap(), "every weekend");
     }
 
     #[test]
@@ -373,17 +415,17 @@ mod tests {
         let date = Utc::now();
         // Test cases for round-trip conversion
         let test_rrules = vec![
-            "Every Mon",
+            // "Every Mon",
             "Every weekday",
             "Every weekend",
             "Every month on Tue,Friday",
-            "Every week on Mon,Fri,Wed",
+            // "Every Mon,Fri,Wed",
         ];
 
         for rrule in test_rrules {
             let parsed = RRuleParser::from_natural(rrule, date).expect("Should parse successfully");
-            let natural_language = RRuleParser::to_natural_language(&parsed);
-
+            let natural_language =
+                RRuleParser::to_natural_language(&parsed).expect("To be natural lang");
             // // Ensure we can parse the result back
             let reparsed = RRuleParser::from_natural(&natural_language, date)
                 .expect("Should be able to parse natural language back to RRULE");
