@@ -24,17 +24,22 @@ lazy_static! {
 
 pub fn establish_connection() -> SqliteConnection {
     let connection_url = CONNECTION_URL.lock().unwrap();
-    SqliteConnection::establish(&connection_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", *connection_url))
+    SqliteConnection::establish(&connection_url).unwrap_or_else(|_| {
+        log::error!("Error connecting to {}", *connection_url);
+        panic!("Error connecting to {}", *connection_url)
+    })
 }
 
 pub fn setup_db(connection_url: &str) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    println!("running migrations 2");
+    log::info!("setup_db");
     let mut locked_url = CONNECTION_URL.lock().unwrap();
     *locked_url = connection_url.to_owned();
     drop(locked_url); // Release the lock before establishing the connection
+    log::info!("connecting to {}", connection_url);
     let mut conn = establish_connection();
-    conn.run_pending_migrations(MIGRATIONS).unwrap();
+    log::info!("connected");
+    conn.run_pending_migrations(MIGRATIONS)?;
+    log::info!("migration ran correctly");
     Ok(())
 }
 
@@ -61,6 +66,8 @@ pub fn run() {
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
