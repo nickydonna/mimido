@@ -10,6 +10,7 @@ use libdav::FetchedResource;
 use recur::parse_rrule;
 
 pub(crate) mod component_props;
+pub(crate) mod date_parser;
 pub(crate) mod event_status;
 pub(crate) mod event_type;
 pub(crate) mod recur;

@@ -1,8 +1,9 @@
-import { type Event, type EventType } from '../bindings';
+import { type ExtendedEvent, type Event, type EventType } from '../bindings';
 
 export type ParsedEvent = Omit<Event, "starts_at" | "ends_at"> & {
   starts_at: Date;
   ends_at: Date;
+  natural_recurrence?: string;
 };
 
 

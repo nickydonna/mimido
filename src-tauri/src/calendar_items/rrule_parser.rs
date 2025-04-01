@@ -83,7 +83,7 @@ impl TryFrom<&RRuleSet> for NaturalLangCases {
     }
 }
 
-struct RRuleParser;
+pub struct RRuleParser;
 
 impl RRuleParser {
     fn parse_weekdays(natural_string: &str) -> Option<Vec<NWeekday>> {
@@ -190,7 +190,7 @@ impl RRuleParser {
     }
 
     /// Convert parsed RRULE back to natural language
-    fn to_natural_language(ruleset: &RRuleSet) -> Result<String, String> {
+    pub fn to_natural_language(ruleset: &RRuleSet) -> Result<String, String> {
         let parsed_rule = ruleset.get_rrule().first().expect("To have rrule");
 
         // Frequency description

@@ -89,9 +89,10 @@
       const unwrapped = unwrap(result);
       console.log(unwrapped);
       events = unwrapped.map((e) => ({
-        ...e,
+        ...e.event,
         starts_at: parseISO(e.starts_at),
         ends_at: parseISO(e.ends_at),
+        natural_recurrence: e.natural_recurrence ?? undefined,
       }));
       loading = false;
     });

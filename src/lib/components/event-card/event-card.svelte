@@ -36,9 +36,9 @@
 		<span class:line-through={isDone} class:text-gray-400={isDone}>
 			{event.summary}
 		</span>
-		<!-- {#if event.recur} -->
-		<!-- 	<ArrowsRepeatOutline class="inline-block" /> -->
-		<!-- {/if} -->
+		{#if event.natural_recurrence}
+			<ArrowsRepeatOutline class="inline-block" />
+		{/if}
 		<!-- {#if event.alarms.length > 0} -->
 		<!-- 	<BellActiveAltOutline class="inline-block" /> -->
 		<!-- {/if} -->
