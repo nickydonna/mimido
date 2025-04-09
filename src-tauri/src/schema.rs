@@ -45,15 +45,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    todo_lists (id) {
-        id -> Integer,
-        name -> Text,
-        url -> Text,
-        ctag -> Text,
-    }
-}
-
-diesel::table! {
     todos (id) {
         id -> Integer,
         calendar_id -> Integer,
@@ -79,4 +70,4 @@ diesel::joinable!(calendars -> servers (server_id));
 diesel::joinable!(events -> calendars (calendar_id));
 diesel::joinable!(todos -> calendars (calendar_id));
 
-diesel::allow_tables_to_appear_in_same_query!(calendars, events, servers, todo_lists, todos,);
+diesel::allow_tables_to_appear_in_same_query!(calendars, events, servers, todos,);
