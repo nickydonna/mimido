@@ -3,7 +3,6 @@
     parseISO,
     formatISO,
     getMinutes,
-    isSameDay,
     isSameMinute,
     roundToNearestMinutes,
     startOfDay,
@@ -21,24 +20,18 @@
   import { getEventCardClass, type ParsedEvent } from "../lib//util";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
-  import {
-    AngleLeftOutline,
-    AngleRightOutline,
-    CloseOutline,
-  } from "flowbite-svelte-icons";
-  import { onMount } from "svelte";
+  import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
   import { commands, type Event, type EventType } from "../bindings";
   import { unwrap } from "../result";
   import { timeStore } from "../stores/times";
   import { page } from "$app/state";
   import EventCard from "$lib/components/event-card";
+  import { Spinner } from "flowbite-svelte";
 
   let dateParam = $derived(page.url.searchParams.get("date"));
-  $inspect(dateParam).with(console.log);
   let date = $derived.by(() => {
     return dateParam != null ? parseISO(dateParam) : new Date();
   });
-  $inspect(date).with(console.log);
   let events = $state<ParsedEvent[] | undefined>(undefined);
   let loading = $state(false);
   let dragging = $state<Event | undefined>(undefined);
@@ -87,7 +80,6 @@
     loading = true;
     commands.listEventsForDay(formatISO(date)).then((result) => {
       const unwrapped = unwrap(result);
-      console.log(unwrapped);
       events = unwrapped.map((e) => ({
         ...e.event,
         starts_at: parseISO(e.starts_at),
@@ -97,18 +89,6 @@
       loading = false;
     });
   });
-
-  let syncingCalendars = $state(false);
-  const syncAllCalendars = async () => {
-    syncingCalendars = true;
-    await commands.syncAllCalendars();
-    syncingCalendars = false;
-  };
-  const fetchCalendars = async () => {
-    syncingCalendars = true;
-    await commands.fetchCalendars(1);
-    syncingCalendars = false;
-  };
 
   const scrollCurrentIntoView = () => {
     document.getElementById("current-time")?.scrollIntoView({
@@ -159,26 +139,9 @@
   function handleTimeDoubleClick(time: Date) {
     // upsert.create(time);
   }
-  $inspect(sortedEvents).with(console.log);
-  $inspect(events).with(console.log);
 </script>
 
 <div>
-  <Button onclick={syncAllCalendars} disabled={syncingCalendars}>
-    {#if syncingCalendars}
-      Syncing ...
-    {:else}
-      Sync All Calendars
-    {/if}
-  </Button>
-  <Button onclick={fetchCalendars} disabled={syncingCalendars}>
-    {#if syncingCalendars}
-      Syncing ...
-    {:else}
-      Fetch Calendars
-    {/if}
-  </Button>
-
   <div
     class="flex sticky top-0 bg-gray-900 py-3 px-1"
     style:z-index={modalZIndex - 2}
@@ -200,6 +163,13 @@
       </Button>
     </ButtonGroup>
   </div>
+  {#if loading}
+    <div
+      class="z-[1000] absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+    >
+      <Spinner size="xl" class="h-24 w-24" />
+    </div>
+  {/if}
   <div
     class="flex sticky top-0 bg-gray-900 py-3 px-1"
     style:z-index={modalZIndex - 2}

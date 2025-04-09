@@ -1,7 +1,7 @@
 <script lang="ts">
   import "../app.css";
 
-  import { CalendarEditOutline } from "flowbite-svelte-icons";
+  import { CalendarEditOutline, UserOutline } from "flowbite-svelte-icons";
   import BottomNav from "flowbite-svelte/BottomNav.svelte";
   import BottomNavItem from "flowbite-svelte/BottomNavItem.svelte";
 
@@ -10,6 +10,8 @@
   import { Drawer } from "flowbite-svelte";
   import { page } from "$app/state";
 
+  let { children } = $props();
+
   const transitionParams = {
     y: 320,
     duration: 200,
@@ -17,12 +19,15 @@
   };
 
   let date = page.url.searchParams.get("date") ?? formatISO(new Date());
+  let activeUrl = $derived(page.url.pathname);
+  $inspect(activeUrl).with(console.log);
 </script>
 
 <svelte:head></svelte:head>
 <main class="container mx-auto h-full">
   <div class="mt-6 mb-16">
-    <slot />
+    {page.url.pathname}
+    {@render children()}
   </div>
 </main>
 <Drawer
@@ -37,11 +42,12 @@
   position="fixed"
   classInner="grid-cols-4"
   navType="application"
-  activeUrl={page.url.pathname}
+  {activeUrl}
 >
-  <BottomNavItem btnName="Day" href="/day?date={date}" appBtnPosition="left">
-    <CalendarEditOutline
-      class="mb-1 h-5 w-5 text-gray-500 group-hover:text-primary-600 dark:text-gray-400 dark:group-hover:text-primary-500"
-    />
+  <BottomNavItem btnName="Day" href="/" appBtnPosition="left" exact={false}>
+    <CalendarEditOutline />
+  </BottomNavItem>
+  <BottomNavItem btnName="Server" href="/servers" appBtnPosition="right">
+    <UserOutline />
   </BottomNavItem>
 </BottomNav>

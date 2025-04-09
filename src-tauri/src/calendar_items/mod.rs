@@ -1,4 +1,4 @@
-use crate::models::NewEvent;
+use crate::models::{NewEvent, NewTodo};
 use chrono::{DateTime, NaiveTime, TimeZone, Utc};
 use component_props::{
     get_int_property, get_property_or_default, get_string_property, ComponentProps,
@@ -18,10 +18,14 @@ pub(crate) mod rrule_parser;
 
 pub fn extract_event(
     calendar_id: i32,
-    fetched_resource: FetchedResource,
+    fetched_resource: &FetchedResource,
 ) -> Result<Option<NewEvent>, String> {
-    let content = fetched_resource.content.map_err(|e| e.to_string())?;
-    let calendar_item: Result<icalendar::Calendar, String> = content.data.parse();
+    let href = fetched_resource.href.clone();
+    let content = fetched_resource
+        .content
+        .as_ref()
+        .map_err(|e| e.to_string())?;
+    let calendar_item: Result<icalendar::Calendar, String> = content.data.clone().parse();
     let calendar_item = calendar_item?;
     let calendar_offset = calendar_item
         .get_timezone()
@@ -34,10 +38,10 @@ pub fn extract_event(
     let first_event = calendar_item
         .components
         .into_iter()
-        .filter(|cmp| matches!(cmp, icalendar::CalendarComponent::Event(_)))
-        .collect::<Vec<icalendar::CalendarComponent>>();
+        .filter_map(|cmp| cmp.as_event().cloned())
+        .collect::<Vec<icalendar::Event>>();
 
-    let Some(first_event) = first_event.first().and_then(|e| e.as_event()) else {
+    let Some(first_event) = first_event.first() else {
         return Ok(None);
     };
 
@@ -70,23 +74,86 @@ pub fn extract_event(
     let Some((uid, starts_at, ends_at)) = values else {
         return Ok(None);
     };
-    // println!(
-    //     "type: {:#?} {:#?} {:#?} {:#?} {:#?} {:#?} {:#?}",
-    //     event_type, tag, status, original_text, importance, urgency, load
-    // );
-    println!("{} {:#?}-{:#?}", summary, start, end);
 
     Ok(Some(NewEvent {
         calendar_id,
         uid: uid.to_string(),
-        href: fetched_resource.href,
-        ical_data: content.data,
+        href,
+        ical_data: content.data.clone(),
         starts_at,
         ends_at,
         last_modified,
         summary: summary.to_string(),
         description,
         has_rrule: parse_rrule(first_event).is_some(),
+        status,
+        original_text,
+        tag,
+        event_type,
+        importance,
+        load,
+        urgency,
+        postponed,
+    }))
+}
+
+pub fn extract_todo(
+    calendar_id: i32,
+    fetched_resource: &FetchedResource,
+) -> Result<Option<NewTodo>, String> {
+    let href = fetched_resource.href.clone();
+    let content = fetched_resource
+        .content
+        .as_ref()
+        .map_err(|e| e.to_string())?;
+    let calendar_item: Result<icalendar::Calendar, String> = content.data.parse();
+    let calendar_item = calendar_item?;
+    let first_todo = calendar_item
+        .components
+        .into_iter()
+        .filter_map(|cmp| cmp.as_todo().cloned())
+        .collect::<Vec<icalendar::Todo>>();
+
+    let Some(first_todo) = first_todo.first() else {
+        return Ok(None);
+    };
+
+    let uid = first_todo.get_uid().ok_or("Missing UID".to_string())?;
+    let summary = first_todo.get_summary().unwrap_or("[No Summary]");
+    let description = first_todo.get_description().map(|d| d.to_string());
+    let last_modified = first_todo
+        .get_last_modified()
+        .map(|modified| modified.timestamp())
+        .unwrap_or(Utc::now().timestamp());
+    let event_type = get_property_or_default(first_todo, ComponentProps::Type, EventType::Event);
+    let tag = get_string_property(first_todo, ComponentProps::Tag);
+    let status = get_property_or_default(first_todo, ComponentProps::Status, EventStatus::Todo);
+    let original_text = get_string_property(first_todo, ComponentProps::OriginalText);
+    let importance = get_int_property(first_todo, ComponentProps::Importance);
+    let urgency = get_int_property(first_todo, ComponentProps::Urgency);
+    let load = get_int_property(first_todo, ComponentProps::Load);
+    let postponed = get_int_property(first_todo, ComponentProps::Postponed);
+
+    println!(
+        "type: {:#?} {:#?} {:#?} {:#?} {:#?} {:#?}",
+        event_type,
+        format!("{:.10}", summary),
+        status,
+        importance,
+        urgency,
+        load
+    );
+
+    Ok(Some(NewTodo {
+        calendar_id,
+        uid: uid.to_string(),
+        href,
+        ical_data: content.data.clone(),
+        last_modified,
+        summary: summary.to_string(),
+        // TODO: Use real completed and sycn with status
+        completed: false,
+        description,
         status,
         original_text,
         tag,

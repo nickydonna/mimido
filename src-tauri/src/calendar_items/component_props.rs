@@ -30,8 +30,8 @@ pub enum ComponentProps {
     Exdate,
 }
 
-pub fn get_property_or_default<T: FromStr>(
-    event: &icalendar::Event,
+pub fn get_property_or_default<Cmp: icalendar::Component, T: FromStr>(
+    event: &Cmp,
     property: ComponentProps,
     default: T,
 ) -> T {
@@ -42,13 +42,16 @@ pub fn get_property_or_default<T: FromStr>(
     T::from_str(raw_type).ok().unwrap_or(default)
 }
 
-pub fn get_string_property(event: &icalendar::Event, property: ComponentProps) -> Option<String> {
+pub fn get_string_property<Cmp: icalendar::Component>(
+    event: &Cmp,
+    property: ComponentProps,
+) -> Option<String> {
     event
         .property_value(property.as_ref())
         .map(|e| e.to_string())
 }
 
-pub fn get_int_property(event: &icalendar::Event, property: ComponentProps) -> i32 {
+pub fn get_int_property<Cmp: icalendar::Component>(event: &Cmp, property: ComponentProps) -> i32 {
     event
         .property_value(property.as_ref())
         .map(|e| e.to_string())

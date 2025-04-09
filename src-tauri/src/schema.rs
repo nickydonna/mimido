@@ -56,18 +56,27 @@ diesel::table! {
 diesel::table! {
     todos (id) {
         id -> Integer,
-        list_id -> Integer,
+        calendar_id -> Integer,
         uid -> Text,
-        etag -> Text,
-        url -> Text,
+        href -> Text,
         ical_data -> Text,
         last_modified -> BigInt,
         completed -> Bool,
+        summary -> Text,
+        description -> Nullable<Text>,
+        event_type -> Text,
+        tag -> Nullable<Text>,
+        status -> Text,
+        original_text -> Nullable<Text>,
+        importance -> Integer,
+        load -> Integer,
+        urgency -> Integer,
+        postponed -> Integer,
     }
 }
 
 diesel::joinable!(calendars -> servers (server_id));
 diesel::joinable!(events -> calendars (calendar_id));
-diesel::joinable!(todos -> todo_lists (list_id));
+diesel::joinable!(todos -> calendars (calendar_id));
 
 diesel::allow_tables_to_appear_in_same_query!(calendars, events, servers, todo_lists, todos,);

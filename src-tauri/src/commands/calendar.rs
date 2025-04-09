@@ -1,8 +1,8 @@
 use crate::{
     caldav::Caldav,
-    calendar_items::extract_event,
+    calendar_items::{extract_event, extract_todo},
     establish_connection,
-    models::{Calendar, NewEvent, Server},
+    models::{Calendar, NewEvent, NewTodo, Server},
     util::stringify,
 };
 use diesel::prelude::*;
@@ -18,7 +18,12 @@ pub async fn sync_all_calendars() -> Result<(), String> {
     let _ = join_all(syncs)
         .await
         .into_iter()
+        .map(|r| {
+            println!("Sync result: {:?}", r);
+            r
+        })
         .collect::<Result<Vec<()>, String>>()?;
+
     Ok(())
 }
 
@@ -43,6 +48,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::events::dsl as event_dsl;
     use crate::schema::servers::dsl as server_dsl;
+    use crate::schema::todos::dsl as todo_dsl;
 
     let conn = &mut establish_connection();
 
@@ -67,7 +73,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .map_err(stringify)?;
 
     let events = items
-        .into_iter()
+        .iter()
         .flat_map(|fetched_resource| extract_event(calendar_id, fetched_resource))
         .flatten()
         .collect::<Vec<NewEvent>>();
@@ -76,7 +82,22 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .values(events)
         .execute(conn)
         .map(|_| ())
-        .map_err(stringify)
+        .map_err(stringify)?;
+
+    let todos = items
+        .iter()
+        .flat_map(|fetched_resource| extract_todo(calendar_id, fetched_resource))
+        .flatten()
+        .collect::<Vec<NewTodo>>();
+
+    println!("Todos: {}: {:?}", calendar_id, todos.len());
+    insert_into(todo_dsl::todos)
+        .values(todos)
+        .execute(conn)
+        .map(|_| ())
+        .map_err(stringify)?;
+
+    Ok(())
 }
 
 #[tauri::command()]
@@ -95,7 +116,6 @@ pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, String> {
 
     let caldav = Caldav::new(server).await?;
     let found_calendars = caldav.list_calendars().await.map_err(stringify)?;
-    println!("{:#?}", found_calendars);
 
     let calendars = found_calendars
         .into_iter()

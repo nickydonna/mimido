@@ -19,6 +19,7 @@
 		BD606E267DE671A30F1D733E /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1576F786AFB4F8CB27483EE2 /* Metal.framework */; };
 		D37195A2B2915E7BDFF21474 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D4B27D1D1010AB3A63727D90 /* Security.framework */; };
 		ED51618F20FEE9A4F65F3A85 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C80922349ADA5BD8E6D068DE /* WebKit.framework */; };
+		F604B6BE1F38E6CA292620E5 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 60FDB494E4FF6DA07DA8ABDD /* libapp.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,17 +29,33 @@
 		1576F786AFB4F8CB27483EE2 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		1BBFD59963C6234903EC1D98 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		1F044741DF66EDCCCC3EC017 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		27E7C62B059E91E63C7A3C1D /* components.rs */ = {isa = PBXFileReference; path = components.rs; sourceTree = "<group>"; };
+		30E80B12FF982A4854090FE8 /* models.rs */ = {isa = PBXFileReference; path = models.rs; sourceTree = "<group>"; };
+		320493232F2D4CB10B5DEA78 /* schema.patch */ = {isa = PBXFileReference; path = schema.patch; sourceTree = "<group>"; };
+		33B88873C6303969BD4D659D /* util.rs */ = {isa = PBXFileReference; path = util.rs; sourceTree = "<group>"; };
+		4457E4778017F943E50D9ED4 /* date_parser.rs */ = {isa = PBXFileReference; path = date_parser.rs; sourceTree = "<group>"; };
 		4681195E7089D6D67EDE4CFC /* mimido_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = mimido_iOS.entitlements; sourceTree = "<group>"; };
 		55379F6A2959F422FC89DB43 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		60FDB494E4FF6DA07DA8ABDD /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		707942A505ADCBE00F852783 /* calendar.rs */ = {isa = PBXFileReference; path = calendar.rs; sourceTree = "<group>"; };
+		725E97357BEF167765B875A7 /* event_status.rs */ = {isa = PBXFileReference; path = event_status.rs; sourceTree = "<group>"; };
+		7299C62D479EFD4916992C60 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		7738AE691F8565E1E967C5A1 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		7D5B9D9990B8C2AC5042DBE1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7F7531A5E934EFAFF9EC5D9E /* mimido_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = mimido_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7FB52E854860E306779244F2 /* schema.rs */ = {isa = PBXFileReference; path = schema.rs; sourceTree = "<group>"; };
 		8A2BE3DFD9D090E8D7CC1F4C /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		964E0DE39F90DA7F9F7E1D1D /* rrule_parser.rs */ = {isa = PBXFileReference; path = rrule_parser.rs; sourceTree = "<group>"; };
 		9BECE1B3825C5A1D04760835 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		AFDFDDF1108D7FF26263BAAF /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
+		B30BD2BEB2957981D71A6259 /* caldav.rs */ = {isa = PBXFileReference; path = caldav.rs; sourceTree = "<group>"; };
 		C80922349ADA5BD8E6D068DE /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		CEFC711F2C0585943DBA3626 /* component_props.rs */ = {isa = PBXFileReference; path = component_props.rs; sourceTree = "<group>"; };
 		D4B27D1D1010AB3A63727D90 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		DE7693D0533B2BAE69D5BF29 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		DEFEB3EBFCDA0CD8D5349CF3 /* recur.rs */ = {isa = PBXFileReference; path = recur.rs; sourceTree = "<group>"; };
 		E335D2FFC858AA61766B9784 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		F668BEAF32E3B197A1618BED /* event_type.rs */ = {isa = PBXFileReference; path = event_type.rs; sourceTree = "<group>"; };
 		FD556A16F51122E5FBCD633D /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -61,6 +78,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0F68797E630E20349CEED7A1 /* calendar_items */ = {
+			isa = PBXGroup;
+			children = (
+				CEFC711F2C0585943DBA3626 /* component_props.rs */,
+				4457E4778017F943E50D9ED4 /* date_parser.rs */,
+				725E97357BEF167765B875A7 /* event_status.rs */,
+				F668BEAF32E3B197A1618BED /* event_type.rs */,
+				AFDFDDF1108D7FF26263BAAF /* mod.rs */,
+				DEFEB3EBFCDA0CD8D5349CF3 /* recur.rs */,
+				964E0DE39F90DA7F9F7E1D1D /* rrule_parser.rs */,
+			);
+			path = calendar_items;
+			sourceTree = "<group>";
+		};
+		1FDC980E46B629461871F03D /* arm64-sim */ = {
+			isa = PBXGroup;
+			children = (
+				F203C7CA38477683CA27234D /* debug */,
+			);
+			path = "arm64-sim";
+			sourceTree = "<group>";
+		};
 		4E54AF3DC8596B75284471A4 = {
 			isa = PBXGroup;
 			children = (
@@ -76,6 +115,16 @@
 			);
 			sourceTree = "<group>";
 		};
+		6360F87565095293895C0F4B /* commands */ = {
+			isa = PBXGroup;
+			children = (
+				707942A505ADCBE00F852783 /* calendar.rs */,
+				27E7C62B059E91E63C7A3C1D /* components.rs */,
+				7299C62D479EFD4916992C60 /* mod.rs */,
+			);
+			path = commands;
+			sourceTree = "<group>";
+		};
 		69FEF706438999069EF41BFE /* bindings */ = {
 			isa = PBXGroup;
 			children = (
@@ -87,8 +136,15 @@
 		7AE4FB5FBE1C93896A662B09 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				B30BD2BEB2957981D71A6259 /* caldav.rs */,
 				7738AE691F8565E1E967C5A1 /* lib.rs */,
 				030912F086D513CCD440F91F /* main.rs */,
+				30E80B12FF982A4854090FE8 /* models.rs */,
+				320493232F2D4CB10B5DEA78 /* schema.patch */,
+				7FB52E854860E306779244F2 /* schema.rs */,
+				33B88873C6303969BD4D659D /* util.rs */,
+				0F68797E630E20349CEED7A1 /* calendar_items */,
+				6360F87565095293895C0F4B /* commands */,
 			);
 			name = src;
 			path = ../../src;
@@ -138,6 +194,7 @@
 		E06F3A308C7B777411652906 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				1FDC980E46B629461871F03D /* arm64-sim */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -148,6 +205,28 @@
 				7F7531A5E934EFAFF9EC5D9E /* mimido_iOS.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		F203C7CA38477683CA27234D /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				60FDB494E4FF6DA07DA8ABDD /* libapp.a */,
+			);
+			path = debug;
+			sourceTree = "<group>";
+		};
+		"TEMP_72B2CAEB-FEB0-4A81-8418-B65E56170D6D" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
+		"TEMP_DE3B0D40-10DA-435C-BC52-CB909BA4BDF1" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -207,6 +286,7 @@
 				4691441479A5E525B6CFFC51 /* Assets.xcassets in Resources */,
 				B4D5E8ED333E463873541500 /* LaunchScreen.storyboard in Resources */,
 				A9BA2ECABC17A6B3CAF40AFC /* assets in Resources */,
+				F604B6BE1F38E6CA292620E5 /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +360,7 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64  arm64-sim";
+				DEVELOPMENT_TEAM = "29KC4QVHA6";
 			};
 			name = release;
 		};
@@ -377,6 +458,7 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64  arm64-sim";
+				DEVELOPMENT_TEAM = "29KC4QVHA6";
 			};
 			name = debug;
 		};
