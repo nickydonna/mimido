@@ -1,10 +1,9 @@
 use crate::{
-    calendar_items::{recur::parse_rrule, rrule_parser::RRuleParser},
     establish_connection,
-    models::Event,
+    models::event::{Event, EventTrait},
     util::stringify,
 };
-use chrono::{DateTime, Days, Utc};
+use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use now::DateTimeNow;
 
@@ -38,32 +37,13 @@ impl ExtendedEvent {
 
         let duration = event.ends_at - event.starts_at;
 
-        let ical_event: icalendar::Event = event.clone().try_into().ok()?;
-        let start = query_date.beginning_of_day();
-        let end = query_date.end_of_day();
-
-        let r_rule = parse_rrule(&ical_event)?
-            .after(query_date.with_timezone(&rrule::Tz::UTC) - Days::new(1));
-        let rrecurence = r_rule
-            .clone()
-            .all(2)
-            .dates
-            .into_iter()
-            .find(|d| d >= &start && d <= &end);
-        let occurance_date = rrecurence?;
-        let natural_recurrence = RRuleParser::to_natural_language(&r_rule);
-        match natural_recurrence {
-            Ok(natural_recurrence) => Some(Self {
-                event: event.clone(),
-                starts_at: occurance_date.to_utc(),
-                ends_at: (occurance_date + duration).to_utc(),
-                natural_recurrence: Some(natural_recurrence),
-            }),
-            Err(err) => {
-                log::warn!("Failed to parse rrule: {}", err);
-                None
-            }
-        }
+        let occurance_date = event.get_recurrence_for_date(query_date)?;
+        event.get_occurrence_natural().map(|nat| Self {
+            event: event.clone(),
+            starts_at: occurance_date.to_utc(),
+            ends_at: (occurance_date + duration).to_utc(),
+            natural_recurrence: Some(nat),
+        })
     }
 }
 

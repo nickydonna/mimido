@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use futures::future::try_join_all;
 use http::Uri;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -9,7 +7,7 @@ use hyper_util::{
 };
 use libdav::{
     dav::{FoundCollection, WebDavClient},
-    names, PropertyName,
+    names,
 };
 use libdav::{CalDavClient, FetchedResource};
 use tower_http::auth::AddAuthorization;
@@ -104,10 +102,9 @@ impl Caldav {
             .await?;
 
         let (_, display_name) = &properties[0];
-        let (_, sync_collection) = &properties[1];
-        let (_, sync_level) = &properties[2];
-        let (_, sync_token) = &properties[3];
-        println!("Properties: {:?}", properties);
+        // let (_, sync_collection) = &properties[1];
+        // let (_, sync_level) = &properties[2];
+        // let (_, sync_token) = &properties[3];
 
         Ok(NewCalendar {
             url: collection.href.clone(),

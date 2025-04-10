@@ -1,7 +1,5 @@
 use std::str::FromStr;
 
-use icalendar::Component;
-
 #[derive(Debug, PartialEq, strum_macros::AsRefStr)]
 pub enum ComponentProps {
     #[strum(serialize = "X-TYPE")]
@@ -20,8 +18,6 @@ pub enum ComponentProps {
     Load,
     #[strum(serialize = "X-POSTPONED")]
     Postponed,
-    #[strum(serialize = "DTSTART")]
-    DtStart,
     #[strum(serialize = "RRULE")]
     RRule,
     #[strum(serialize = "RDATE")]

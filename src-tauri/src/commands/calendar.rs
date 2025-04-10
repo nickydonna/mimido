@@ -1,8 +1,8 @@
 use crate::{
     caldav::Caldav,
-    calendar_items::{extract_event, extract_todo},
+    calendar_items::extract_todo,
     establish_connection,
-    models::{Calendar, NewEvent, NewTodo, Server},
+    models::{event::NewEvent, Calendar, NewTodo, Server},
     util::stringify,
 };
 use diesel::{delete, insert_into};
@@ -29,10 +29,6 @@ pub async fn sync_all_calendars() -> Result<(), String> {
     let _ = join_all(syncs)
         .await
         .into_iter()
-        .map(|r| {
-            println!("Sync result: {:?}", r);
-            r
-        })
         .collect::<Result<Vec<()>, String>>()?;
 
     let now = chrono::Utc::now().timestamp();
@@ -107,7 +103,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
 
     let events = items
         .iter()
-        .flat_map(|fetched_resource| extract_event(calendar_id, fetched_resource))
+        .flat_map(|fetched_resource| NewEvent::new_from_resource(calendar_id, fetched_resource))
         .flatten()
         .collect::<Vec<NewEvent>>();
 
@@ -123,7 +119,6 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .flatten()
         .collect::<Vec<NewTodo>>();
 
-    println!("Todos: {}: {:?}", calendar_id, todos.len());
     insert_into(todo_dsl::todos)
         .values(todos)
         .execute(conn)
