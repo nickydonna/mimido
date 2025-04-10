@@ -13,7 +13,6 @@
   } from "flowbite-svelte";
   import { commands, type Server, type Result } from "../../bindings";
 
-  let syncing = $state(false);
   let loading = $state(false);
   let servers = $state<Server[]>([]);
 
@@ -31,6 +30,7 @@
   const syncAllCalendars = async () => {
     syncingCalendars = true;
     await commands.syncAllCalendars();
+    await loadServers();
     syncingCalendars = false;
   };
 
@@ -101,6 +101,16 @@
           </TableBodyCell>
           <TableBodyCell>
             {server.user}
+          </TableBodyCell>
+          <TableBodyCell>
+            {#if server.last_sync == null}
+              Never Synced
+            {:else}
+              Synced on: {new Date(server.last_sync).toLocaleString("en-UK", {
+                dateStyle: "short",
+                timeStyle: "short",
+              })}
+            {/if}
           </TableBodyCell>
         </TableBodyRow>
       {/each}

@@ -5,13 +5,15 @@ use crate::{
     models::{Calendar, NewEvent, NewTodo, Server},
     util::stringify,
 };
-use diesel::prelude::*;
 use diesel::{delete, insert_into};
+use diesel::{prelude::*, update};
 use futures::future::join_all;
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
 pub async fn sync_all_calendars() -> Result<(), String> {
+    use crate::schema::servers::dsl as server_dsl;
+
     // Get all servers and fetch their calendars
     let servers = list_servers()?;
     let syncs = servers.iter().map(|server| fetch_calendars(server.id));
@@ -32,6 +34,13 @@ pub async fn sync_all_calendars() -> Result<(), String> {
             r
         })
         .collect::<Result<Vec<()>, String>>()?;
+
+    let now = chrono::Utc::now().timestamp();
+    update(server_dsl::servers)
+        .filter(server_dsl::id.eq_any(servers.iter().map(|s| s.id)))
+        .set(server_dsl::last_sync.eq(now))
+        .execute(&mut establish_connection())
+        .map_err(stringify)?;
 
     Ok(())
 }
