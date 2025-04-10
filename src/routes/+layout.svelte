@@ -6,7 +6,6 @@
   import BottomNavItem from "flowbite-svelte/BottomNavItem.svelte";
 
   import { sineIn } from "svelte/easing";
-  import { formatISO } from "date-fns/fp";
   import { Drawer } from "flowbite-svelte";
   import { page } from "$app/state";
 
@@ -18,7 +17,6 @@
     easing: sineIn,
   };
 
-  let date = page.url.searchParams.get("date") ?? formatISO(new Date());
   let activeUrl = $derived(page.url.pathname);
   $inspect(activeUrl).with(console.log);
 </script>
@@ -26,7 +24,6 @@
 <svelte:head></svelte:head>
 <main class="container mx-auto h-full">
   <div class="mt-6 mb-16">
-    {page.url.pathname}
     {@render children()}
   </div>
 </main>
@@ -44,7 +41,7 @@
   navType="application"
   {activeUrl}
 >
-  <BottomNavItem btnName="Day" href="/" appBtnPosition="left" exact={false}>
+  <BottomNavItem btnName="Day" href="/" appBtnPosition="left">
     <CalendarEditOutline />
   </BottomNavItem>
   <BottomNavItem btnName="Server" href="/servers" appBtnPosition="right">
