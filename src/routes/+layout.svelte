@@ -18,7 +18,6 @@
   };
 
   let activeUrl = $derived(page.url.pathname);
-  $inspect(activeUrl).with(console.log);
 </script>
 
 <svelte:head></svelte:head>
