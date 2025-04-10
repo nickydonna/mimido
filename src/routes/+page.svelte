@@ -265,7 +265,7 @@
           ></div>
           {#each events.filter((e) => timeCheck(e, check)) as e, k}
             <div
-              tabindex={i * 10 + k}
+              tabindex={i * 10 + (k + 1)}
               role="button"
               class="{getEventCardClass(
                 e,
@@ -278,7 +278,7 @@
                 ? "event / reminder"
                 : type.toLowerCase()}
               style:grid-row={getScheduleSlot(e)}
-              style:z-index={type === "Block" ? 0 : k}
+              style:z-index={type === "Block" ? 0 : k + 1}
             >
               <div class="absolute right-2 hidden group-hover:block"></div>
               {#if e.event_type === "Block"}

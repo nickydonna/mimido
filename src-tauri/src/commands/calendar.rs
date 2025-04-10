@@ -12,9 +12,18 @@ use futures::future::join_all;
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
 pub async fn sync_all_calendars() -> Result<(), String> {
+    // Get all servers and fetch their calendars
+    let servers = list_servers()?;
+    let syncs = servers.iter().map(|server| fetch_calendars(server.id));
+    let _ = join_all(syncs)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<Vec<Calendar>>, String>>()?;
+
     let calendars = list_calendars()?;
     let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
 
+    // Sync all the calendar events
     let _ = join_all(syncs)
         .await
         .into_iter()
@@ -38,6 +47,16 @@ pub fn list_calendars() -> Result<Vec<Calendar>, String> {
     server_dsl::servers
         .inner_join(calendars_dsl::calendars)
         .select(Calendar::as_select())
+        .load(conn)
+        .map_err(stringify)
+}
+
+fn list_servers() -> Result<Vec<Server>, String> {
+    use crate::schema::servers::dsl::*;
+
+    let conn = &mut establish_connection();
+    servers
+        .select(Server::as_select())
         .load(conn)
         .map_err(stringify)
 }
@@ -69,6 +88,11 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
     // Clean the events from that calendar
     delete(event_dsl::events)
         .filter(event_dsl::calendar_id.eq(calendar_id))
+        .execute(conn)
+        .map_err(stringify)?;
+    // Clean the todos from that calendar
+    delete(todo_dsl::todos)
+        .filter(todo_dsl::calendar_id.eq(calendar_id))
         .execute(conn)
         .map_err(stringify)?;
 

@@ -1,15 +1,21 @@
 use crate::{
+    caldav::Caldav,
     establish_connection,
     models::{NewServer, Server},
 };
 use diesel::prelude::*;
+use futures::TryFutureExt;
 
 pub(crate) mod calendar;
 pub(crate) mod components;
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command()]
 #[specta::specta]
-pub async fn create_server(server_url: String, user: String, password: String) -> Server {
+pub async fn create_server(
+    server_url: String,
+    user: String,
+    password: String,
+) -> Result<Server, String> {
     use crate::schema::servers;
 
     let conn = &mut establish_connection();
@@ -20,11 +26,17 @@ pub async fn create_server(server_url: String, user: String, password: String) -
         last_sync: None,
     };
 
-    diesel::insert_into(servers::table)
+    let server = diesel::insert_into(servers::table)
         .values(&new_server)
         .returning(Server::as_returning())
         .get_result(conn)
-        .expect("Error saving user")
+        .map_err(|e| e.to_string())?;
+
+    Caldav::new(server.clone())
+        .and_then(|c| c.test())
+        .await
+        .map(|_| server)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command(rename_all = "snake_case")]

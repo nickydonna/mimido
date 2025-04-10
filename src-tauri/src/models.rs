@@ -4,7 +4,7 @@ use crate::{
 use chrono::Utc;
 use diesel::prelude::*;
 
-#[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize, specta::Type)]
+#[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize, specta::Type, Clone)]
 #[diesel(table_name = servers)]
 pub struct Server {
     pub id: i32,
@@ -105,23 +105,6 @@ pub struct NewEvent {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
-}
-
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
-#[diesel(table_name = todo_lists)]
-pub struct TodoList {
-    pub id: i32,
-    pub name: String,
-    pub url: String,
-    pub ctag: String,
-}
-
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
-#[diesel(table_name = todo_lists)]
-pub struct NewTodoList {
-    pub name: String,
-    pub url: String,
-    pub ctag: String,
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]

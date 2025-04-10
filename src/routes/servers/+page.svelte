@@ -11,8 +11,7 @@
     TableBodyRow,
     Spinner,
   } from "flowbite-svelte";
-  import { invalidateAll } from "$app/navigation";
-  import { commands, type Server } from "../../bindings";
+  import { commands, type Server, type Result } from "../../bindings";
 
   let syncing = $state(false);
   let loading = $state(false);
@@ -35,15 +34,22 @@
     syncingCalendars = false;
   };
 
+  let result = $state<Result<Server, string> | null>(null);
+  let creating = $state(false);
+
   async function addServer(
     event: SubmitEvent & { currentTarget: EventTarget & HTMLFormElement },
   ) {
     event.preventDefault();
+    creating = true;
+    result = null;
     const data = new FormData(event.currentTarget);
     const server = data.get("serverUrl") as string;
     const user = data.get("user") as string;
     const password = data.get("password") as string;
-    // const response = await commands.createServer(server, user, password);
+    const response = await commands.createServer(server, user, password);
+    result = response;
+    creating = false;
   }
 </script>
 
@@ -105,22 +111,46 @@
   <h3 class="p-0 text-xl font-medium text-gray-900 dark:text-white">
     Add Server
   </h3>
-  <Label class="space-y-2">
-    <span>Only CalDAV with user/password is supported for now</span>
-    <Input
-      type="url"
-      name="serverUrl"
-      placeholder="https://caldav.fastmail.com/"
-      required
-    />
-  </Label>
-  <Label class="space-y-2">
-    <span>Your email</span>
-    <Input type="email" name="user" placeholder="name@company.com" required />
-  </Label>
-  <Label class="space-y-2">
-    <span>Your password</span>
-    <Input type="password" name="password" placeholder="•••••" required />
-  </Label>
-  <Button type="submit" class="w-full1">Connect</Button>
+  {#if creating}
+    <div class="flex justify-center">
+      <div>
+        <Spinner size="md" />
+        <h4>Creating server ...</h4>
+      </div>
+    </div>
+  {:else}
+    {#if result}
+      {#if result.status === "error"}
+        <div class="flex justify-center">
+          <div>
+            <h4 class="text-red-500">{result.error}</h4>
+          </div>
+        </div>
+      {:else}
+        <div class="flex justify-center">
+          <div>
+            <h4 class="text-green-500">Server created successfully</h4>
+          </div>
+        </div>
+      {/if}
+    {/if}
+    <Label class="space-y-2">
+      <span>Only CalDAV with user/password is supported for now</span>
+      <Input
+        type="url"
+        name="serverUrl"
+        placeholder="https://caldav.fastmail.com/"
+        required
+      />
+    </Label>
+    <Label class="space-y-2">
+      <span>Your email</span>
+      <Input type="email" name="user" placeholder="name@company.com" required />
+    </Label>
+    <Label class="space-y-2">
+      <span>Your password</span>
+      <Input type="password" name="password" placeholder="•••••" required />
+    </Label>
+    <Button type="submit" class="w-full1">Connect</Button>
+  {/if}
 </form>

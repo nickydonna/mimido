@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use futures::future::try_join_all;
 use http::Uri;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -7,7 +9,7 @@ use hyper_util::{
 };
 use libdav::{
     dav::{FoundCollection, WebDavClient},
-    names,
+    names, PropertyName,
 };
 use libdav::{CalDavClient, FetchedResource};
 use tower_http::auth::AddAuthorization;
@@ -42,6 +44,14 @@ impl Caldav {
             server,
             caldav_client: client,
         })
+    }
+
+    pub async fn test(self) -> Result<bool, String> {
+        self.caldav_client
+            .find_current_user_principal()
+            .await
+            .map(|_| true)
+            .map_err(|e| e.to_string())
     }
 
     pub async fn list_calendars(&self) -> anyhow::Result<Vec<NewCalendar>> {
@@ -82,16 +92,26 @@ impl Caldav {
     ) -> anyhow::Result<NewCalendar> {
         let properties = self
             .caldav_client
-            .get_properties(&collection.href, &[&names::DISPLAY_NAME])
+            .get_properties(
+                &collection.href,
+                &[
+                    &names::DISPLAY_NAME,
+                    &names::SYNC_COLLECTION,
+                    &names::SYNC_LEVEL,
+                    &names::SYNC_TOKEN,
+                ],
+            )
             .await?;
-        let name = properties
-            .into_iter()
-            .find(|p| p.0 == &names::DISPLAY_NAME && p.1.is_some())
-            .and_then(|p| p.1);
+
+        let (_, display_name) = &properties[0];
+        let (_, sync_collection) = &properties[1];
+        let (_, sync_level) = &properties[2];
+        let (_, sync_token) = &properties[3];
+        println!("Properties: {:?}", properties);
 
         Ok(NewCalendar {
             url: collection.href.clone(),
-            name: name.unwrap_or(collection.href.clone()),
+            name: display_name.clone().unwrap_or(collection.href.clone()),
             etag: collection.etag,
             server_id: self.server.id,
         })
