@@ -480,11 +480,11 @@ mod tests {
         // Test cases for round-trip conversion
         let test_rrules = vec![
             "Every 2 days",
-            // "Every Mon",
-            // "Every weekday",
-            // "Every weekend",
-            // "Every month on Tue,Friday",
-            // "Every Mon,Fri,Wed",
+            "Every Mon",
+            "Every weekday",
+            "Every weekend",
+            "Every month on Tue,Friday",
+            "Every Mon,Fri,Wed",
         ];
 
         for rrule in test_rrules {
@@ -498,7 +498,7 @@ mod tests {
                 .expect("Should be able to parse natural language back to RRULE");
 
             assert_eq!(
-                parsed, reparsed,
+                parsed.0, reparsed.0,
                 "Round-trip conversion failed for {}",
                 rrule
             );
