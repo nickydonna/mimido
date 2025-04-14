@@ -3,7 +3,7 @@ use regex::{Regex, RegexBuilder};
 use rrule::{Frequency, NWeekday, RRule, RRuleSet, Weekday};
 use strum::IntoEnumIterator;
 
-use super::{ExtractableFromInput, PropertyMatch};
+use super::ExtractableFromInput;
 
 #[derive(Copy, Clone, Debug, strum_macros::EnumIter)]
 enum NaturalLangCases {
@@ -90,9 +90,9 @@ impl ExtractableFromInput for EventRecurrence {
     fn extract_from_input(
         date_of_input: DateTime<chrono_tz::Tz>,
         input: &str,
-    ) -> Result<PropertyMatch<Self>, String> {
+    ) -> Result<(Self, String), String> {
         let rrule = EventRecurrence::from_natural(input, date_of_input.with_timezone(&Utc));
-        Ok(PropertyMatch::default(EventRecurrence(rrule)))
+        Ok((EventRecurrence(rrule), input.to_string()))
     }
 }
 

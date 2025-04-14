@@ -8,32 +8,11 @@ pub(crate) mod event_status;
 pub(crate) mod event_type;
 pub(crate) mod rrule_parser;
 
-pub struct PropertyMatch<T: Sized> {
-    property: T,
-    start_end: Option<(usize, usize)>,
-}
-
-impl<T: Sized> PropertyMatch<T> {
-    pub fn default(property: T) -> Self {
-        PropertyMatch {
-            property,
-            start_end: None,
-        }
-    }
-
-    pub fn new(property: T, start: usize, end: usize) -> Self {
-        PropertyMatch {
-            property,
-            start_end: Some((start, end)),
-        }
-    }
-}
-
 trait ExtractableFromInput {
     fn extract_from_input(
         date_of_input: DateTime<chrono_tz::Tz>,
         input: &str,
-    ) -> Result<PropertyMatch<Self>, String>
+    ) -> Result<(Self, String), String>
     where
         Self: Sized;
 }

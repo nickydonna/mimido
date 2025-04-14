@@ -41,8 +41,6 @@ const WEEKDAYS: &[&str] = &[
     "Sun",
 ];
 
-const DEFAULT_TIME: (u32, u32) = (12, 0);
-
 const TIME_RE: &str = r"at +(?P<time>\d{1,2}(?::\d{2})?)";
 const FROM_TO_RE: &str =
     r"(?P<start>\d{1,2}(?::\d{2})?) *(:?-|to|until) *(?P<end>\d{1,2}(?::\d{2})?)";
@@ -177,7 +175,6 @@ impl EventDate {
         let (case, re) = DateExpressionCases::iter()
             .map(|case| (case, Regex::from(case)))
             .find(|(_, re)| re.is_match(date_string))?;
-        println!("case: {:?}", case);
 
         let (duration, (start, end)): (TimeDelta, (NaiveTime, Option<NaiveTime>)) = match case {
             DateExpressionCases::Tomorrow => {

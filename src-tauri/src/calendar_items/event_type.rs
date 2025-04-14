@@ -6,9 +6,9 @@ use diesel::{
     sql_types::Text,
     sqlite::{Sqlite, SqliteValue},
 };
-use regex::{Match, RegexBuilder};
+use regex::RegexBuilder;
 
-use super::{ExtractableFromInput, PropertyMatch};
+use super::ExtractableFromInput;
 
 #[derive(
     Debug,
@@ -51,7 +51,7 @@ impl ExtractableFromInput for EventType {
     fn extract_from_input(
         _: DateTime<chrono_tz::Tz>,
         input: &str,
-    ) -> Result<PropertyMatch<Self>, String> {
+    ) -> Result<(Self, String), String> {
         let re = RegexBuilder::new(EVENT_TYPE_RE)
             .case_insensitive(true)
             .build()
@@ -59,7 +59,7 @@ impl ExtractableFromInput for EventType {
 
         let captured = re.captures(input);
         let Some(captured) = captured else {
-            return Ok(PropertyMatch::default(EventType::Event));
+            return Ok((EventType::Event, input.to_string()));
         };
 
         let general = captured.get(0).expect("Already check if it's some");
@@ -76,10 +76,11 @@ impl ExtractableFromInput for EventType {
             _ => Err(format!("Invalid event type: {}", input))?,
         };
 
-        Ok(PropertyMatch::new(
+        Ok((
             event_type,
-            general.start(),
-            general.end(),
+            format!("{} {}", &input[0..general.start()], &input[general.end()..])
+                .trim()
+                .to_string(),
         ))
     }
 }

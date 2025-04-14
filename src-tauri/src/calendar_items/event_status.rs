@@ -8,7 +8,7 @@ use diesel::{
 };
 use regex::RegexBuilder;
 
-use super::{ExtractableFromInput, PropertyMatch};
+use super::ExtractableFromInput;
 
 #[derive(
     Debug,
@@ -52,7 +52,7 @@ impl ExtractableFromInput for EventStatus {
     fn extract_from_input(
         _: DateTime<chrono_tz::Tz>,
         input: &str,
-    ) -> Result<PropertyMatch<Self>, String> {
+    ) -> Result<(Self, String), String> {
         let re = RegexBuilder::new(EVENT_STATUS_RE)
             .case_insensitive(true)
             .build()
@@ -61,7 +61,7 @@ impl ExtractableFromInput for EventStatus {
         let captured = re.captures(input);
 
         let Some(captured) = captured else {
-            return Ok(PropertyMatch::default(EventStatus::Todo));
+            return Ok((EventStatus::Todo, input.to_string()));
         };
 
         let general = captured.get(0).expect("Already check if it's some");
@@ -77,6 +77,11 @@ impl ExtractableFromInput for EventStatus {
             "done" => EventStatus::Done,
             _ => Err(format!("Invalid event status: {}", captured))?,
         };
-        Ok(PropertyMatch::new(status, general.start(), general.end()))
+        Ok((
+            status,
+            format!("{} {}", &input[0..general.start()], &input[general.end()..])
+                .trim()
+                .to_string(),
+        ))
     }
 }
