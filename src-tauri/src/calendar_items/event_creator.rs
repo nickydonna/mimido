@@ -100,6 +100,27 @@ mod tests {
     }
 
     #[test]
+    fn should_parse_string_for_event_recurrence() {
+        let date_of_input = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 6, 10, 30, 0)
+            .unwrap();
+        let input = "@block %done Fly like an eagle tomorrow at 9 every weekday";
+        let (info, _) =
+            EventUpsertInfo::extract_from_input(date_of_input, input).expect("To parse string");
+        let expected_date = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 7, 9, 0, 0)
+            .unwrap()
+            .to_utc();
+
+        assert_eq!(info.summary, "Fly like an eagle tomorrow at 9");
+        assert_eq!(info.status, EventStatus::Done);
+        assert_eq!(info.event_type, EventType::Block);
+        assert_eq!(info.date_info.start, expected_date);
+        assert_eq!(info.date_info.end, expected_date + Duration::minutes(30));
+        assert!(info.recurrence.0.is_some());
+    }
+
+    #[test]
     fn should_parse_string_for_event_with_end() {
         let date_of_input = chrono_tz::America::Buenos_Aires
             .with_ymd_and_hms(2025, 3, 6, 10, 30, 0)
