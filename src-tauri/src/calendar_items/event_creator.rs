@@ -20,8 +20,8 @@ impl ExtractableFromInput for EventDateInfo {
         date_of_input: DateTime<chrono_tz::Tz>,
         input: &str,
     ) -> Result<(Self, String), String> {
-        let start = EventDate::from_natural(input, date_of_input);
-        let Some((start, end)) = start else {
+        let dates = EventDate::from_natural(input, date_of_input);
+        let Some((start, end, stripped)) = dates else {
             return Err("Failed to parse start date".to_string());
         };
         Ok((
@@ -29,7 +29,7 @@ impl ExtractableFromInput for EventDateInfo {
                 start,
                 end: end.unwrap_or(start + Duration::minutes(30)),
             },
-            input.to_string(),
+            stripped,
         ))
     }
 }
@@ -91,7 +91,7 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        assert_eq!(info.summary, "Fly like an eagle tomorrow at 9");
+        assert_eq!(info.summary, "Fly like an eagle");
         assert_eq!(info.status, EventStatus::Done);
         assert_eq!(info.event_type, EventType::Block);
         assert_eq!(info.date_info.start, expected_date);
@@ -112,7 +112,7 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        assert_eq!(info.summary, "Fly like an eagle tomorrow at 9");
+        assert_eq!(info.summary, "Fly like an eagle");
         assert_eq!(info.status, EventStatus::Done);
         assert_eq!(info.event_type, EventType::Block);
         assert_eq!(info.date_info.start, expected_date);
@@ -137,7 +137,7 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        assert_eq!(info.summary, "print in 2 days at 10-11:30");
+        assert_eq!(info.summary, "print");
         assert_eq!(info.status, EventStatus::Todo);
         assert_eq!(info.event_type, EventType::Task);
         assert_eq!(info.date_info.start, expected_date);

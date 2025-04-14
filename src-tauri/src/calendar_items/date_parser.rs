@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use chrono::{DateTime, Datelike, Duration, NaiveTime, TimeDelta, Utc};
-use regex::{Regex, RegexBuilder};
+use regex::{Match, Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 
 #[derive(Copy, Clone, Debug, strum_macros::EnumIter)]
@@ -43,7 +43,7 @@ const WEEKDAYS: &[&str] = &[
 
 const TIME_RE: &str = r"at +(?P<time>\d{1,2}(?::\d{2})?)";
 const FROM_TO_RE: &str =
-    r"(?P<start>\d{1,2}(?::\d{2})?) *(:?-|to|until) *(?P<end>\d{1,2}(?::\d{2})?)";
+    r"(at +)?(?P<start>\d{1,2}(?::\d{2})?) *(:?-|to|until) *(?P<end>\d{1,2}(?::\d{2})?)";
 const NAMED_TIME_RE: &str = r"(at +)?(?P<time>morning|noon|afternoon|night|evening|midnight)";
 
 impl From<DateExpressionCases> for Regex {
@@ -86,40 +86,36 @@ impl EventDate {
         NaiveTime::from_hms_opt(hour, minute, 0)
     }
 
-    fn parse_numbered_time(time_str: &str, starting_idx: usize) -> Option<NaiveTime> {
-        let time_str = time_str.to_lowercase();
+    fn parse_numbered_time(time_str: &str) -> Option<(NaiveTime, String)> {
         let time_re = Regex::new(TIME_RE).expect("To Compile Regex");
-        if time_str.len() <= starting_idx {
-            return None;
-        }
-        let caps = time_re.captures(&time_str[starting_idx..])?;
-        let time_str = caps.name("time")?.as_str();
-        Self::parse_numbered_time_match(time_str)
+        let caps = time_re.captures(time_str)?;
+        let matched = caps.get(0)?;
+        let named = caps.name("time")?.as_str();
+        let time = Self::parse_numbered_time_match(named)?;
+        Some((time, Self::remove_matched(time_str, matched)))
     }
 
-    fn parse_from_to(time_str: &str, starting_idx: usize) -> Option<(NaiveTime, NaiveTime)> {
-        let time_str = time_str.to_lowercase();
+    fn parse_from_to(time_str: &str) -> Option<(NaiveTime, NaiveTime, String)> {
         let time_re = Regex::new(FROM_TO_RE).expect("To Compile Regex");
-        if time_str.len() <= starting_idx {
-            return None;
-        }
-        let caps = time_re.captures(&time_str[starting_idx..])?;
+        let caps = time_re.captures(time_str)?;
+        let matched = caps.get(0)?;
         let start_time = caps.name("start")?.as_str();
         let start_time = Self::parse_numbered_time_match(start_time)?;
         let end_time = caps.name("end")?.as_str();
         let end_time = Self::parse_numbered_time_match(end_time)?;
-        Some((start_time, end_time))
+        Some((
+            start_time,
+            end_time,
+            Self::remove_matched(time_str, matched),
+        ))
     }
 
-    fn parse_named_time(time_str: &str, starting_idx: usize) -> Option<NaiveTime> {
-        let time_str = time_str.to_lowercase();
+    fn parse_named_time(time_str: &str) -> Option<(NaiveTime, String)> {
         let time_re = Regex::new(NAMED_TIME_RE).expect("To Compile Regex");
-        if time_str.len() <= starting_idx {
-            return None;
-        }
-        let caps = time_re.captures(&time_str[starting_idx..])?;
-        let time_str = caps.name("time")?.as_str();
-        let named_time = NamedTime::from_str(time_str).ok()?;
+        let caps = time_re.captures(time_str)?;
+        let matched = caps.get(0)?;
+        let named = caps.name("time")?.as_str();
+        let named_time = NamedTime::from_str(named).ok()?;
         let (hour, minute) = match named_time {
             NamedTime::Morning => (8, 0),
             NamedTime::Afternoon => (16, 0),
@@ -129,20 +125,26 @@ impl EventDate {
             NamedTime::Midnight => (0, 0),
         };
 
-        NaiveTime::from_hms_opt(hour, minute, 0)
+        let time = NaiveTime::from_hms_opt(hour, minute, 0)?;
+
+        Some((time, Self::remove_matched(time_str, matched)))
     }
 
-    fn get_time(time_str: &str, starting_idx: usize) -> (NaiveTime, Option<NaiveTime>) {
-        let range = Self::parse_from_to(time_str, starting_idx);
-        if let Some((start, end)) = range {
-            return (start, Some(end));
+    fn get_time(time_str: &str) -> (NaiveTime, Option<NaiveTime>, String) {
+        let range = Self::parse_from_to(time_str);
+        if let Some((start, end, stripped_string)) = range {
+            return (start, Some(end), stripped_string);
         }
-        let start = Self::parse_numbered_time(time_str, starting_idx)
-            .or_else(|| Self::parse_named_time(time_str, starting_idx));
-        if let Some(start) = start {
-            return (start, None);
+        let start =
+            Self::parse_numbered_time(time_str).or_else(|| Self::parse_named_time(time_str));
+        if let Some((start, stripped_string)) = start {
+            return (start, None, stripped_string);
         }
-        (NaiveTime::from_hms_opt(12, 0, 0).unwrap(), None)
+        (
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+            None,
+            time_str.to_string(),
+        )
     }
 
     fn parse_relative_time(number: u32, unit: &str) -> Option<Duration> {
@@ -168,28 +170,40 @@ impl EventDate {
         Some((start, end))
     }
 
+    fn remove_matched(input: &str, matched: Match<'_>) -> String {
+        format!("{} {}", &input[0..matched.start()], &input[matched.end()..])
+            .trim()
+            .to_string()
+    }
+
     pub fn from_natural(
         date_string: &str,
         reference_date: DateTime<chrono_tz::Tz>,
-    ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>)> {
+    ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>, String)> {
         let (case, re) = DateExpressionCases::iter()
             .map(|case| (case, Regex::from(case)))
             .find(|(_, re)| re.is_match(date_string))?;
 
-        let (duration, (start, end)): (TimeDelta, (NaiveTime, Option<NaiveTime>)) = match case {
+        let (duration, (start, end, stripped_string)): (
+            TimeDelta,
+            (NaiveTime, Option<NaiveTime>, String),
+        ) = match case {
             DateExpressionCases::Tomorrow => {
-                let match_end = re.find(date_string)?.end();
-                let time = Self::get_time(date_string, match_end);
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let time = Self::get_time(&stripped);
                 (Duration::days(1), time)
             }
             DateExpressionCases::Today => {
-                let match_end = re.find(date_string)?.end();
-                let time = Self::get_time(date_string, match_end);
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let time = Self::get_time(&stripped);
                 (Duration::days(0), time)
             }
             DateExpressionCases::NextWeek => {
-                let match_end = re.find(date_string)?.end();
-                let time = Self::get_time(date_string, match_end);
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let time = Self::get_time(&stripped);
                 (Duration::weeks(1), time)
             }
             DateExpressionCases::NextWeekday => {
@@ -200,24 +214,27 @@ impl EventDate {
                     .parse::<chrono::Weekday>()
                     .ok()?;
                 let duration = weekday.days_since(reference_date.weekday());
-                let match_end = re.find(date_string)?.end();
-                let time = Self::get_time(date_string, match_end);
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let time = Self::get_time(&stripped);
                 (Duration::days(duration as i64), time)
             }
             DateExpressionCases::RelativeTime => {
-                let match_end = re.find(date_string)?.end();
                 let caps = re.captures(date_string)?;
                 let (Some(number), Some(unit)) = (caps.name("number"), caps.name("unit")) else {
                     return None;
                 };
                 let num = number.as_str().parse::<u32>().ok()?;
                 let duration = Self::parse_relative_time(num, unit.as_str())?;
-                let time = Self::get_time(date_string, match_end);
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let time = Self::get_time(&stripped);
                 (duration, time)
             }
         };
 
-        Self::calculate_utc_date(reference_date, duration, start, end)
+        let (start, end) = Self::calculate_utc_date(reference_date, duration, start, end)?;
+        Some((start, end, stripped_string))
     }
 }
 
@@ -327,7 +344,8 @@ mod tests {
     #[test]
     fn test_range_dash() {
         let reference = create_test_date();
-        let (start, end) = EventDate::from_natural("today at 14:30-16", reference).unwrap();
+        let (start, end, stripped) =
+            EventDate::from_natural("today at 14:30-16", reference).unwrap();
         let expected = reference
             .with_time(NaiveTime::from_hms_opt(14, 30, 0).unwrap())
             .unwrap();
@@ -348,7 +366,7 @@ mod tests {
     #[test]
     fn test_range_until() {
         let reference = create_test_date();
-        let (start, end) =
+        let (start, end, stripped) =
             EventDate::from_natural("steve lepoisson today from 18:45 until 19", reference)
                 .unwrap();
         let expected = reference
@@ -370,7 +388,8 @@ mod tests {
     #[test]
     fn test_range_to() {
         let reference = create_test_date();
-        let (start, end) = EventDate::from_natural("today from 09:30-12:16", reference).unwrap();
+        let (start, end, stripped) =
+            EventDate::from_natural("today from 09:30-12:16", reference).unwrap();
         let expected = reference
             .with_time(NaiveTime::from_hms_opt(9, 30, 0).unwrap())
             .unwrap();
