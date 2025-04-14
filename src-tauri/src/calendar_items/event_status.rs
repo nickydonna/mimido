@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use diesel::{
     deserialize::{FromSql, FromSqlRow},
     expression::AsExpression,
@@ -5,6 +6,9 @@ use diesel::{
     sql_types::Text,
     sqlite::{Sqlite, SqliteValue},
 };
+use regex::RegexBuilder;
+
+use super::{ExtractableFromInput, PropertyMatch};
 
 #[derive(
     Debug,
@@ -39,5 +43,40 @@ impl ToSql<Text, Sqlite> for EventStatus {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> diesel::serialize::Result {
         out.set_value(self.to_string());
         Ok(diesel::serialize::IsNull::No)
+    }
+}
+
+const EVENT_STATUS_RE: &str = r"%(?P<event_status>backlog|todo|doing|done)";
+
+impl ExtractableFromInput for EventStatus {
+    fn extract_from_input(
+        _: DateTime<chrono_tz::Tz>,
+        input: &str,
+    ) -> Result<PropertyMatch<Self>, String> {
+        let re = RegexBuilder::new(EVENT_STATUS_RE)
+            .case_insensitive(true)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let captured = re.captures(input);
+
+        let Some(captured) = captured else {
+            return Ok(PropertyMatch::default(EventStatus::Todo));
+        };
+
+        let general = captured.get(0).expect("Already check if it's some");
+        let captured = captured
+            .name("event_status")
+            .map(|e| e.as_str())
+            .expect("Already check if it's some");
+
+        let status = match captured.to_lowercase().as_str() {
+            "backlog" => EventStatus::Backlog,
+            "todo" => EventStatus::Todo,
+            "doing" => EventStatus::Doing,
+            "done" => EventStatus::Done,
+            _ => Err(format!("Invalid event status: {}", captured))?,
+        };
+        Ok(PropertyMatch::new(status, general.start(), general.end()))
     }
 }

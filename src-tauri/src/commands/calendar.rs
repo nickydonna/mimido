@@ -1,8 +1,7 @@
 use crate::{
     caldav::Caldav,
-    calendar_items::extract_todo,
     establish_connection,
-    models::{event::NewEvent, Calendar, NewTodo, Server},
+    models::{event::NewEvent, todo::NewTodo, Calendar, Server},
     util::stringify,
 };
 use diesel::{delete, insert_into};
@@ -115,7 +114,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
 
     let todos = items
         .iter()
-        .flat_map(|fetched_resource| extract_todo(calendar_id, fetched_resource))
+        .flat_map(|fetched_resource| NewTodo::new_from_resource(calendar_id, fetched_resource))
         .flatten()
         .collect::<Vec<NewTodo>>();
 

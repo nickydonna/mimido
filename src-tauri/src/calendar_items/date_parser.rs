@@ -10,7 +10,6 @@ enum DateExpressionCases {
     Today,
     NextWeek,
     NextWeekday,
-    SpecificTime,
     RelativeTime,
 }
 
@@ -45,6 +44,8 @@ const WEEKDAYS: &[&str] = &[
 const DEFAULT_TIME: (u32, u32) = (12, 0);
 
 const TIME_RE: &str = r"at +(?P<time>\d{1,2}(?::\d{2})?)";
+const FROM_TO_RE: &str =
+    r"(?P<start>\d{1,2}(?::\d{2})?) *(:?-|to|until) *(?P<end>\d{1,2}(?::\d{2})?)";
 const NAMED_TIME_RE: &str = r"(at +)?(?P<time>morning|noon|afternoon|night|evening|midnight)";
 
 impl From<DateExpressionCases> for Regex {
@@ -56,7 +57,6 @@ impl From<DateExpressionCases> for Regex {
             DateExpressionCases::NextWeekday => {
                 format!(r"next +(?P<weekday>{})", WEEKDAYS.join("|"))
             }
-            DateExpressionCases::SpecificTime => r"at \d{1,2}(:\d{2})?".to_string(),
             DateExpressionCases::RelativeTime => {
                 r"in (?P<number>\d+) +(?P<unit>day|week|month|year)s?".to_string()
             }
@@ -68,18 +68,11 @@ impl From<DateExpressionCases> for Regex {
     }
 }
 
-struct DateParser;
+pub struct EventDate;
 
-impl DateParser {
-    fn parse_numbered_time(time_str: &str, starting_idx: usize) -> Option<(u32, u32)> {
-        let time_str = time_str.to_lowercase();
-        let time_re = Regex::new(TIME_RE).ok().expect("To Compile Regex");
-        if time_str.len() <= starting_idx {
-            return None;
-        }
-        let caps = time_re.captures(&time_str[starting_idx..])?;
-        let time_str = caps.name("time")?.as_str();
-        let parts = time_str.split(':').collect::<Vec<_>>();
+impl EventDate {
+    fn parse_numbered_time_match(match_str: &str) -> Option<NaiveTime> {
+        let parts = match_str.split(':').collect::<Vec<_>>();
         let hour: u32 = parts[0].parse().ok()?;
         let minute: u32 = if parts.len() > 1 {
             parts[1].parse().ok()?
@@ -92,12 +85,37 @@ impl DateParser {
             return None;
         }
 
-        Some((hour, minute))
+        NaiveTime::from_hms_opt(hour, minute, 0)
     }
 
-    fn parse_named_time(time_str: &str, starting_idx: usize) -> Option<(u32, u32)> {
+    fn parse_numbered_time(time_str: &str, starting_idx: usize) -> Option<NaiveTime> {
         let time_str = time_str.to_lowercase();
-        let time_re = Regex::new(NAMED_TIME_RE).ok().expect("To Compile Regex");
+        let time_re = Regex::new(TIME_RE).expect("To Compile Regex");
+        if time_str.len() <= starting_idx {
+            return None;
+        }
+        let caps = time_re.captures(&time_str[starting_idx..])?;
+        let time_str = caps.name("time")?.as_str();
+        Self::parse_numbered_time_match(time_str)
+    }
+
+    fn parse_from_to(time_str: &str, starting_idx: usize) -> Option<(NaiveTime, NaiveTime)> {
+        let time_str = time_str.to_lowercase();
+        let time_re = Regex::new(FROM_TO_RE).expect("To Compile Regex");
+        if time_str.len() <= starting_idx {
+            return None;
+        }
+        let caps = time_re.captures(&time_str[starting_idx..])?;
+        let start_time = caps.name("start")?.as_str();
+        let start_time = Self::parse_numbered_time_match(start_time)?;
+        let end_time = caps.name("end")?.as_str();
+        let end_time = Self::parse_numbered_time_match(end_time)?;
+        Some((start_time, end_time))
+    }
+
+    fn parse_named_time(time_str: &str, starting_idx: usize) -> Option<NaiveTime> {
+        let time_str = time_str.to_lowercase();
+        let time_re = Regex::new(NAMED_TIME_RE).expect("To Compile Regex");
         if time_str.len() <= starting_idx {
             return None;
         }
@@ -112,14 +130,21 @@ impl DateParser {
             NamedTime::Noon => (12, 0),
             NamedTime::Midnight => (0, 0),
         };
-        Some((hour, minute))
+
+        NaiveTime::from_hms_opt(hour, minute, 0)
     }
 
-    fn get_time(time_str: &str, starting_idx: usize) -> NaiveTime {
-        let (hour, minute) = Self::parse_numbered_time(time_str, starting_idx)
-            .or_else(|| Self::parse_named_time(time_str, starting_idx))
-            .unwrap_or(DEFAULT_TIME);
-        NaiveTime::from_hms_opt(hour, minute, 0).expect("Valid time")
+    fn get_time(time_str: &str, starting_idx: usize) -> (NaiveTime, Option<NaiveTime>) {
+        let range = Self::parse_from_to(time_str, starting_idx);
+        if let Some((start, end)) = range {
+            return (start, Some(end));
+        }
+        let start = Self::parse_numbered_time(time_str, starting_idx)
+            .or_else(|| Self::parse_named_time(time_str, starting_idx));
+        if let Some(start) = start {
+            return (start, None);
+        }
+        (NaiveTime::from_hms_opt(12, 0, 0).unwrap(), None)
     }
 
     fn parse_relative_time(number: u32, unit: &str) -> Option<Duration> {
@@ -133,24 +158,28 @@ impl DateParser {
     fn calculate_utc_date(
         base: DateTime<chrono_tz::Tz>,
         plus: Duration,
-        time: NaiveTime,
-    ) -> Option<DateTime<Utc>> {
+        start: NaiveTime,
+        end: Option<NaiveTime>,
+    ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>)> {
         let date = base + plus;
-        let date = date.with_time(time);
-        date.earliest().map(|d| d.to_utc())
+        let datetime = date.with_time(start);
+        let start = datetime.earliest().map(|d| d.to_utc())?;
+        let end = end
+            .and_then(|end| date.with_time(end).earliest())
+            .map(|d| d.to_utc());
+        Some((start, end))
     }
 
     pub fn from_natural(
         date_string: &str,
-        reference_date: DateTime<Utc>,
-        timezone: chrono_tz::Tz,
-    ) -> Option<DateTime<Utc>> {
+        reference_date: DateTime<chrono_tz::Tz>,
+    ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>)> {
         let (case, re) = DateExpressionCases::iter()
             .map(|case| (case, Regex::from(case)))
             .find(|(_, re)| re.is_match(date_string))?;
-        let base_time = reference_date.with_timezone(&timezone);
+        println!("case: {:?}", case);
 
-        let (duration, time): (TimeDelta, NaiveTime) = match case {
+        let (duration, (start, end)): (TimeDelta, (NaiveTime, Option<NaiveTime>)) = match case {
             DateExpressionCases::Tomorrow => {
                 let match_end = re.find(date_string)?.end();
                 let time = Self::get_time(date_string, match_end);
@@ -173,14 +202,10 @@ impl DateParser {
                     .as_str()
                     .parse::<chrono::Weekday>()
                     .ok()?;
-                let duration = weekday.days_since(base_time.weekday());
+                let duration = weekday.days_since(reference_date.weekday());
                 let match_end = re.find(date_string)?.end();
                 let time = Self::get_time(date_string, match_end);
                 (Duration::days(duration as i64), time)
-            }
-            DateExpressionCases::SpecificTime => {
-                let time = Self::get_time(date_string, 0);
-                (Duration::days(0), time)
             }
             DateExpressionCases::RelativeTime => {
                 let match_end = re.find(date_string)?.end();
@@ -195,7 +220,7 @@ impl DateParser {
             }
         };
 
-        Self::calculate_utc_date(base_time, duration, time)
+        Self::calculate_utc_date(reference_date, duration, start, end)
     }
 }
 
@@ -205,15 +230,17 @@ mod tests {
 
     use super::*;
 
-    fn create_test_date() -> DateTime<Utc> {
+    fn create_test_date() -> DateTime<chrono_tz::Tz> {
         // Create a fixed date for testing: 2024-03-15 12:00:00 UTC
-        Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap()
+        Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0)
+            .unwrap()
+            .with_timezone(&chrono_tz::Tz::UTC)
     }
 
     #[test]
     fn test_tomorrow() {
         let reference = create_test_date();
-        let result = DateParser::from_natural("tomorrow", reference, chrono_tz::Tz::UTC).unwrap();
+        let result = EventDate::from_natural("tomorrow", reference).unwrap().0;
         let expected = reference + Duration::days(1);
         assert_eq!(result.date_naive(), expected.date_naive());
     }
@@ -221,8 +248,9 @@ mod tests {
     #[test]
     fn test_tomorrow_with_time() {
         let reference = create_test_date();
-        let result =
-            DateParser::from_natural("tomorrow at 19", reference, chrono_tz::Tz::UTC).unwrap();
+        let result = EventDate::from_natural("tomorrow at 19", reference)
+            .unwrap()
+            .0;
         let expected = (reference + Duration::days(1))
             .with_hour(19)
             .unwrap()
@@ -236,8 +264,7 @@ mod tests {
     #[test]
     fn test_next_weekday() {
         let reference = create_test_date();
-        let result =
-            DateParser::from_natural("next monday", reference, chrono_tz::Tz::UTC).unwrap();
+        let result = EventDate::from_natural("next monday", reference).unwrap().0;
         let current_weekday = reference.weekday();
         let target_weekday = chrono::Weekday::Mon;
         let days_ahead = (target_weekday as i32 - current_weekday as i32 + 7) % 7;
@@ -248,9 +275,9 @@ mod tests {
 
     fn test_next_weekday_at_named_time() {
         let reference = create_test_date();
-        let result =
-            DateParser::from_natural("next monday afternoon", reference, chrono_tz::Tz::UTC)
-                .unwrap();
+        let result = EventDate::from_natural("next monday afternoon", reference)
+            .unwrap()
+            .0;
         let current_weekday = reference.weekday();
         let target_weekday = chrono::Weekday::Mon;
         let days_ahead = (target_weekday as i32 - current_weekday as i32 + 7) % 7;
@@ -266,8 +293,9 @@ mod tests {
     #[test]
     fn test_tomorrow_at_named_time() {
         let reference = create_test_date();
-        let result =
-            DateParser::from_natural("tomorrow morning", reference, chrono_tz::Tz::UTC).unwrap();
+        let result = EventDate::from_natural("tomorrow morning", reference)
+            .unwrap()
+            .0;
         let expected = reference + Duration::days(1);
         let expected = expected
             .with_time(NaiveTime::from_hms_opt(8, 0, 0).unwrap())
@@ -280,7 +308,7 @@ mod tests {
     #[test]
     fn test_relative_time() {
         let reference = create_test_date();
-        let result = DateParser::from_natural("in 3 days", reference, chrono_tz::Tz::UTC).unwrap();
+        let result = EventDate::from_natural("in 3 days", reference).unwrap().0;
         let expected = reference + Duration::days(3);
         assert_eq!(result.date_naive(), expected.date_naive());
     }
@@ -288,7 +316,9 @@ mod tests {
     #[test]
     fn test_specific_time() {
         let reference = create_test_date();
-        let result = DateParser::from_natural("at 14:30", reference, chrono_tz::Tz::UTC).unwrap();
+        let result = EventDate::from_natural("today at 14:30", reference)
+            .unwrap()
+            .0;
         let expected = reference
             .with_time(NaiveTime::from_hms_opt(14, 30, 0).unwrap())
             .unwrap();
@@ -298,9 +328,73 @@ mod tests {
     }
 
     #[test]
+    fn test_range_dash() {
+        let reference = create_test_date();
+        let (start, end) = EventDate::from_natural("today at 14:30-16", reference).unwrap();
+        let expected = reference
+            .with_time(NaiveTime::from_hms_opt(14, 30, 0).unwrap())
+            .unwrap();
+        assert_eq!(start.date_naive(), expected.date_naive());
+        assert_eq!(start.hour(), expected.hour());
+        assert_eq!(start.minute(), expected.minute());
+
+        let expected = reference
+            .with_time(NaiveTime::from_hms_opt(16, 0, 0).unwrap())
+            .unwrap();
+        assert!(end.is_some());
+        let end = end.unwrap();
+        assert_eq!(end.date_naive(), expected.date_naive());
+        assert_eq!(end.hour(), expected.hour());
+        assert_eq!(end.minute(), expected.minute());
+    }
+
+    #[test]
+    fn test_range_until() {
+        let reference = create_test_date();
+        let (start, end) =
+            EventDate::from_natural("steve lepoisson today from 18:45 until 19", reference)
+                .unwrap();
+        let expected = reference
+            .with_time(NaiveTime::from_hms_opt(18, 45, 0).unwrap())
+            .unwrap();
+        assert_eq!(start.date_naive(), expected.date_naive());
+        assert_eq!(start.hour(), expected.hour());
+        assert_eq!(start.minute(), expected.minute());
+
+        let expected = reference
+            .with_time(NaiveTime::from_hms_opt(19, 0, 0).unwrap())
+            .unwrap();
+        assert!(end.is_some());
+        let end = end.unwrap();
+        assert_eq!(end.date_naive(), expected.date_naive());
+        assert_eq!(end.hour(), expected.hour());
+        assert_eq!(end.minute(), expected.minute());
+    }
+    #[test]
+    fn test_range_to() {
+        let reference = create_test_date();
+        let (start, end) = EventDate::from_natural("today from 09:30-12:16", reference).unwrap();
+        let expected = reference
+            .with_time(NaiveTime::from_hms_opt(9, 30, 0).unwrap())
+            .unwrap();
+        assert_eq!(start.date_naive(), expected.date_naive());
+        assert_eq!(start.hour(), expected.hour());
+        assert_eq!(start.minute(), expected.minute());
+
+        let expected = reference
+            .with_time(NaiveTime::from_hms_opt(12, 16, 0).unwrap())
+            .unwrap();
+        assert!(end.is_some());
+        let end = end.unwrap();
+        assert_eq!(end.date_naive(), expected.date_naive());
+        assert_eq!(end.hour(), expected.hour());
+        assert_eq!(end.minute(), expected.minute());
+    }
+
+    #[test]
     fn test_invalid_date() {
         let reference = create_test_date();
-        let result = DateParser::from_natural("something somethign", reference, chrono_tz::Tz::UTC);
+        let result = EventDate::from_natural("something somethign", reference);
         assert!(result.is_none());
     }
 
@@ -340,7 +434,7 @@ mod tests {
                 12,
                 0,
             ),
-            ("team sync at 14:00", reference, 14, 0),
+            ("team sync today at 14:00", reference, 14, 0),
             (
                 "team sync tomorrow morning",
                 reference + Duration::days(1),
@@ -367,7 +461,7 @@ mod tests {
         ];
 
         for (input, expected_date, expected_hour, expected_minute) in test_cases {
-            let result = DateParser::from_natural(input, reference, chrono_tz::Tz::UTC).unwrap();
+            let result = EventDate::from_natural(input, reference).unwrap().0;
             assert_eq!(
                 result.date_naive(),
                 expected_date.date_naive(),
@@ -400,9 +494,8 @@ mod tests {
         ];
 
         for input in invalid_cases {
-            let result = DateParser::from_natural(input, reference, chrono_tz::Tz::UTC);
+            let result = EventDate::from_natural(input, reference);
             assert!(result.is_none(), "Should fail for input: {}", input);
         }
     }
 }
-

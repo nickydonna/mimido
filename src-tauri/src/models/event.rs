@@ -1,12 +1,10 @@
 use crate::{
     calendar_items::{
-        component_props::{
-            get_int_property, get_property_or_default, get_string_property, ComponentProps,
-        },
+        component_props::{get_string_property, ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
         event_status::EventStatus,
         event_type::EventType,
-        rrule_parser::RRuleParser,
+        rrule_parser::EventRecurrence,
     },
     schema::*,
 };
@@ -16,6 +14,8 @@ use icalendar::{Component, DatePerhapsTime};
 use libdav::FetchedResource;
 use now::DateTimeNow;
 use rrule::{RRuleError, RRuleSet};
+
+use super::IcalParseableTrait;
 
 #[derive(
     Queryable, Selectable, Insertable, AsChangeset, Debug, Clone, serde::Serialize, specta::Type,
@@ -96,20 +96,7 @@ fn get_start_string(event: &icalendar::Event) -> Option<String> {
     }
 }
 
-pub trait EventTrait {
-    fn get_ical_data(&self) -> String;
-    fn parse_ical_data(&self) -> Result<icalendar::Event, String> {
-        let cal: icalendar::Calendar = self.get_ical_data().parse()?;
-        let events = cal
-            .components
-            .into_iter()
-            .filter_map(|f| f.as_event().cloned())
-            .collect::<Vec<icalendar::Event>>();
-        events
-            .first()
-            .cloned()
-            .ok_or("iCal was parsed correctly but not event was found".to_string())
-    }
+pub trait EventTrait: IcalParseableTrait {
     fn get_rrule(&self) -> Option<RRuleSet> {
         let event = self.parse_ical_data().ok()?;
         let rrule = get_string_property(&event, ComponentProps::RRule)?;
@@ -143,7 +130,7 @@ pub trait EventTrait {
 
     fn get_occurrence_natural(&self) -> Option<String> {
         self.get_rrule()
-            .and_then(|r| RRuleParser::to_natural_language(&r).ok())
+            .and_then(|r| EventRecurrence::to_natural_language(&r).ok())
     }
 
     fn get_recurrence_for_date(&self, date: DateTime<Utc>) -> Option<DateTime<Utc>> {
@@ -162,16 +149,48 @@ pub trait EventTrait {
     }
 }
 
-impl EventTrait for Event {
+impl IcalParseableTrait for Event {
+    fn get_ical_data(&self) -> String {
+        self.ical_data.clone()
+    }
+}
+impl EventTrait for Event {}
+
+impl IcalParseableTrait for NewEvent {
     fn get_ical_data(&self) -> String {
         self.ical_data.clone()
     }
 }
 
-impl EventTrait for NewEvent {
-    fn get_ical_data(&self) -> String {
-        self.ical_data.clone()
-    }
+impl EventTrait for NewEvent {}
+
+fn get_start_and_end(
+    calendar: &icalendar::Calendar,
+) -> Result<(chrono::DateTime<Utc>, chrono::DateTime<Utc>), String> {
+    let timezone = calendar
+        .get_timezone()
+        .and_then(|tzid| {
+            let tz: Option<chrono_tz::Tz> = tzid.parse().ok();
+            tz
+        })
+        .unwrap_or(chrono_tz::UTC);
+
+    let event = calendar
+        .components
+        .iter()
+        .filter_map(|cmp| cmp.as_event().cloned())
+        .next()
+        .ok_or("No event component".to_string())?;
+
+    let start = event
+        .get_start()
+        .and_then(|s| date_from_calendar_to_utc(s, timezone))
+        .ok_or("Missing start date".to_string())?;
+    let end = event
+        .get_end()
+        .and_then(|e| date_from_calendar_to_utc(e, timezone))
+        .ok_or("Missing end date".to_string())?;
+    Ok((start, end))
 }
 
 impl NewEvent {
@@ -184,22 +203,18 @@ impl NewEvent {
             .content
             .as_ref()
             .map_err(|e| e.to_string())?;
-        NewEvent::new(cal_id, href, content.data.clone())
+        NewEvent::new_from_ical_data(cal_id, href, content.data.clone())
     }
 
-    pub fn new(cal_id: i32, href: String, ical_data: String) -> Result<Option<Self>, String> {
+    pub fn new_from_ical_data(
+        cal_id: i32,
+        href: String,
+        ical_data: String,
+    ) -> Result<Option<Self>, String> {
         let calendar_item: icalendar::Calendar = ical_data.clone().parse()?;
-        let timezone = calendar_item
-            .get_timezone()
-            .and_then(|tzid| {
-                let tz: Option<chrono_tz::Tz> = tzid.parse().ok();
-                tz
-            })
-            .unwrap_or(chrono_tz::UTC);
-
         let first_event = calendar_item
             .components
-            .into_iter()
+            .iter()
             .filter_map(|cmp| cmp.as_event().cloned())
             .collect::<Vec<icalendar::Event>>();
 
@@ -207,37 +222,23 @@ impl NewEvent {
             return Ok(None);
         };
 
-        let uid = first_event.get_uid();
-        let summary = first_event.get_summary().unwrap_or("[No Summary]");
-        let description = first_event.get_description().map(|d| d.to_string());
-        let last_modified = first_event
-            .get_last_modified()
-            .map(|modified| modified.timestamp())
-            .unwrap_or(Utc::now().timestamp());
-        let start = first_event
-            .get_start()
-            .and_then(|s| date_from_calendar_to_utc(s, timezone));
-        let end = first_event
-            .get_end()
-            .and_then(|e| date_from_calendar_to_utc(e, timezone));
-        let values = match (uid, start, end) {
-            (Some(uid), Some(start), Some(end)) => Some((uid, start, end)),
-            _ => None,
-        };
-        let event_type =
-            get_property_or_default(first_event, ComponentProps::Type, EventType::Event);
-        let tag = get_string_property(first_event, ComponentProps::Tag);
-        let status =
-            get_property_or_default(first_event, ComponentProps::Status, EventStatus::Todo);
-        let original_text = get_string_property(first_event, ComponentProps::OriginalText);
-        let importance = get_int_property(first_event, ComponentProps::Importance);
-        let urgency = get_int_property(first_event, ComponentProps::Urgency);
-        let load = get_int_property(first_event, ComponentProps::Load);
-        let postponed = get_int_property(first_event, ComponentProps::Postponed);
+        let GeneralComponentProps {
+            uid,
+            summary,
+            description,
+            event_type,
+            tag,
+            urgency,
+            status,
+            original_text,
+            importance,
+            load,
+            postponed,
+            last_modified,
+        } = GeneralComponentProps::try_from(first_event)?;
 
-        let Some((uid, starts_at, ends_at)) = values else {
-            return Ok(None);
-        };
+        let (starts_at, ends_at) = get_start_and_end(&calendar_item)?;
+
         let new_event = NewEvent {
             calendar_id: cal_id,
             uid: uid.to_string(),
@@ -280,12 +281,13 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/basic.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewEvent::new(1, "/hello".into(), ics).unwrap().unwrap();
+        let event = NewEvent::new_from_ical_data(1, "/hello".into(), ics)
+            .unwrap()
+            .unwrap();
 
         let result = event.get_rrule();
         assert!(result.is_some());
         let rrule_set = result.unwrap();
-        println!("{:#?}", rrule_set);
         assert_eq!(
             *rrule_set.get_dt_start(),
             Tz::UTC.with_ymd_and_hms(2024, 5, 20, 13, 0, 0).unwrap()
@@ -298,7 +300,9 @@ mod tests {
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
 
-        let event = NewEvent::new(1, "/hello".into(), ics).unwrap().unwrap();
+        let event = NewEvent::new_from_ical_data(1, "/hello".into(), ics)
+            .unwrap()
+            .unwrap();
         let recurrence = event.get_recurrence_for_date(
             Tz::America__Buenos_Aires
                 .with_ymd_and_hms(2025, 4, 10, 13, 0, 0)
@@ -321,7 +325,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewEvent::new(1, "/cal".into(), ics);
+        let event = NewEvent::new_from_ical_data(1, "/cal".into(), ics);
 
         assert!(event.is_ok());
         let event = event.unwrap();
