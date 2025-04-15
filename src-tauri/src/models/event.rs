@@ -127,6 +127,38 @@ pub trait EventTrait: IcalParseableTrait {
     }
 
     /// Parsed the recurrence of the event using the [`Event::ical_data`]
+    fn get_rrule_from_ical(&self) -> Option<RRuleSet> {
+        let event = self.parse_ical_data().ok()?;
+        let rrule = get_string_property(&event, ComponentProps::RRule)?;
+        let start_str = get_start_string(&event)?;
+
+        let r_date = get_string_property(&event, ComponentProps::RDate);
+        let ex_date = get_string_property(&event, ComponentProps::Exdate);
+        let mut rule_set_string = format!(
+            "{start_str}\
+        RRULE:{rrule}"
+        );
+
+        if let Some(r_date) = r_date {
+            rule_set_string = format!(
+                "
+        {rule_set_string}\n\
+        RDATE:{r_date}"
+            );
+        }
+
+        if let Some(ex_date) = ex_date {
+            rule_set_string = format!(
+                "
+        {rule_set_string}\n\
+        EXDATE:{ex_date}"
+            );
+        }
+        let rrule: Result<RRuleSet, RRuleError> = rule_set_string.parse();
+        rrule.ok()
+    }
+
+    /// Parsed the recurrence of the event using the [`Event::ical_data`]
     fn get_rrule(&self) -> Option<RRuleSet> {
         let rrule_str = self.get_rrule_str()?;
         let rrule: Result<RRuleSet, RRuleError> = rrule_str.parse();
@@ -334,7 +366,7 @@ impl NewEvent {
             urgency,
             postponed,
         };
-        let rrule_str = new_event.get_rrule().map(|r| r.to_string());
+        let rrule_str = new_event.get_rrule_from_ical().map(|r| r.to_string());
         Ok(Some(NewEvent {
             has_rrule: rrule_str.is_some(),
             rrule_str,
@@ -455,6 +487,7 @@ mod tests {
         assert!(event.is_some());
         let event = event.unwrap();
 
+        println!("{:#?}", event);
         let vevent = icalendar::Event::try_from(event.clone()).unwrap();
 
         assert_eq!(vevent.get_summary().unwrap(), event.summary);
