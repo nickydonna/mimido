@@ -1,4 +1,7 @@
-use crate::schema::*;
+use crate::{
+    calendar_items::{event_status::EventStatus, event_type::EventType},
+    schema::*,
+};
 use diesel::prelude::*;
 
 pub(crate) mod event;
@@ -44,6 +47,14 @@ pub struct NewCalendar {
 
 pub trait IcalParseableTrait {
     fn get_ical_data(&self) -> String;
+    fn get_summary(&self) -> String;
+    fn get_description(&self) -> Option<String>;
+    fn get_postponed(&self) -> i32;
+    fn get_load(&self) -> i32;
+    fn get_urgency(&self) -> i32;
+    fn get_importance(&self) -> i32;
+    fn get_status(&self) -> EventStatus;
+    fn get_type(&self) -> EventType;
     fn parse_ical_data(&self) -> Result<icalendar::Event, String> {
         let cal: icalendar::Calendar = self.get_ical_data().parse()?;
         let events = cal

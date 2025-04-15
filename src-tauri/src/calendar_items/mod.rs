@@ -1,5 +1,7 @@
-use chrono::{DateTime, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveTime, TimeZone, Utc};
 use icalendar::DatePerhapsTime;
+
+use crate::models::{event::EventTrait, todo::TodoTrait};
 
 pub(crate) mod component_props;
 pub(crate) mod date_parser;
@@ -8,6 +10,50 @@ pub(crate) mod event_status;
 pub(crate) mod event_type;
 pub(crate) mod rrule_parser;
 
+pub(crate) enum CalendarItem<E: EventTrait, T: TodoTrait> {
+    Event(E),
+    Todo(T),
+}
+
+impl<E: EventTrait, T: TodoTrait> ToInput for CalendarItem<E, T> {
+    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
+        let timezone = date_of_input.timezone();
+        match self {
+            CalendarItem::Event(event) => {
+                let start = event.get_start().with_timezone(&timezone);
+                let end = event.get_end().with_timezone(&timezone);
+                let date_string = if end - start < Duration::days(1) {
+                    format!(
+                        "at {} {}-{}",
+                        start.format("%d/%m/%y"),
+                        start.format("%H:%M"),
+                        end.format("%H:%M")
+                    )
+                } else {
+                    format!(
+                        "at {}-{}",
+                        start.format("%d/%m/%y %H:%M"),
+                        end.format("%d/%m/%y %H:%M"),
+                    )
+                };
+                format!(
+                    "{} {} {} {}",
+                    event.get_type(),
+                    event.get_status(),
+                    event.get_summary(),
+                    date_string
+                )
+            }
+            CalendarItem::Todo(todo) => format!(
+                "{} {} {}",
+                todo.get_type(),
+                todo.get_status(),
+                todo.get_summary()
+            ),
+        }
+    }
+}
+
 trait ExtractableFromInput {
     fn extract_from_input(
         date_of_input: DateTime<chrono_tz::Tz>,
@@ -15,6 +61,10 @@ trait ExtractableFromInput {
     ) -> Result<(Self, String), String>
     where
         Self: Sized;
+}
+
+trait ToInput {
+    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String;
 }
 
 pub fn date_from_calendar_to_utc(

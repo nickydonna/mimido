@@ -1,11 +1,15 @@
 use std::str::FromStr;
 
-use chrono::{DateTime, Datelike, Duration, NaiveTime, TimeDelta, Utc};
+use chrono::{
+    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Utc,
+};
 use regex::{Match, Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 
 #[derive(Copy, Clone, Debug, strum_macros::EnumIter)]
 enum DateExpressionCases {
+    AbsoluteDates,
+    AbsoluteRange,
     Tomorrow,
     Today,
     NextWeek,
@@ -49,6 +53,8 @@ const NAMED_TIME_RE: &str = r"(at +)?(?P<time>morning|noon|afternoon|night|eveni
 impl From<DateExpressionCases> for Regex {
     fn from(value: DateExpressionCases) -> Self {
         let re_str = match value {
+            DateExpressionCases::AbsoluteDates => r"at (?P<start>\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})-(?P<end>\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})".to_string(),
+            DateExpressionCases::AbsoluteRange => r"at (?P<date>\d{2}\/\d{2}\/\d{2}) (?P<start_time>\d{2}:\d{2})-(?P<end_time>\d{2}:\d{2})".to_string(),
             DateExpressionCases::Tomorrow => r"tomorrow".to_string(),
             DateExpressionCases::Today => r"today".to_string(),
             DateExpressionCases::NextWeek => r"next week".to_string(),
@@ -180,60 +186,102 @@ impl EventDate {
         date_string: &str,
         reference_date: DateTime<chrono_tz::Tz>,
     ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>, String)> {
+        let tz = reference_date.timezone();
         let (case, re) = DateExpressionCases::iter()
             .map(|case| (case, Regex::from(case)))
             .find(|(_, re)| re.is_match(date_string))?;
 
-        let (duration, (start, end, stripped_string)): (
-            TimeDelta,
-            (NaiveTime, Option<NaiveTime>, String),
-        ) = match case {
-            DateExpressionCases::Tomorrow => {
-                let matched = re.find(date_string)?;
-                let stripped = Self::remove_matched(date_string, matched);
-                let time = Self::get_time(&stripped);
-                (Duration::days(1), time)
-            }
-            DateExpressionCases::Today => {
-                let matched = re.find(date_string)?;
-                let stripped = Self::remove_matched(date_string, matched);
-                let time = Self::get_time(&stripped);
-                (Duration::days(0), time)
-            }
-            DateExpressionCases::NextWeek => {
-                let matched = re.find(date_string)?;
-                let stripped = Self::remove_matched(date_string, matched);
-                let time = Self::get_time(&stripped);
-                (Duration::weeks(1), time)
-            }
-            DateExpressionCases::NextWeekday => {
-                let weekday = re
-                    .captures(date_string)?
-                    .name("weekday")?
-                    .as_str()
-                    .parse::<chrono::Weekday>()
-                    .ok()?;
-                let duration = weekday.days_since(reference_date.weekday());
-                let matched = re.find(date_string)?;
-                let stripped = Self::remove_matched(date_string, matched);
-                let time = Self::get_time(&stripped);
-                (Duration::days(duration as i64), time)
-            }
-            DateExpressionCases::RelativeTime => {
-                let caps = re.captures(date_string)?;
-                let (Some(number), Some(unit)) = (caps.name("number"), caps.name("unit")) else {
-                    return None;
-                };
-                let num = number.as_str().parse::<u32>().ok()?;
-                let duration = Self::parse_relative_time(num, unit.as_str())?;
-                let matched = re.find(date_string)?;
-                let stripped = Self::remove_matched(date_string, matched);
-                let time = Self::get_time(&stripped);
-                (duration, time)
-            }
-        };
+        let (start, end, stripped_string): (DateTime<Utc>, Option<DateTime<Utc>>, String) =
+            match case {
+                DateExpressionCases::AbsoluteDates => {
+                    let matched = re.captures(date_string)?;
+                    let start = matched.name("start")?.as_str();
+                    let start = NaiveDateTime::parse_from_str(start, "%d/%m/%y %H:%M").ok()?;
+                    let start = tz.from_local_datetime(&start).earliest()?.to_utc();
+                    let end = matched.name("end")?.as_str();
+                    let end = NaiveDateTime::parse_from_str(end, "%d/%m/%y %H:%M").ok()?;
+                    let end = tz.from_local_datetime(&end).earliest()?.to_utc();
+                    let stripped = Self::remove_matched(date_string, matched.get(0)?);
+                    (start, Some(end), stripped)
+                }
+                DateExpressionCases::AbsoluteRange => {
+                    let matched = re.captures(date_string)?;
+                    let base = matched.name("date")?.as_str();
+                    let base = NaiveDate::parse_from_str(base, "%d/%m/%y").ok()?;
+                    let start_time = matched.name("start_time")?.as_str();
+                    let start_time = NaiveTime::parse_from_str(start_time, "%H:%M").ok()?;
+                    let end_time = matched.name("end_time")?.as_str();
+                    let end_time = NaiveTime::parse_from_str(end_time, "%H:%M").ok()?;
+                    let start = tz
+                        .from_local_datetime(&base.and_time(start_time))
+                        .earliest()?
+                        .to_utc();
+                    let end = tz
+                        .from_local_datetime(&base.and_time(end_time))
+                        .earliest()?
+                        .to_utc();
+                    let stripped = Self::remove_matched(date_string, matched.get(0)?);
+                    (start, Some(end), stripped)
+                }
+                DateExpressionCases::Tomorrow => {
+                    let matched = re.find(date_string)?;
+                    let stripped = Self::remove_matched(date_string, matched);
+                    let (s, e, stripped) = Self::get_time(&stripped);
+                    let (start, end) =
+                        Self::calculate_utc_date(reference_date, Duration::days(1), s, e)?;
+                    (start, end, stripped)
+                }
+                DateExpressionCases::Today => {
+                    let matched = re.find(date_string)?;
+                    let stripped = Self::remove_matched(date_string, matched);
+                    let (s, e, stripped) = Self::get_time(&stripped);
+                    let (start, end) =
+                        Self::calculate_utc_date(reference_date, Duration::days(0), s, e)?;
+                    (start, end, stripped)
+                }
+                DateExpressionCases::NextWeek => {
+                    let matched = re.find(date_string)?;
+                    let stripped = Self::remove_matched(date_string, matched);
+                    let (s, e, stripped) = Self::get_time(&stripped);
+                    let (start, end) =
+                        Self::calculate_utc_date(reference_date, Duration::weeks(1), s, e)?;
+                    (start, end, stripped)
+                }
+                DateExpressionCases::NextWeekday => {
+                    let weekday = re
+                        .captures(date_string)?
+                        .name("weekday")?
+                        .as_str()
+                        .parse::<chrono::Weekday>()
+                        .ok()?;
+                    let duration = weekday.days_since(reference_date.weekday());
+                    let matched = re.find(date_string)?;
+                    let stripped = Self::remove_matched(date_string, matched);
+                    let (s, e, stripped) = Self::get_time(&stripped);
+                    let (start, end) = Self::calculate_utc_date(
+                        reference_date,
+                        Duration::days(duration as i64),
+                        s,
+                        e,
+                    )?;
+                    (start, end, stripped)
+                }
+                DateExpressionCases::RelativeTime => {
+                    let caps = re.captures(date_string)?;
+                    let (Some(number), Some(unit)) = (caps.name("number"), caps.name("unit"))
+                    else {
+                        return None;
+                    };
+                    let num = number.as_str().parse::<u32>().ok()?;
+                    let duration = Self::parse_relative_time(num, unit.as_str())?;
+                    let matched = re.find(date_string)?;
+                    let stripped = Self::remove_matched(date_string, matched);
+                    let (s, e, stripped) = Self::get_time(&stripped);
+                    let (start, end) = Self::calculate_utc_date(reference_date, duration, s, e)?;
+                    (start, end, stripped)
+                }
+            };
 
-        let (start, end) = Self::calculate_utc_date(reference_date, duration, start, end)?;
         Some((start, end, stripped_string))
     }
 }
@@ -254,9 +302,11 @@ mod tests {
     #[test]
     fn test_tomorrow() {
         let reference = create_test_date();
-        let result = EventDate::from_natural("tomorrow", reference).unwrap().0;
+        let (result, end, stripped) = EventDate::from_natural("tomorrow", reference).unwrap();
         let expected = reference + Duration::days(1);
         assert_eq!(result.date_naive(), expected.date_naive());
+        assert!(end.is_none());
+        assert_eq!(stripped, "");
     }
 
     #[test]
@@ -273,6 +323,44 @@ mod tests {
         assert_eq!(result.date_naive(), expected.date_naive());
         assert_eq!(result.hour(), expected.hour());
         assert_eq!(result.minute(), expected.minute());
+    }
+
+    #[test]
+    fn test_absolute_dates() {
+        let reference = create_test_date();
+        let (start, end, stripped) =
+            EventDate::from_natural("hello at 03/03/25 14:30-04/03/25 14:30", reference).unwrap();
+        let expected = Utc.with_ymd_and_hms(2025, 3, 3, 14, 30, 0).unwrap();
+        assert_eq!(stripped, "hello");
+        assert_eq!(start.date_naive(), expected.date_naive());
+        assert_eq!(start.hour(), expected.hour());
+        assert_eq!(start.minute(), expected.minute());
+
+        assert!(end.is_some());
+        let end = end.unwrap();
+        let expected = Utc.with_ymd_and_hms(2025, 3, 4, 14, 30, 0).unwrap();
+        assert_eq!(end.date_naive(), expected.date_naive());
+        assert_eq!(end.hour(), expected.hour());
+        assert_eq!(end.minute(), expected.minute());
+    }
+
+    #[test]
+    fn test_absolute_ranges() {
+        let reference = create_test_date();
+        let (start, end, stripped) =
+            EventDate::from_natural("hello at 03/03/25 14:30-15:30", reference).unwrap();
+        assert_eq!(stripped, "hello");
+        let expected = Utc.with_ymd_and_hms(2025, 3, 3, 14, 30, 0).unwrap();
+        assert_eq!(start.date_naive(), expected.date_naive());
+        assert_eq!(start.hour(), expected.hour());
+        assert_eq!(start.minute(), expected.minute());
+
+        assert!(end.is_some());
+        let end = end.unwrap();
+        let expected = Utc.with_ymd_and_hms(2025, 3, 3, 15, 30, 0).unwrap();
+        assert_eq!(end.date_naive(), expected.date_naive());
+        assert_eq!(end.hour(), expected.hour());
+        assert_eq!(end.minute(), expected.minute());
     }
 
     #[test]

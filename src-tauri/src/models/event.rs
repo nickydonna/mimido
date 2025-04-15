@@ -97,6 +97,8 @@ fn get_start_string(event: &icalendar::Event) -> Option<String> {
 }
 
 pub trait EventTrait: IcalParseableTrait {
+    fn get_start(&self) -> DateTime<Utc>;
+    fn get_end(&self) -> DateTime<Utc>;
     fn get_rrule(&self) -> Option<RRuleSet> {
         let event = self.parse_ical_data().ok()?;
         let rrule = get_string_property(&event, ComponentProps::RRule)?;
@@ -153,16 +155,91 @@ impl IcalParseableTrait for Event {
     fn get_ical_data(&self) -> String {
         self.ical_data.clone()
     }
+
+    fn get_summary(&self) -> String {
+        self.summary.clone()
+    }
+
+    fn get_description(&self) -> Option<String> {
+        self.description.clone()
+    }
+
+    fn get_postponed(&self) -> i32 {
+        self.postponed
+    }
+
+    fn get_load(&self) -> i32 {
+        self.load
+    }
+
+    fn get_urgency(&self) -> i32 {
+        self.urgency
+    }
+
+    fn get_importance(&self) -> i32 {
+        self.importance
+    }
+    fn get_status(&self) -> EventStatus {
+        self.status
+    }
+    fn get_type(&self) -> EventType {
+        self.event_type
+    }
 }
-impl EventTrait for Event {}
+impl EventTrait for Event {
+    fn get_start(&self) -> DateTime<Utc> {
+        self.starts_at
+    }
+
+    fn get_end(&self) -> DateTime<Utc> {
+        self.ends_at
+    }
+}
 
 impl IcalParseableTrait for NewEvent {
     fn get_ical_data(&self) -> String {
         self.ical_data.clone()
     }
+    fn get_summary(&self) -> String {
+        self.summary.clone()
+    }
+
+    fn get_description(&self) -> Option<String> {
+        self.description.clone()
+    }
+
+    fn get_postponed(&self) -> i32 {
+        self.postponed
+    }
+
+    fn get_load(&self) -> i32 {
+        self.load
+    }
+
+    fn get_urgency(&self) -> i32 {
+        self.urgency
+    }
+
+    fn get_importance(&self) -> i32 {
+        self.importance
+    }
+    fn get_status(&self) -> EventStatus {
+        self.status
+    }
+    fn get_type(&self) -> EventType {
+        self.event_type
+    }
 }
 
-impl EventTrait for NewEvent {}
+impl EventTrait for NewEvent {
+    fn get_start(&self) -> DateTime<Utc> {
+        self.starts_at
+    }
+
+    fn get_end(&self) -> DateTime<Utc> {
+        self.ends_at
+    }
+}
 
 fn get_start_and_end(
     calendar: &icalendar::Calendar,

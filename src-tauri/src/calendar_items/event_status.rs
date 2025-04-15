@@ -8,10 +8,11 @@ use diesel::{
 };
 use regex::RegexBuilder;
 
-use super::ExtractableFromInput;
+use super::{ExtractableFromInput, ToInput};
 
 #[derive(
     Debug,
+    Copy,
     Clone,
     PartialEq,
     serde::Serialize,
@@ -83,5 +84,11 @@ impl ExtractableFromInput for EventStatus {
                 .trim()
                 .to_string(),
         ))
+    }
+}
+
+impl ToInput for EventStatus {
+    fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
+        format!("%{}", self)
     }
 }
