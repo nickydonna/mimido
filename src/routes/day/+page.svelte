@@ -21,18 +21,15 @@
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
-  import { commands, type Event, type EventType } from "../../bindings";
-  import { unwrap } from "../../result";
+  import { type Event, type EventType } from "../../bindings";
   import { timeStore } from "../../stores/times";
-  import { page } from "$app/state";
   import EventCard from "$lib/components/event-card";
   import { Spinner } from "flowbite-svelte";
+  import type { PageProps } from "./$types";
 
-  let dateParam = $derived(page.url.searchParams.get("date"));
-  let date = $derived.by(() => {
-    return dateParam != null ? parseISO(dateParam) : new Date();
-  });
-  let events = $state<ParsedEvent[] | undefined>(undefined);
+  let { data }: PageProps = $props();
+  let { date, events } = $derived(data);
+
   let loading = $state(false);
   let dragging = $state<Event | undefined>(undefined);
   let currentTimeInView = $state(false);
@@ -76,20 +73,6 @@
   });
 
   const modalZIndex = 40;
-  $effect(() => {
-    loading = true;
-    commands.listEventsForDay(formatISO(date)).then((result) => {
-      const unwrapped = unwrap(result);
-      events = unwrapped.map((e) => ({
-        ...e.event,
-        starts_at: parseISO(e.starts_at),
-        ends_at: parseISO(e.ends_at),
-        natural_recurrence: e.natural_recurrence ?? undefined,
-      }));
-      loading = false;
-    });
-  });
-
   const scrollCurrentIntoView = () => {
     document.getElementById("current-time")?.scrollIntoView({
       block: "center",

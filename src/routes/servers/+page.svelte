@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
     Card,
-    Avatar,
     Button,
     Input,
     Label,
@@ -12,25 +11,18 @@
     Spinner,
   } from "flowbite-svelte";
   import { commands, type Server, type Result } from "../../bindings";
+  import { invalidateAll } from "$app/navigation";
+  import type { PageProps } from "./$types";
 
-  let loading = $state(false);
-  let servers = $state<Server[]>([]);
+  let { data }: PageProps = $props();
 
-  async function loadServers() {
-    loading = true;
-    servers = await commands.listServers();
-    loading = false;
-  }
-
-  $effect(() => {
-    loadServers();
-  });
+  let { servers } = $derived(data);
 
   let syncingCalendars = $state(false);
   const syncAllCalendars = async () => {
     syncingCalendars = true;
     await commands.syncAllCalendars();
-    await loadServers();
+    await invalidateAll();
     syncingCalendars = false;
   };
 
@@ -49,6 +41,7 @@
     const password = data.get("password") as string;
     const response = await commands.createServer(server, user, password);
     result = response;
+    await invalidateAll();
     creating = false;
   }
 </script>
@@ -73,11 +66,7 @@
     </div>
   </div>
 </Card>
-{#if loading}
-  <div class="flex justify-center">
-    <Spinner size="xl" />
-  </div>
-{:else if servers.length === 0}
+{#if servers.length === 0}
   <div class="flex flex-col items-center">
     <h3 class="mb-2 text-xl font-medium text-gray-900 dark:text-white">
       No servers found
