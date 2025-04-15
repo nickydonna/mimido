@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, NaiveTime, TimeZone, Utc};
 use icalendar::DatePerhapsTime;
+use input_traits::ToInput;
 
 use crate::models::{event::EventTrait, todo::TodoTrait};
 
@@ -8,6 +9,7 @@ pub(crate) mod date_parser;
 pub(crate) mod event_creator;
 pub(crate) mod event_status;
 pub(crate) mod event_type;
+pub(crate) mod input_traits;
 pub(crate) mod rrule_parser;
 
 pub(crate) enum CalendarItem<E: EventTrait, T: TodoTrait> {
@@ -20,8 +22,12 @@ impl<E: EventTrait, T: TodoTrait> ToInput for CalendarItem<E, T> {
         let timezone = date_of_input.timezone();
         match self {
             CalendarItem::Event(event) => {
-                let start = event.get_start().with_timezone(&timezone);
-                let end = event.get_end().with_timezone(&timezone);
+                let start = event
+                    .get_start_for_date(date_of_input)
+                    .with_timezone(&timezone);
+                let end = event
+                    .get_end_for_date(date_of_input)
+                    .with_timezone(&timezone);
                 let date_string = if end - start < Duration::days(1) {
                     format!(
                         "at {} {}-{}",
@@ -38,8 +44,8 @@ impl<E: EventTrait, T: TodoTrait> ToInput for CalendarItem<E, T> {
                 };
                 format!(
                     "{} {} {} {}",
-                    event.get_type(),
-                    event.get_status(),
+                    event.get_type().to_input(date_of_input),
+                    event.get_status().to_input(date_of_input),
                     event.get_summary(),
                     date_string
                 )
@@ -52,19 +58,6 @@ impl<E: EventTrait, T: TodoTrait> ToInput for CalendarItem<E, T> {
             ),
         }
     }
-}
-
-trait ExtractableFromInput {
-    fn extract_from_input(
-        date_of_input: DateTime<chrono_tz::Tz>,
-        input: &str,
-    ) -> Result<(Self, String), String>
-    where
-        Self: Sized;
-}
-
-trait ToInput {
-    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String;
 }
 
 pub fn date_from_calendar_to_utc(

@@ -3,7 +3,7 @@ use regex::{Regex, RegexBuilder};
 use rrule::{Frequency, NWeekday, RRule, RRuleSet, Weekday};
 use strum::IntoEnumIterator;
 
-use super::ExtractableFromInput;
+use super::input_traits::ExtractableFromInput;
 
 #[derive(Copy, Clone, Debug, strum_macros::EnumIter)]
 enum NaturalLangCases {

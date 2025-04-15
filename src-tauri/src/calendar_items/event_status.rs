@@ -8,7 +8,7 @@ use diesel::{
 };
 use regex::RegexBuilder;
 
-use super::{ExtractableFromInput, ToInput};
+use super::input_traits::{ExtractableFromInput, ToInput};
 
 #[derive(
     Debug,

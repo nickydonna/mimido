@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use libdav::FetchedResource;
 
-use super::IcalParseableTrait;
+use super::{event::NewEvent, IcalParseableTrait};
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
 #[diesel(table_name = todos)]
@@ -51,6 +51,17 @@ pub struct NewTodo {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+}
+
+impl TodoTrait for NewTodo {
+    fn get_start(&self) -> Option<DateTime<Utc>> {
+        None
+    }
+}
+impl TodoTrait for Todo {
+    fn get_start(&self) -> Option<DateTime<Utc>> {
+        None
+    }
 }
 
 impl IcalParseableTrait for Todo {

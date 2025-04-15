@@ -8,7 +8,7 @@ use crate::{
     },
     schema::*,
 };
-use chrono::{DateTime, Days, NaiveDateTime, Utc};
+use chrono::{DateTime, Days, NaiveDateTime, TimeZone, Utc};
 use diesel::prelude::*;
 use icalendar::{Component, DatePerhapsTime};
 use libdav::FetchedResource;
@@ -99,6 +99,21 @@ fn get_start_string(event: &icalendar::Event) -> Option<String> {
 pub trait EventTrait: IcalParseableTrait {
     fn get_start(&self) -> DateTime<Utc>;
     fn get_end(&self) -> DateTime<Utc>;
+    fn get_start_for_date<Tz: TimeZone>(&self, base_date: DateTime<Tz>) -> DateTime<Tz> {
+        let tz = base_date.timezone();
+        let val = self
+            .get_next_recurrence_from_date(base_date)
+            .map(|d| d.with_timezone(&tz));
+        match val {
+            Some(date) => date,
+            None => self.get_start().with_timezone(&tz),
+        }
+    }
+    fn get_end_for_date<Tz: TimeZone>(&self, base_date: DateTime<Tz>) -> DateTime<Tz> {
+        let duration = self.get_end() - self.get_start();
+        self.get_start_for_date(base_date) + duration
+    }
+
     fn get_rrule(&self) -> Option<RRuleSet> {
         let event = self.parse_ical_data().ok()?;
         let rrule = get_string_property(&event, ComponentProps::RRule)?;
@@ -135,19 +150,19 @@ pub trait EventTrait: IcalParseableTrait {
             .and_then(|r| EventRecurrence::to_natural_language(&r).ok())
     }
 
-    fn get_recurrence_for_date(&self, date: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    fn get_next_recurrence_from_date<Tz: TimeZone>(
+        &self,
+        date: DateTime<Tz>,
+    ) -> Option<DateTime<Tz>> {
         let rule_set = self.get_rrule()?;
-        let start = date.beginning_of_day();
-        let end = date.end_of_day();
 
-        let r_rule = rule_set.after(date.with_timezone(&rrule::Tz::UTC) - Days::new(1));
+        let r_rule = rule_set.after(date.with_timezone(&rrule::Tz::UTC));
         r_rule
             .clone()
-            .all(2)
+            .all(1)
             .dates
-            .into_iter()
-            .find(|d| d >= &start && d <= &end)
-            .map(|d| d.to_utc())
+            .first()
+            .map(|d| d.with_timezone(&date.timezone()))
     }
 }
 
@@ -351,6 +366,11 @@ mod tests {
     use chrono::{NaiveDate, TimeZone};
     use rrule::Tz;
 
+    use crate::{
+        calendar_items::{input_traits::ToInput, CalendarItem},
+        models::todo::NewTodo,
+    };
+
     use super::*;
 
     #[test]
@@ -369,6 +389,20 @@ mod tests {
             *rrule_set.get_dt_start(),
             Tz::UTC.with_ymd_and_hms(2024, 5, 20, 13, 0, 0).unwrap()
         );
+        let date_of_input = chrono_tz::Tz::UTC
+            .with_ymd_and_hms(2025, 3, 15, 12, 0, 0)
+            .unwrap();
+        assert_eq!(
+            event.get_start_for_date(date_of_input),
+            chrono_tz::Tz::UTC
+                .with_ymd_and_hms(2025, 3, 17, 13, 0, 0)
+                .unwrap()
+        );
+
+        assert_eq!(
+            CalendarItem::<NewEvent, NewTodo>::Event(event).to_input(date_of_input),
+            "@block %todo Work at 17/03/25 13:00-16:00"
+        );
     }
 
     #[test]
@@ -380,7 +414,7 @@ mod tests {
         let event = NewEvent::new_from_ical_data(1, "/hello".into(), ics)
             .unwrap()
             .unwrap();
-        let recurrence = event.get_recurrence_for_date(
+        let recurrence = event.get_next_recurrence_from_date(
             Tz::America__Buenos_Aires
                 .with_ymd_and_hms(2025, 4, 10, 13, 0, 0)
                 .unwrap()

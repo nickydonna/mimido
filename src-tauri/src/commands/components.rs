@@ -26,24 +26,19 @@ impl ExtendedEvent {
             );
             return None;
         }
-        if !event.has_rrule {
-            return Some(Self {
+        let base = query_date.beginning_of_day();
+        let starts_at = event.get_start_for_date(base);
+        let ends_at = event.get_end_for_date(base);
+        if starts_at > base && starts_at > query_date.end_of_day() {
+            Some(Self {
                 event: event.clone(),
-                starts_at: event.starts_at,
-                ends_at: event.ends_at,
+                starts_at,
+                ends_at,
                 natural_recurrence: None,
-            });
+            })
+        } else {
+            None
         }
-
-        let duration = event.ends_at - event.starts_at;
-
-        let occurance_date = event.get_recurrence_for_date(query_date)?;
-        event.get_occurrence_natural().map(|nat| Self {
-            event: event.clone(),
-            starts_at: occurance_date.to_utc(),
-            ends_at: (occurance_date + duration).to_utc(),
-            natural_recurrence: Some(nat),
-        })
     }
 }
 

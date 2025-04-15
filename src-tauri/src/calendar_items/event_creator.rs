@@ -2,8 +2,10 @@ use chrono::{DateTime, Duration, Utc};
 
 use super::{
     date_parser::EventDate, event_status::EventStatus, event_type::EventType,
-    rrule_parser::EventRecurrence, ExtractableFromInput,
+    rrule_parser::EventRecurrence,
 };
+
+use super::input_traits::ExtractableFromInput;
 use crate::models::{event::NewEvent, todo::NewTodo};
 
 enum CalendarItem {
