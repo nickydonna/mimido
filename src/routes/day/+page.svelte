@@ -245,6 +245,11 @@
           {format("HH:mm", time)}
         </h2>
         <div
+          class="border border-dashed border-t-gray-900"
+          style:grid-column="event / reminder"
+          style:grid-row="time-{format('HHmm', time)}"
+        ></div>
+        <div
           class:hidden={hoverTime !== time}
           class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
           style:grid-column="event / reminder"
