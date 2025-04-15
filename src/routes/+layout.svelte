@@ -35,6 +35,10 @@
   Drawer
 </Drawer>
 <BottomNav
+  classOuter="w-full z-50 bg-primary-800 border-primary-600"
+  outerClass="w-full z-50 bg-primary-800 border-primary-600"
+  activeClass="text-primary-100 hover:text-primary-400"
+  classActive="text-primary-100 hover:text-primary-400"
   position="fixed"
   classInner="grid-cols-4"
   navType="application"

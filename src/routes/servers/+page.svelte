@@ -76,9 +76,9 @@
     </p>
   </div>
 {:else}
-  <Table class="mt-3">
+  <Table class="mt-3" color="default">
     <caption
-      class="border-b border-gray-400 bg-white p-5 text-left text-lg font-semibold text-gray-900 dark:bg-gray-800 dark:text-white"
+      class="border-b rounded-t border-primary-400 p-5 text-left text-lg font-semibold bg-primary-800 text-primary-200"
     >
       Added Servers
     </caption>
@@ -107,9 +107,7 @@
   </Table>
 {/if}
 <form class="flex flex-col space-y-6 mt-5" onsubmit={addServer}>
-  <h3 class="p-0 text-xl font-medium text-gray-900 dark:text-white">
-    Add Server
-  </h3>
+  <h3 class="p-0 text-xl font-medium text-primary-200">Add Server</h3>
   {#if creating}
     <div class="flex justify-center">
       <div>

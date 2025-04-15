@@ -30,7 +30,6 @@
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
 
-  let loading = $state(false);
   let dragging = $state<Event | undefined>(undefined);
   let currentTimeInView = $state(false);
   let currentTime: Date = $state(new Date());
@@ -126,56 +125,53 @@
 
 <div>
   <div
-    class="flex sticky top-0 bg-gray-900 py-3 px-1"
+    class="flex sticky top-0 bg-primary-950 py-3 px-1"
     style:z-index={modalZIndex - 2}
   >
     <div class="flex-1">
-      <p class="text-lg md:text-4xl dark:text-white">
+      <p class="text-lg md:text-4xl text-primary-200">
         {format("E do MMM yy ", date)}
       </p>
     </div>
     <ButtonGroup size="xs">
       <Button
+        color="primary"
         size="xs"
         href="/day?date={formatISO(subDays(1, startOfDay(date)))}"
       >
         <AngleLeftOutline />
       </Button>
-      <Button size="xs" href="/day?date={formatISO(startOfDay(currentTime))}"
-        >Today</Button
+      <Button
+        size="xs"
+        color="primary"
+        href="/day?date={formatISO(startOfDay(currentTime))}">Today</Button
       >
       <Button
         size="xs"
+        color="primary"
         href="/day?date={formatISO(addDays(1, startOfDay(date)))}"
       >
         <AngleRightOutline />
       </Button>
     </ButtonGroup>
   </div>
-  {#if loading}
-    <div
-      class="z-[1000] absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-    >
-      <Spinner size="xl" class="h-24 w-24" />
-    </div>
-  {/if}
   <div
-    class="flex sticky top-0 bg-gray-900 py-3 px-1"
+    class="flex sticky top-0 bg-primary-950 py-3 px-1"
     style:z-index={modalZIndex - 2}
   >
     <div class="schedule flex-1">
       <span
-        class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+        class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
         aria-hidden="true"
         style="grid-column: event; grid-row: tracks;">Events</span
       >
       <span
-        class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+        class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
         aria-hidden="true"
         style="grid-column: task; grid-row: tracks;">Tasks</span
       >
       <span
-        class=" block bg-white p-1 pt-2 text-center text-gray-600 antialiased dark:bg-gray-900 dark:text-gray-400"
+        class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
         aria-hidden="true"
         style="grid-column: reminder; grid-row: tracks;">Reminder</span
       >
