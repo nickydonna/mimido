@@ -245,11 +245,6 @@
           {format("HH:mm", time)}
         </h2>
         <div
-          class="border border-dashed border-t-gray-900"
-          style:grid-column="event / reminder"
-          style:grid-row="time-{format('HHmm', time)}"
-        ></div>
-        <div
           class:hidden={hoverTime !== time}
           class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
           style:grid-column="event / reminder"
@@ -257,23 +252,25 @@
         >
           {format("HH:mm", time)}
         </div>
+        <div
+          aria-hidden="true"
+          class="border-t border-dotted"
+          class:z-50={dragging}
+          class:border-gray-600={getMinutes(time) === 0}
+          class:border-gray-300={getMinutes(time) === 30}
+          class:border-gray-800={getMinutes(time) !== 0 &&
+            getMinutes(time) !== 30}
+          style:grid-column="event /reminder"
+          style:grid-row="time-{format('HHmm', time)}"
+          ondragenter={() => {
+            hoverTime = time;
+          }}
+          ondrop={(e) => {
+            // handleDropOnTime(e, time);
+          }}
+          ondragover={() => false}
+        ></div>
         {#each sortedEvents as [type, events], i}
-          <div
-            aria-hidden="true"
-            class="border-t border-dotted"
-            class:z-50={dragging}
-            class:border-gray-600={getMinutes(time) === 0}
-            class:border-gray-300={getMinutes(time) === 30}
-            style:grid-column={type}
-            style:grid-row="time-{format('HHmm', time)}"
-            ondragenter={() => {
-              hoverTime = time;
-            }}
-            ondrop={(e) => {
-              // handleDropOnTime(e, time);
-            }}
-            ondragover={() => false}
-          ></div>
           {#each events.filter((e) => timeCheck(e, check)) as e, k}
             <div
               tabindex={i * 10 + (k + 1)}
