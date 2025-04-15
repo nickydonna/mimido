@@ -1,6 +1,5 @@
 <script lang="ts">
   import {
-    parseISO,
     formatISO,
     getMinutes,
     isSameMinute,
@@ -24,7 +23,6 @@
   import { type Event, type EventType } from "../../bindings";
   import { timeStore } from "../../stores/times";
   import EventCard from "$lib/components/event-card";
-  import { Spinner } from "flowbite-svelte";
   import type { PageProps } from "./$types";
 
   let { data }: PageProps = $props();
@@ -133,7 +131,7 @@
         {format("E do MMM yy ", date)}
       </p>
     </div>
-    <ButtonGroup size="xs">
+    <ButtonGroup size="md">
       <Button
         color="primary"
         size="xs"
@@ -178,8 +176,8 @@
 
       {#if !currentTimeInView && !dragging}
         <Button
-          class="fixed bottom-[6rem] end-6 z-40"
-          on:click={scrollCurrentIntoView}
+          class="fixed bottom-[2rem] end-6 z-40"
+          onclick={scrollCurrentIntoView}
         >
           Current Time
         </Button>

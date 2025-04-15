@@ -5,17 +5,9 @@
   import BottomNav from "flowbite-svelte/BottomNav.svelte";
   import BottomNavItem from "flowbite-svelte/BottomNavItem.svelte";
 
-  import { sineIn } from "svelte/easing";
-  import { Drawer } from "flowbite-svelte";
   import { page } from "$app/state";
 
   let { children } = $props();
-
-  const transitionParams = {
-    y: 320,
-    duration: 200,
-    easing: sineIn,
-  };
 
   let activeUrl = $derived(page.url.pathname);
 </script>
@@ -26,23 +18,12 @@
     {@render children()}
   </div>
 </main>
-<Drawer
-  width="w-full"
-  transitionType="fly"
-  placement="bottom"
-  {transitionParams}
->
-  Drawer
-</Drawer>
 <BottomNav
-  classOuter="w-full z-50 bg-primary-800 border-primary-600"
-  outerClass="w-full z-50 bg-primary-800 border-primary-600"
-  activeClass="text-primary-100 hover:text-primary-400"
-  classActive="text-primary-100 hover:text-primary-400"
-  position="fixed"
-  classInner="grid-cols-4"
+  position="sticky"
   navType="application"
   {activeUrl}
+  outerClass="z-50 "
+  innerClass="grid-cols-2 bg-primary-500 rounded-full border-primary-700"
 >
   <BottomNavItem btnName="Day" href="/day" appBtnPosition="left">
     <CalendarEditOutline />
