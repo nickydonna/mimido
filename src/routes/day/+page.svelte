@@ -17,13 +17,13 @@
     addDays,
     subSeconds,
   } from "date-fns/fp";
-  import { getEventCardClass, type ParsedEvent } from "../lib//util";
+  import { getEventCardClass, type ParsedEvent } from "../../lib//util";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
-  import { commands, type Event, type EventType } from "../bindings";
-  import { unwrap } from "../result";
-  import { timeStore } from "../stores/times";
+  import { commands, type Event, type EventType } from "../../bindings";
+  import { unwrap } from "../../result";
+  import { timeStore } from "../../stores/times";
   import { page } from "$app/state";
   import EventCard from "$lib/components/event-card";
   import { Spinner } from "flowbite-svelte";
@@ -152,13 +152,19 @@
       </p>
     </div>
     <ButtonGroup size="xs">
-      <Button size="xs" href="/?date={formatISO(subDays(1, startOfDay(date)))}">
+      <Button
+        size="xs"
+        href="/day?date={formatISO(subDays(1, startOfDay(date)))}"
+      >
         <AngleLeftOutline />
       </Button>
-      <Button size="xs" href="/?date={formatISO(startOfDay(currentTime))}"
+      <Button size="xs" href="/day?date={formatISO(startOfDay(currentTime))}"
         >Today</Button
       >
-      <Button size="xs" href="/?date={formatISO(addDays(1, startOfDay(date)))}">
+      <Button
+        size="xs"
+        href="/day?date={formatISO(addDays(1, startOfDay(date)))}"
+      >
         <AngleRightOutline />
       </Button>
     </ButtonGroup>

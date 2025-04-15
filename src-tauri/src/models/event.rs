@@ -1,3 +1,5 @@
+use std::{str::FromStr, time::Instant};
+
 use crate::{
     calendar_items::{
         component_props::{get_string_property, ComponentProps, GeneralComponentProps},
@@ -12,7 +14,7 @@ use crate::{
 };
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use diesel::prelude::*;
-use icalendar::{Component, DatePerhapsTime};
+use icalendar::{Component, DatePerhapsTime, EventLike, Property};
 use libdav::FetchedResource;
 use rrule::{RRuleError, RRuleSet};
 
@@ -44,7 +46,7 @@ pub struct Event {
     pub last_modified: i64,
 }
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
+#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, Clone)]
 #[diesel(table_name = events)]
 pub struct NewEvent {
     pub calendar_id: i32,
@@ -236,6 +238,34 @@ macro_rules! impl_event_trait {
 impl_event_trait!(Event);
 impl_event_trait!(NewEvent);
 
+impl TryFrom<NewEvent> for icalendar::Event {
+    type Error = String;
+    fn try_from(new_event: NewEvent) -> Result<Self, String> {
+        if new_event.event_type == EventType::Task {
+            return Err("Event can't be tasks".to_string());
+        }
+        let mut vevent = icalendar::Event::new();
+        vevent.summary(&new_event.summary);
+        vevent.starts(new_event.starts_at);
+        vevent.ends(new_event.ends_at);
+        if let Some(description) = new_event.description.clone() {
+            vevent.description(&description);
+        }
+        if let Some(rrule) = new_event.get_rrule() {
+            let props = format!("{}", rrule)
+                .split("\n")
+                .filter_map(|line| icalendar::Property::from_str(line).ok())
+                .collect::<Vec<Property>>();
+            for p in props {
+                vevent.append_property(p);
+            }
+        }
+        vevent.append_property(icalendar::Property::from(new_event.status));
+        vevent.append_property(icalendar::Property::from(new_event.event_type));
+        Ok(vevent)
+    }
+}
+
 fn get_start_and_end(
     calendar: &icalendar::Calendar,
 ) -> Result<(chrono::DateTime<Utc>, chrono::DateTime<Utc>), String> {
@@ -346,7 +376,16 @@ mod tests {
     use chrono::{NaiveDate, TimeZone};
     use rrule::Tz;
 
+    use crate::calendar_items::CalendarItem;
+
     use super::*;
+
+    macro_rules! assert_property {
+        ($vevent:ident, $prop:expr, $expected:expr) => {
+            let value = $vevent.property_value($prop).unwrap();
+            assert_eq!(value, $expected);
+        };
+    }
 
     #[test]
     fn gets_the_value() {
@@ -426,5 +465,45 @@ mod tests {
             .unwrap()
             .and_utc();
         assert_eq!(event.starts_at, starts_at);
+    }
+
+    #[test]
+    fn test_to_vevent() {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("./fixtures/with_timezone.ics");
+        let ics = fs::read_to_string(d).expect("To Load file");
+        let event = NewEvent::new_from_ical_data(1, "/cal".into(), ics);
+
+        assert!(event.is_ok());
+        let event = event.unwrap();
+        assert!(event.is_some());
+        let event = event.unwrap();
+
+        let vevent = icalendar::Event::try_from(event.clone()).unwrap();
+
+        assert_eq!(vevent.get_summary().unwrap(), event.summary);
+        assert_eq!(
+            vevent.get_description().unwrap(),
+            event.description.unwrap()
+        );
+        let start = date_from_calendar_to_utc(vevent.get_start().unwrap(), chrono_tz::UTC).unwrap();
+        assert_eq!(start, event.starts_at);
+        let end = date_from_calendar_to_utc(vevent.get_end().unwrap(), chrono_tz::UTC).unwrap();
+        assert_eq!(end, event.ends_at);
+        assert_property!(
+            vevent,
+            ComponentProps::RRule.as_ref(),
+            "FREQ=WEEKLY;BYHOUR=10;BYMINUTE=30;BYSECOND=0;BYDAY=TH"
+        );
+        assert_property!(
+            vevent,
+            ComponentProps::Status.as_ref(),
+            event.status.as_ref()
+        );
+        assert_property!(
+            vevent,
+            ComponentProps::Type.as_ref(),
+            event.event_type.as_ref()
+        );
     }
 }

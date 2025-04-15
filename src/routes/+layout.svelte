@@ -40,7 +40,7 @@
   navType="application"
   {activeUrl}
 >
-  <BottomNavItem btnName="Day" href="/" appBtnPosition="left">
+  <BottomNavItem btnName="Day" href="/day" appBtnPosition="left">
     <CalendarEditOutline />
   </BottomNavItem>
   <BottomNavItem btnName="Server" href="/servers" appBtnPosition="right">

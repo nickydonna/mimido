@@ -6,9 +6,13 @@ use diesel::{
     sql_types::Text,
     sqlite::{Sqlite, SqliteValue},
 };
+use icalendar::Property;
 use regex::RegexBuilder;
 
-use super::input_traits::{ExtractableFromInput, ToInput};
+use super::{
+    component_props::ComponentProps,
+    input_traits::{ExtractableFromInput, ToInput},
+};
 
 #[derive(
     Debug,
@@ -43,6 +47,12 @@ impl ToSql<Text, Sqlite> for EventType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> diesel::serialize::Result {
         out.set_value(self.to_string());
         Ok(diesel::serialize::IsNull::No)
+    }
+}
+
+impl From<EventType> for icalendar::Property {
+    fn from(value: EventType) -> Self {
+        Property::new(ComponentProps::Type.as_ref(), value.as_ref())
     }
 }
 

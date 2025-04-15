@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{
     establish_connection,
     models::event::{Event, EventTrait},
@@ -29,7 +31,7 @@ impl ExtendedEvent {
         let base = query_date.beginning_of_day();
         let starts_at = event.get_start_for_date(base);
         let ends_at = event.get_end_for_date(base);
-        if starts_at > base && starts_at > query_date.end_of_day() {
+        if starts_at > base && starts_at < query_date.end_of_day() {
             Some(Self {
                 event: event.clone(),
                 starts_at,
