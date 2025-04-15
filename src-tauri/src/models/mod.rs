@@ -68,3 +68,44 @@ pub trait IcalParseableTrait {
             .ok_or("iCal was parsed correctly but not event was found".to_string())
     }
 }
+
+#[macro_export]
+macro_rules! impl_ical_parseable {
+    ($t: ty) => {
+        impl IcalParseableTrait for $t {
+            fn get_ical_data(&self) -> String {
+                self.ical_data.clone()
+            }
+
+            fn get_summary(&self) -> String {
+                self.summary.clone()
+            }
+
+            fn get_description(&self) -> Option<String> {
+                self.description.clone()
+            }
+
+            fn get_postponed(&self) -> i32 {
+                self.postponed
+            }
+
+            fn get_load(&self) -> i32 {
+                self.load
+            }
+
+            fn get_urgency(&self) -> i32 {
+                self.urgency
+            }
+
+            fn get_importance(&self) -> i32 {
+                self.importance
+            }
+            fn get_status(&self) -> EventStatus {
+                self.status
+            }
+            fn get_type(&self) -> EventType {
+                self.event_type
+            }
+        }
+    };
+}

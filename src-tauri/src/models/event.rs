@@ -6,6 +6,7 @@ use crate::{
         event_type::EventType,
         rrule_parser::EventRecurrence,
     },
+    impl_ical_parseable,
     schema::*,
 };
 use chrono::{DateTime, Days, NaiveDateTime, TimeZone, Utc};
@@ -96,6 +97,9 @@ fn get_start_string(event: &icalendar::Event) -> Option<String> {
     }
 }
 
+impl_ical_parseable!(Event);
+impl_ical_parseable!(NewEvent);
+
 pub trait EventTrait: IcalParseableTrait {
     fn get_start(&self) -> DateTime<Utc>;
     fn get_end(&self) -> DateTime<Utc>;
@@ -166,95 +170,22 @@ pub trait EventTrait: IcalParseableTrait {
     }
 }
 
-impl IcalParseableTrait for Event {
-    fn get_ical_data(&self) -> String {
-        self.ical_data.clone()
-    }
+macro_rules! impl_event_trait {
+    ($t: ty) => {
+        impl EventTrait for $t {
+            fn get_start(&self) -> DateTime<Utc> {
+                self.starts_at
+            }
 
-    fn get_summary(&self) -> String {
-        self.summary.clone()
-    }
-
-    fn get_description(&self) -> Option<String> {
-        self.description.clone()
-    }
-
-    fn get_postponed(&self) -> i32 {
-        self.postponed
-    }
-
-    fn get_load(&self) -> i32 {
-        self.load
-    }
-
-    fn get_urgency(&self) -> i32 {
-        self.urgency
-    }
-
-    fn get_importance(&self) -> i32 {
-        self.importance
-    }
-    fn get_status(&self) -> EventStatus {
-        self.status
-    }
-    fn get_type(&self) -> EventType {
-        self.event_type
-    }
-}
-impl EventTrait for Event {
-    fn get_start(&self) -> DateTime<Utc> {
-        self.starts_at
-    }
-
-    fn get_end(&self) -> DateTime<Utc> {
-        self.ends_at
-    }
+            fn get_end(&self) -> DateTime<Utc> {
+                self.ends_at
+            }
+        }
+    };
 }
 
-impl IcalParseableTrait for NewEvent {
-    fn get_ical_data(&self) -> String {
-        self.ical_data.clone()
-    }
-    fn get_summary(&self) -> String {
-        self.summary.clone()
-    }
-
-    fn get_description(&self) -> Option<String> {
-        self.description.clone()
-    }
-
-    fn get_postponed(&self) -> i32 {
-        self.postponed
-    }
-
-    fn get_load(&self) -> i32 {
-        self.load
-    }
-
-    fn get_urgency(&self) -> i32 {
-        self.urgency
-    }
-
-    fn get_importance(&self) -> i32 {
-        self.importance
-    }
-    fn get_status(&self) -> EventStatus {
-        self.status
-    }
-    fn get_type(&self) -> EventType {
-        self.event_type
-    }
-}
-
-impl EventTrait for NewEvent {
-    fn get_start(&self) -> DateTime<Utc> {
-        self.starts_at
-    }
-
-    fn get_end(&self) -> DateTime<Utc> {
-        self.ends_at
-    }
-}
+impl_event_trait!(Event);
+impl_event_trait!(NewEvent);
 
 fn get_start_and_end(
     calendar: &icalendar::Calendar,

@@ -2,6 +2,7 @@ use crate::{
     calendar_items::{
         component_props::GeneralComponentProps, event_status::EventStatus, event_type::EventType,
     },
+    impl_ical_parseable,
     schema::*,
 };
 use chrono::{DateTime, Utc};
@@ -53,90 +54,25 @@ pub struct NewTodo {
     pub last_modified: i64,
 }
 
-impl TodoTrait for NewTodo {
-    fn get_start(&self) -> Option<DateTime<Utc>> {
-        None
-    }
-}
-impl TodoTrait for Todo {
-    fn get_start(&self) -> Option<DateTime<Utc>> {
-        None
-    }
-}
-
-impl IcalParseableTrait for Todo {
-    fn get_ical_data(&self) -> String {
-        self.ical_data.clone()
-    }
-    fn get_summary(&self) -> String {
-        self.summary.clone()
-    }
-
-    fn get_description(&self) -> Option<String> {
-        self.description.clone()
-    }
-
-    fn get_postponed(&self) -> i32 {
-        self.postponed
-    }
-
-    fn get_load(&self) -> i32 {
-        self.load
-    }
-
-    fn get_urgency(&self) -> i32 {
-        self.urgency
-    }
-
-    fn get_importance(&self) -> i32 {
-        self.importance
-    }
-    fn get_status(&self) -> EventStatus {
-        self.status
-    }
-    fn get_type(&self) -> EventType {
-        self.event_type
-    }
-}
-
-impl IcalParseableTrait for NewTodo {
-    fn get_ical_data(&self) -> String {
-        self.ical_data.clone()
-    }
-    fn get_summary(&self) -> String {
-        self.summary.clone()
-    }
-
-    fn get_description(&self) -> Option<String> {
-        self.description.clone()
-    }
-
-    fn get_postponed(&self) -> i32 {
-        self.postponed
-    }
-
-    fn get_load(&self) -> i32 {
-        self.load
-    }
-
-    fn get_urgency(&self) -> i32 {
-        self.urgency
-    }
-
-    fn get_importance(&self) -> i32 {
-        self.importance
-    }
-    fn get_status(&self) -> EventStatus {
-        self.status
-    }
-    fn get_type(&self) -> EventType {
-        self.event_type
-    }
-}
+impl_ical_parseable!(Todo);
+impl_ical_parseable!(NewTodo);
 
 pub(crate) trait TodoTrait: IcalParseableTrait {
     fn get_start(&self) -> Option<DateTime<Utc>>;
 }
+
+macro_rules! impl_todo_trait {
+    ($t: ty) => {
+        impl TodoTrait for $t {
+            fn get_start(&self) -> Option<DateTime<Utc>> {
+                None
+            }
+        }
+    };
+}
+
+impl_todo_trait!(Todo);
+impl_todo_trait!(NewTodo);
 
 impl NewTodo {
     pub fn new_from_resource(
