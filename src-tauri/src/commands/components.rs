@@ -29,8 +29,7 @@ impl ExtendedEvent {
             return None;
         }
         let base = query_date.beginning_of_day();
-        let starts_at = event.get_start_for_date(base);
-        let ends_at = event.get_end_for_date(base);
+        let (starts_at, ends_at) = event.get_start_end_for_date(base);
         if starts_at > base && starts_at < query_date.end_of_day() {
             Some(Self {
                 event: event.clone(),
@@ -49,8 +48,10 @@ impl ExtendedEvent {
 pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>, String> {
     use crate::schema::events::dsl as event_dsl;
 
+    let now = Instant::now();
     let conn = &mut establish_connection();
 
+    println!("after conn {}", now.elapsed().as_millis());
     let parsed = DateTime::parse_from_rfc3339(&datetime)
         .map_err(stringify)?
         .to_utc();
@@ -67,10 +68,12 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
         .load(conn)
         .map_err(stringify)?;
 
+    println!("after load {}", now.elapsed().as_millis());
     let events = events
         .iter()
         .filter_map(|event| ExtendedEvent::on_day(event, parsed))
         .collect::<Vec<ExtendedEvent>>();
 
+    println!("after filter {}", now.elapsed().as_millis());
     Ok(events)
 }

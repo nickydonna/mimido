@@ -107,26 +107,20 @@ pub trait EventTrait: IcalParseableTrait {
     fn get_start(&self) -> DateTime<Utc>;
     /// Get [`Event::ends_at`]
     fn get_end(&self) -> DateTime<Utc>;
-    /// Gets the start date from the [`base_date`]
-    /// If there is not recurrence this is the same as [`EventTrait::get_start`]
-    /// If recurrence it will get the next one from [`base_date`]
-    fn get_start_for_date<Tz: TimeZone>(&self, base_date: DateTime<Tz>) -> DateTime<Tz> {
+    fn get_start_end_for_date<Tz: TimeZone>(
+        &self,
+        base_date: DateTime<Tz>,
+    ) -> (DateTime<Tz>, DateTime<Tz>) {
         let tz = base_date.timezone();
         let val = self
             .get_next_recurrence_from_date(base_date)
             .map(|d| d.with_timezone(&tz));
-        match val {
+        let duration = self.get_end() - self.get_start();
+        let start = match val {
             Some(date) => date,
             None => self.get_start().with_timezone(&tz),
-        }
-    }
-
-    /// Gets the end date from the [`base_date`]
-    /// If there is not recurrence this is the same as [`EventTrait::get_end`]
-    /// If recurrence it will get the next one from [`base_date`] + the event duration
-    fn get_end_for_date<Tz: TimeZone>(&self, base_date: DateTime<Tz>) -> DateTime<Tz> {
-        let duration = self.get_end() - self.get_start();
-        self.get_start_for_date(base_date) + duration
+        };
+        (start.clone(), start + duration)
     }
 
     /// Parsed the recurrence of the event using the [`Event::ical_data`]
@@ -183,12 +177,9 @@ pub trait EventTrait: IcalParseableTrait {
 
     fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
         let timezone = date_of_input.timezone();
-        let start = self
-            .get_start_for_date(date_of_input)
-            .with_timezone(&timezone);
-        let end = self
-            .get_end_for_date(date_of_input)
-            .with_timezone(&timezone);
+        let (start, end) = self.get_start_end_for_date(date_of_input);
+        let start = start.with_timezone(&timezone);
+        let end = end.with_timezone(&timezone);
         let date_string = if end - start < Duration::days(1) {
             format!(
                 "at {} {}-{}",
@@ -406,8 +397,9 @@ mod tests {
         let date_of_input = chrono_tz::Tz::UTC
             .with_ymd_and_hms(2025, 3, 15, 12, 0, 0)
             .unwrap();
+        let (start, end) = event.get_start_end_for_date(date_of_input);
         assert_eq!(
-            event.get_start_for_date(date_of_input),
+            start,
             chrono_tz::Tz::UTC
                 .with_ymd_and_hms(2025, 3, 17, 13, 0, 0)
                 .unwrap()
