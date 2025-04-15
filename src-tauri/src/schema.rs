@@ -31,6 +31,7 @@ diesel::table! {
         urgency -> Integer,
         postponed -> Integer,
         has_rrule -> Bool,
+        rrule_str -> Nullable<Text>,
     }
 }
 

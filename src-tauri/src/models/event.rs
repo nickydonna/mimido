@@ -35,6 +35,7 @@ pub struct Event {
     pub starts_at: chrono::DateTime<Utc>,
     pub ends_at: chrono::DateTime<Utc>,
     pub has_rrule: bool,
+    pub rrule_str: Option<String>,
     pub tag: Option<String>,
     pub status: EventStatus,
     pub event_type: EventType,
@@ -58,6 +59,7 @@ pub struct NewEvent {
     pub starts_at: chrono::DateTime<Utc>,
     pub ends_at: chrono::DateTime<Utc>,
     pub has_rrule: bool,
+    pub rrule_str: Option<String>,
     pub tag: Option<String>,
     pub status: EventStatus,
     pub event_type: EventType,
@@ -107,6 +109,7 @@ pub trait EventTrait: IcalParseableTrait {
     fn get_start(&self) -> DateTime<Utc>;
     /// Get [`Event::ends_at`]
     fn get_end(&self) -> DateTime<Utc>;
+    fn get_rrule_str(&self) -> Option<String>;
     fn get_start_end_for_date<Tz: TimeZone>(
         &self,
         base_date: DateTime<Tz>,
@@ -125,33 +128,8 @@ pub trait EventTrait: IcalParseableTrait {
 
     /// Parsed the recurrence of the event using the [`Event::ical_data`]
     fn get_rrule(&self) -> Option<RRuleSet> {
-        let event = self.parse_ical_data().ok()?;
-        let rrule = get_string_property(&event, ComponentProps::RRule)?;
-        let start_str = get_start_string(&event)?;
-
-        let r_date = get_string_property(&event, ComponentProps::RDate);
-        let ex_date = get_string_property(&event, ComponentProps::Exdate);
-        let mut rule_set_string = format!(
-            "{start_str}\
-        RRULE:{rrule}"
-        );
-
-        if let Some(r_date) = r_date {
-            rule_set_string = format!(
-                "
-        {rule_set_string}\n\
-        RDATE:{r_date}"
-            );
-        }
-
-        if let Some(ex_date) = ex_date {
-            rule_set_string = format!(
-                "
-        {rule_set_string}\n\
-        EXDATE:{ex_date}"
-            );
-        }
-        let rrule: Result<RRuleSet, RRuleError> = rule_set_string.parse();
+        let rrule_str = self.get_rrule_str()?;
+        let rrule: Result<RRuleSet, RRuleError> = rrule_str.parse();
         rrule.ok()
     }
 
@@ -221,6 +199,9 @@ macro_rules! impl_event_trait {
 
             fn get_end(&self) -> DateTime<Utc> {
                 self.ends_at
+            }
+            fn get_rrule_str(&self) -> Option<String> {
+                self.rrule_str.clone()
             }
         }
     };
@@ -343,6 +324,7 @@ impl NewEvent {
             summary: summary.to_string(),
             description,
             has_rrule: false,
+            rrule_str: None,
             status,
             original_text,
             tag,
@@ -352,8 +334,10 @@ impl NewEvent {
             urgency,
             postponed,
         };
+        let rrule_str = new_event.get_rrule().map(|r| r.to_string());
         Ok(Some(NewEvent {
-            has_rrule: new_event.get_rrule().is_some(),
+            has_rrule: rrule_str.is_some(),
+            rrule_str,
             ..new_event
         }))
     }

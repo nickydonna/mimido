@@ -126,16 +126,6 @@ impl NewTodo {
             last_modified,
         } = GeneralComponentProps::try_from(first_todo)?;
 
-        println!(
-            "type: {:#?} {:#?} {:#?} {:#?} {:#?} {:#?}",
-            event_type,
-            format!("{:.10}", summary),
-            status,
-            importance,
-            urgency,
-            load
-        );
-
         Ok(Some(NewTodo {
             calendar_id,
             uid: uid.to_string(),
