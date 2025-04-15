@@ -346,11 +346,6 @@ mod tests {
     use chrono::{NaiveDate, TimeZone};
     use rrule::Tz;
 
-    use crate::{
-        calendar_items::{input_traits::ToInput, CalendarItem},
-        models::todo::NewTodo,
-    };
-
     use super::*;
 
     #[test]
@@ -380,7 +375,7 @@ mod tests {
         );
 
         assert_eq!(
-            CalendarItem::NewEvent(event).to_input(date_of_input),
+            event.to_input(date_of_input),
             "@block %todo Work at 17/03/25 13:00-16:00 every weekday"
         );
     }
