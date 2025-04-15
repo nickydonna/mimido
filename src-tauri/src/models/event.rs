@@ -4,16 +4,16 @@ use crate::{
         date_from_calendar_to_utc,
         event_status::EventStatus,
         event_type::EventType,
+        input_traits::ToInput,
         rrule_parser::EventRecurrence,
     },
     impl_ical_parseable,
     schema::*,
 };
-use chrono::{DateTime, Days, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use diesel::prelude::*;
 use icalendar::{Component, DatePerhapsTime};
 use libdav::FetchedResource;
-use now::DateTimeNow;
 use rrule::{RRuleError, RRuleSet};
 
 use super::IcalParseableTrait;
@@ -101,8 +101,13 @@ impl_ical_parseable!(Event);
 impl_ical_parseable!(NewEvent);
 
 pub trait EventTrait: IcalParseableTrait {
+    /// Get [`Event::starts_at`]
     fn get_start(&self) -> DateTime<Utc>;
+    /// Get [`Event::ends_at`]
     fn get_end(&self) -> DateTime<Utc>;
+    /// Gets the start date from the [`base_date`]
+    /// If there is not recurrence this is the same as [`EventTrait::get_start`]
+    /// If recurrence it will get the next one from [`base_date`]
     fn get_start_for_date<Tz: TimeZone>(&self, base_date: DateTime<Tz>) -> DateTime<Tz> {
         let tz = base_date.timezone();
         let val = self
@@ -113,11 +118,16 @@ pub trait EventTrait: IcalParseableTrait {
             None => self.get_start().with_timezone(&tz),
         }
     }
+
+    /// Gets the end date from the [`base_date`]
+    /// If there is not recurrence this is the same as [`EventTrait::get_end`]
+    /// If recurrence it will get the next one from [`base_date`] + the event duration
     fn get_end_for_date<Tz: TimeZone>(&self, base_date: DateTime<Tz>) -> DateTime<Tz> {
         let duration = self.get_end() - self.get_start();
         self.get_start_for_date(base_date) + duration
     }
 
+    /// Parsed the recurrence of the event using the [`Event::ical_data`]
     fn get_rrule(&self) -> Option<RRuleSet> {
         let event = self.parse_ical_data().ok()?;
         let rrule = get_string_property(&event, ComponentProps::RRule)?;
@@ -167,6 +177,45 @@ pub trait EventTrait: IcalParseableTrait {
             .dates
             .first()
             .map(|d| d.with_timezone(&date.timezone()))
+    }
+
+    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
+        let timezone = date_of_input.timezone();
+        let start = self
+            .get_start_for_date(date_of_input)
+            .with_timezone(&timezone);
+        let end = self
+            .get_end_for_date(date_of_input)
+            .with_timezone(&timezone);
+        let date_string = if end - start < Duration::days(1) {
+            format!(
+                "at {} {}-{}",
+                start.format("%d/%m/%y"),
+                start.format("%H:%M"),
+                end.format("%H:%M")
+            )
+        } else {
+            format!(
+                "at {}-{}",
+                start.format("%d/%m/%y %H:%M"),
+                end.format("%d/%m/%y %H:%M"),
+            )
+        };
+        let base = format!(
+            "{} {} {} {}",
+            self.get_type().to_input(date_of_input),
+            self.get_status().to_input(date_of_input),
+            self.get_summary(),
+            date_string
+        );
+        let recurrence_str = self
+            .get_rrule()
+            .and_then(|rrule| EventRecurrence::to_natural_language(&rrule).ok());
+        if let Some(recurrence_str) = recurrence_str {
+            format!("{} {}", base, recurrence_str)
+        } else {
+            base
+        }
     }
 }
 
@@ -331,8 +380,8 @@ mod tests {
         );
 
         assert_eq!(
-            CalendarItem::<NewEvent, NewTodo>::Event(event).to_input(date_of_input),
-            "@block %todo Work at 17/03/25 13:00-16:00"
+            CalendarItem::NewEvent(event).to_input(date_of_input),
+            "@block %todo Work at 17/03/25 13:00-16:00 every weekday"
         );
     }
 

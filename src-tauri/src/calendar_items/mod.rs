@@ -2,7 +2,10 @@ use chrono::{DateTime, Duration, NaiveTime, TimeZone, Utc};
 use icalendar::DatePerhapsTime;
 use input_traits::ToInput;
 
-use crate::models::{event::EventTrait, todo::TodoTrait};
+use crate::models::{
+    event::{Event, EventTrait, NewEvent},
+    todo::{NewTodo, Todo, TodoTrait},
+};
 
 pub(crate) mod component_props;
 pub(crate) mod date_parser;
@@ -12,50 +15,20 @@ pub(crate) mod event_type;
 pub(crate) mod input_traits;
 pub(crate) mod rrule_parser;
 
-pub(crate) enum CalendarItem<E: EventTrait, T: TodoTrait> {
-    Event(E),
-    Todo(T),
+pub(crate) enum CalendarItem {
+    Event(Event),
+    NewEvent(NewEvent),
+    Todo(Todo),
+    NewTodo(NewTodo),
 }
 
-impl<E: EventTrait, T: TodoTrait> ToInput for CalendarItem<E, T> {
+impl ToInput for CalendarItem {
     fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
-        let timezone = date_of_input.timezone();
         match self {
-            CalendarItem::Event(event) => {
-                let start = event
-                    .get_start_for_date(date_of_input)
-                    .with_timezone(&timezone);
-                let end = event
-                    .get_end_for_date(date_of_input)
-                    .with_timezone(&timezone);
-                let date_string = if end - start < Duration::days(1) {
-                    format!(
-                        "at {} {}-{}",
-                        start.format("%d/%m/%y"),
-                        start.format("%H:%M"),
-                        end.format("%H:%M")
-                    )
-                } else {
-                    format!(
-                        "at {}-{}",
-                        start.format("%d/%m/%y %H:%M"),
-                        end.format("%d/%m/%y %H:%M"),
-                    )
-                };
-                format!(
-                    "{} {} {} {}",
-                    event.get_type().to_input(date_of_input),
-                    event.get_status().to_input(date_of_input),
-                    event.get_summary(),
-                    date_string
-                )
-            }
-            CalendarItem::Todo(todo) => format!(
-                "{} {} {}",
-                todo.get_type(),
-                todo.get_status(),
-                todo.get_summary()
-            ),
+            CalendarItem::Event(event) => event.to_input(date_of_input),
+            CalendarItem::NewEvent(event) => event.to_input(date_of_input),
+            CalendarItem::Todo(todo) => todo.to_input(date_of_input),
+            CalendarItem::NewTodo(todo) => todo.to_input(date_of_input),
         }
     }
 }

@@ -59,6 +59,14 @@ impl_ical_parseable!(NewTodo);
 
 pub(crate) trait TodoTrait: IcalParseableTrait {
     fn get_start(&self) -> Option<DateTime<Utc>>;
+    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
+        format!(
+            "{} {} {}",
+            self.get_type(),
+            self.get_status(),
+            self.get_summary()
+        )
+    }
 }
 
 macro_rules! impl_todo_trait {
