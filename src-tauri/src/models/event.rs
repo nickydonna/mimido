@@ -416,7 +416,7 @@ mod tests {
             .unwrap();
         let recurrence = event.get_next_recurrence_from_date(
             Tz::America__Buenos_Aires
-                .with_ymd_and_hms(2025, 4, 10, 13, 0, 0)
+                .with_ymd_and_hms(2025, 4, 10, 8, 0, 0)
                 .unwrap()
                 .to_utc(),
         );
