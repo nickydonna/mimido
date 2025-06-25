@@ -16,7 +16,7 @@
     addDays,
     subSeconds,
   } from "date-fns/fp";
-  import { getEventCardClass, type ParsedEvent } from "../../lib//util";
+  import { type ParsedEvent } from "../../lib//util";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
@@ -248,22 +248,15 @@
           ondragover={() => false}
         ></div>
         {#each sortedEvents as [type, events], i}
+          {@const isBlockType = type === "Block"}
           {#each events.filter((e) => timeCheck(e, check)) as e, k}
             <div
               tabindex={i * 10 + (k + 1)}
               role="button"
-              class="{getEventCardClass(
-                e,
-              )} group relative rounded-lg border p-0.5 shadow-2xl"
+              class="group event-card event-card-{type.toLowerCase()}"
               class:brightness-50={timeIndicator.nearestSlot > time}
-              class:m-px={type === "Block"}
-              class:m-0.5={type !== "Block"}
-              class:glass={type !== "Block"}
-              style:grid-column={type === "Block"
-                ? "event / reminder"
-                : type.toLowerCase()}
               style:grid-row={getScheduleSlot(e)}
-              style:z-index={type === "Block" ? 0 : k + 1}
+              style:z-index={isBlockType ? 0 : k + 1}
             >
               <div class="absolute right-2 hidden group-hover:block"></div>
               {#if e.event_type === "Block"}
@@ -285,14 +278,33 @@
   </div>
 </div>
 
-<style>
-  .glass {
-    /* From https://css.glass */
-    /* background: rgba(255, 255, 255, 0.47); */
+<style lang="postcss">
+  @reference "../../app.css";
 
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(1.5px);
-    -webkit-backdrop-filter: blur(1.5px);
+  @layer components {
+    .event-card {
+      @apply p-0.5 relative rounded-lg border shadow-2xl;
+    }
+
+    .event-card-block {
+      @apply m-px bg-polka-indigo-800 border-indigo-900;
+      grid-column: "event /reminder";
+      z-index: 0;
+    }
+
+    .event-card-event {
+      @apply glass bg-emerald-600 border-green-900 m-0.5;
+      grid-column: event;
+    }
+
+    .event-card-task {
+      @apply glass m-0.5 bg-pink-600 border-pink-900;
+      grid-column: task;
+    }
+    .event-card-reminder {
+      @apply glass m-0.5 bg-blue-600 border-blue-900;
+      grid-column: reminder;
+    }
   }
 
   .blurred-time {
