@@ -1,10 +1,16 @@
 use chrono::{DateTime, NaiveTime, TimeZone, Utc};
 use icalendar::DatePerhapsTime;
-use input_traits::ToInput;
 
-use crate::models::{
-    event::{Event, EventTrait, NewEvent},
-    todo::{NewTodo, Todo, TodoTrait},
+use crate::{
+    calendar_items::{
+        event_creator::{EventDateInfo, EventUpsertInfo},
+        event_status::EventStatus,
+        event_type::EventType,
+    },
+    models::{
+        event::{Event, NewEvent},
+        todo::{NewTodo, Todo},
+    },
 };
 
 pub(crate) mod component_props;
@@ -34,6 +40,44 @@ impl TryFrom<CalendarItem> for icalendar::Calendar {
         let mut cal = icalendar::Calendar::new();
         cal.push(component);
         Ok(cal)
+    }
+}
+
+/// Simplified version of a [`EventUpsertInfo`] for showing to the user while creating
+#[derive(Clone, Debug, serde::Serialize, specta::Type)]
+pub struct DisplayUpsertInfo {
+    pub summary: String,
+    pub starts_at: Option<DateTime<Utc>>,
+    pub ends_at: Option<DateTime<Utc>>,
+    pub recurrence: Option<String>,
+    pub status: EventStatus,
+    pub event_type: EventType,
+    pub postponed: i32,
+    pub urgency: i32,
+    pub load: i32,
+    pub priority: i32,
+}
+
+impl From<EventUpsertInfo> for DisplayUpsertInfo {
+    fn from(value: EventUpsertInfo) -> Self {
+        let (starts_at, ends_at) = value
+            .date_info
+            .0
+            .map(|EventDateInfo { start, end }| (Some(start), Some(end)))
+            .unwrap_or((None, None));
+
+        Self {
+            summary: value.summary,
+            starts_at,
+            ends_at,
+            recurrence: value.recurrence.to_natural_language().ok(),
+            status: value.status,
+            event_type: value.event_type,
+            postponed: value.postponed,
+            urgency: value.urgency,
+            load: value.load,
+            priority: value.priority,
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 import { commands } from "../../bindings";
-import { unwrap } from "../../result";
+import { unwrap } from "$lib/result";
 import type { PageLoad } from "./$types";
 import {
   parseISO,

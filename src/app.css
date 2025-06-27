@@ -43,6 +43,14 @@
 
 @source "../node_modules/flowbite-svelte/dist";
 
+@layer base {
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-neutral-300);
+  }
+}
+
 @utility bg-polka-* {
   background-image: radial-gradient(--value(--color- *) 1px, transparent 1px);
   /* background-color: --value(--color- *); */
@@ -52,7 +60,6 @@
 
 @utility glass {
   /* From https://css.glass */
-
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(1.5px);
   -webkit-backdrop-filter: blur(1.5px);

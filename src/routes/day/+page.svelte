@@ -16,7 +16,7 @@
     addDays,
     subSeconds,
   } from "date-fns/fp";
-  import { type ParsedEvent } from "../../lib//util";
+  import { type ParsedEvent } from "../../lib/util";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
@@ -24,6 +24,7 @@
   import { timeStore } from "../../stores/times";
   import EventCard from "$lib/components/event-card";
   import type { PageProps } from "./$types";
+  import EventCreationModal from "$lib/components/event-creation-modal/EventCreationModal.svelte";
 
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
@@ -121,6 +122,7 @@
   }
 </script>
 
+<EventCreationModal {date} open />
 <div>
   <div
     class="flex sticky top-0 bg-primary-950 py-3 px-1"

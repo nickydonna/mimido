@@ -6,8 +6,6 @@ export type ParsedEvent = Omit<Event, "starts_at" | "ends_at"> & {
   natural_recurrence?: string;
 };
 
-
-
 const IMPORTANCE_STRINGS = ['Sub-Zero', 'Very Low', 'Low', undefined, 'Mid', 'High', 'Very High'];
 const URGENCY_STRINGS = [undefined, 'Soon', 'Next Up', 'Why are you not doing it'];
 const LOAD_STRINGS = [undefined, 'Mid', 'Hard', 'Fat Rolling'];

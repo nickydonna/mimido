@@ -1,4 +1,4 @@
-import type { Result } from './bindings';
+import type { Result } from '../bindings';
 
 export function isOk<T, E>(result: Result<T, E>): result is { status: 'ok', data: T } {
   return result.status === 'ok'

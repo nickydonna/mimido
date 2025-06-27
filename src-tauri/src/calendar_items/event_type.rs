@@ -9,6 +9,8 @@ use diesel::{
 use icalendar::Property;
 use regex::RegexBuilder;
 
+use crate::calendar_items::input_traits::ExtractedInput;
+
 use super::{
     component_props::ComponentProps,
     input_traits::{ExtractableFromInput, ToInput},
@@ -62,7 +64,7 @@ impl ExtractableFromInput for EventType {
     fn extract_from_input(
         _: DateTime<chrono_tz::Tz>,
         input: &str,
-    ) -> Result<(Self, String), String> {
+    ) -> Result<impl Into<ExtractedInput<Self>>, String> {
         let re = RegexBuilder::new(EVENT_TYPE_RE)
             .case_insensitive(true)
             .build()
@@ -92,7 +94,8 @@ impl ExtractableFromInput for EventType {
             format!("{} {}", &input[0..general.start()], &input[general.end()..])
                 .trim()
                 .to_string(),
-        ))
+        )
+            .into())
     }
 }
 

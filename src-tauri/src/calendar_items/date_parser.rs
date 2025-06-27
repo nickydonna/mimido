@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use chrono::{
-    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Utc,
-};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use regex::{Match, Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 
@@ -432,8 +430,7 @@ mod tests {
     #[test]
     fn test_range_dash() {
         let reference = create_test_date();
-        let (start, end, stripped) =
-            EventDate::from_natural("today at 14:30-16", reference).unwrap();
+        let (start, end, _) = EventDate::from_natural("today at 14:30-16", reference).unwrap();
         let expected = reference
             .with_time(NaiveTime::from_hms_opt(14, 30, 0).unwrap())
             .unwrap();
@@ -454,7 +451,7 @@ mod tests {
     #[test]
     fn test_range_until() {
         let reference = create_test_date();
-        let (start, end, stripped) =
+        let (start, end, _) =
             EventDate::from_natural("steve lepoisson today from 18:45 until 19", reference)
                 .unwrap();
         let expected = reference
@@ -476,8 +473,7 @@ mod tests {
     #[test]
     fn test_range_to() {
         let reference = create_test_date();
-        let (start, end, stripped) =
-            EventDate::from_natural("today from 09:30-12:16", reference).unwrap();
+        let (start, end, _) = EventDate::from_natural("today from 09:30-12:16", reference).unwrap();
         let expected = reference
             .with_time(NaiveTime::from_hms_opt(9, 30, 0).unwrap())
             .unwrap();
@@ -569,20 +565,17 @@ mod tests {
             assert_eq!(
                 result.date_naive(),
                 expected_date.date_naive(),
-                "Date mismatch for input: {}",
-                input
+                "Date mismatch for input: {input}",
             );
             assert_eq!(
                 result.hour(),
                 expected_hour,
-                "Hour mismatch for input: {}",
-                input
+                "Hour mismatch for input: {input}",
             );
             assert_eq!(
                 result.minute(),
                 expected_minute,
-                "Minute mismatch for input: {}",
-                input
+                "Minute mismatch for input: {input}",
             );
         }
     }
@@ -599,7 +592,7 @@ mod tests {
 
         for input in invalid_cases {
             let result = EventDate::from_natural(input, reference);
-            assert!(result.is_none(), "Should fail for input: {}", input);
+            assert!(result.is_none(), "Should fail for input: {input}");
         }
     }
 }

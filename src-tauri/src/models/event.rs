@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Instant};
+use std::str::FromStr;
 
 use crate::{
     calendar_items::{
@@ -165,9 +165,8 @@ pub trait EventTrait: IcalParseableTrait {
         rrule.ok()
     }
 
-    fn get_occurrence_natural(&self) -> Option<String> {
-        self.get_rrule()
-            .and_then(|r| EventRecurrence::to_natural_language(&r).ok())
+    fn get_recurrence_natural(&self) -> Option<String> {
+        EventRecurrence(self.get_rrule()).to_natural_language().ok()
     }
 
     fn get_next_recurrence_from_date<Tz: TimeZone>(
@@ -211,11 +210,9 @@ pub trait EventTrait: IcalParseableTrait {
             self.get_summary(),
             date_string
         );
-        let recurrence_str = self
-            .get_rrule()
-            .and_then(|rrule| EventRecurrence::to_natural_language(&rrule).ok());
+        let recurrence_str = self.get_recurrence_natural();
         if let Some(recurrence_str) = recurrence_str {
-            format!("{} {}", base, recurrence_str)
+            format!("{base} {recurrence_str}")
         } else {
             base
         }
@@ -256,7 +253,7 @@ impl TryFrom<NewEvent> for icalendar::Event {
             vevent.description(&description);
         }
         if let Some(rrule) = new_event.get_rrule() {
-            let props = format!("{}", rrule)
+            let props = format!("{rrule}")
                 .split("\n")
                 .filter_map(|line| icalendar::Property::from_str(line).ok())
                 .collect::<Vec<Property>>();
@@ -383,8 +380,6 @@ mod tests {
     use chrono::{NaiveDate, TimeZone};
     use rrule::Tz;
 
-    use crate::calendar_items::CalendarItem;
-
     use super::*;
 
     macro_rules! assert_property {
@@ -413,7 +408,7 @@ mod tests {
         let date_of_input = chrono_tz::Tz::UTC
             .with_ymd_and_hms(2025, 3, 15, 12, 0, 0)
             .unwrap();
-        let (start, end) = event.get_start_end_for_date(date_of_input);
+        let (start, _) = event.get_start_end_for_date(date_of_input);
         assert_eq!(
             start,
             chrono_tz::Tz::UTC
@@ -487,7 +482,7 @@ mod tests {
         assert!(event.is_some());
         let event = event.unwrap();
 
-        println!("{:#?}", event);
+        println!("{event:#?}");
         let vevent = icalendar::Event::try_from(event.clone()).unwrap();
 
         assert_eq!(vevent.get_summary().unwrap(), event.summary);

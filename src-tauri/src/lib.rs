@@ -35,7 +35,7 @@ pub fn setup_db(connection_url: &str) -> Result<(), Box<dyn Error + Send + Sync 
     let mut locked_url = CONNECTION_URL.lock().unwrap();
     *locked_url = connection_url.to_owned();
     drop(locked_url); // Release the lock before establishing the connection
-    log::info!("connecting to {}", connection_url);
+    log::info!("connecting to {connection_url}");
     let mut conn = establish_connection();
     log::info!("connected");
     conn.run_pending_migrations(MIGRATIONS)?;
@@ -55,6 +55,7 @@ pub fn run() {
             commands::calendar::sync_calendar,
             commands::calendar::sync_all_calendars,
             commands::components::list_events_for_day,
+            commands::components::parse_event,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
@@ -76,12 +77,12 @@ pub fn run() {
             let conn_url = format!("sqlite://{}/{}", app_path.display(), db_file_name);
 
             if let Err(e) = create_dir_all(&app_path) {
-                println!("Problem creating app directory: {:?}", e);
+                println!("Problem creating app directory: {e}");
             }
 
-            println!("Connection URL: {}", conn_url);
+            println!("Connection URL: {conn_url}");
             if let Err(e) = setup_db(&conn_url) {
-                println!("Database setup failed: {:?}", e);
+                println!("Database setup failed: {e}");
             }
 
             Ok(())

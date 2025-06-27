@@ -1,11 +1,15 @@
-use std::time::Instant;
-
 use crate::{
+    calendar_items::{
+        event_creator::EventUpsertInfo,
+        input_traits::{ExtractableFromInput, ExtractedInput},
+        DisplayUpsertInfo,
+    },
     establish_connection,
     models::event::{Event, EventTrait},
-    util::stringify,
+    util::{stringify, DateTimeStr},
 };
 use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
 use diesel::prelude::*;
 use now::DateTimeNow;
 
@@ -50,9 +54,7 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
 
     let conn = &mut establish_connection();
 
-    let parsed = DateTime::parse_from_rfc3339(&datetime)
-        .map_err(stringify)?
-        .to_utc();
+    let parsed: DateTime<Utc> = DateTimeStr(datetime).try_into()?;
     let start = parsed.beginning_of_day();
     let end = parsed.end_of_day();
 
@@ -72,4 +74,18 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
         .collect::<Vec<ExtendedEvent>>();
 
     Ok(events)
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn parse_event(
+    date_of_input_str: String,
+    component_input: String,
+) -> Result<DisplayUpsertInfo, String> {
+    let parsed_date: DateTime<Utc> = DateTimeStr(date_of_input_str).try_into()?;
+    let parsed_date = parsed_date.with_timezone(&Tz::UTC);
+
+    let ExtractedInput(data, _) =
+        EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
+    Ok(data.into())
 }
