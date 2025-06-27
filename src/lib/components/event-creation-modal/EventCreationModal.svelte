@@ -3,12 +3,15 @@
 
   import { commands, type DisplayUpsertInfo } from "../../../bindings";
   import { unwrap } from "$lib/result";
-  import { CalendarMonthOutline, ColumnOutline } from "flowbite-svelte-icons";
+  import CalendarIcon from "~icons/uit/calendar";
+  import ProcessIcon from "~icons/uit/process";
+  import CompressIcon from "~icons/uit/compress";
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
+  import GlassButton from "../glass-button/GlassButton.svelte";
 
   const { open, date } = $props<{ open: boolean; date: Date }>();
 
-  let input = $state("@block hello tomorrow at 15:30");
+  let input = $state("@block hello tomorrow at 15:30 every Mon");
   let result = $state<DisplayUpsertInfo | null>(null);
 
   /**
@@ -45,15 +48,12 @@
   $effect(() => {
     callParse(input);
   });
-  let typeClass = $derived(
-    result != null ? `type-${result.event_type.toLowerCase()}` : "",
-  );
 </script>
 
 {#if open}
   <div class="fixed w-dvw h-dvh inset-0 z-[100]">
     <div
-      class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto h-65 p-6 text-white"
+      class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
       <div class="glass-section h-12 px-6 py-3 rounded-3xl">
         <input
@@ -64,28 +64,21 @@
         />
       </div>
       {#if result != null}
-        <div
-          class="flex gap-0.5 my-4 glass-section h-12 px-4 py-3 rounded-3xl w-3/4"
-        >
+        <div class="flex gap-0.5 my-4 glass-prop h-12 px-4 py-3">
           <HoverableIcon
-            iconCmp={CalendarMonthOutline}
+            iconCmp={CalendarIcon}
             text="Summary:"
             class="mt-0.5"
           />
           {result.summary}
         </div>
-        <div class="flex gap-2">
-          <div
-            class={[
-              "flex gap-0.5 glass-section h-9 px-3.5 py-2 rounded-3xl text-sm",
-              typeClass,
-            ]}
-          >
-            <HoverableIcon iconCmp={ColumnOutline} text="Type:" />
+        <div class="flex flex-wrap gap-2">
+          <div class={["flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm"]}>
+            <HoverableIcon iconCmp={CompressIcon} text="Type:" />
             {result.event_type}
           </div>
           {#if result.starts_at != null && result.ends_at != null}
-            <div class="glass-section h-9 px-3.5 py-2 rounded-3xl text-sm">
+            <div class="glass-prop h-9 px-3.5 py-2 text-sm">
               {format(parseISO(result.starts_at), "MMM dd 'at' HH:mm")}
               {#if isSameDay(result.starts_at, result.ends_at)}
                 {format(parseISO(result.ends_at), "'until' HH:mm")}
@@ -93,7 +86,18 @@
                 {format(parseISO(result.ends_at), "MMM dd 'at' HH:mm")}
               {/if}
             </div>
+            {#if result.recurrence}
+              <div class="flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm">
+                <HoverableIcon iconCmp={ProcessIcon} text="Recurrence:" />
+                {result.recurrence}
+              </div>
+            {/if}
           {/if}
+        </div>
+        <hr class="my-6 border-primary-100/50 -mx-6" />
+        <div class="flex items-center">
+          <div class="flex-1">Press Enter to save ...</div>
+          <GlassButton>Save</GlassButton>
         </div>
       {/if}
     </div>
@@ -106,28 +110,19 @@
     color: var(--color-neutral-300);
   }
 
-  /* inspired in  https://atlaspuplabs.com/blog/liquid-glass-but-in-css?utm_source=tldrwebdev */
-  @layer components {
-    .glass-section {
-      box-shadow:
-        inset 10px 10px 20px rgba(153, 192, 255, 0.1),
-        inset 2px 2px 5px rgba(195, 218, 255, 0.2),
-        inset -10px -10px 20px rgba(229, 253, 190, 0.1),
-        inset -2px -2px 30px rgba(247, 255, 226, 0.2);
-      backdrop-filter: blur(20px);
-    }
+  .glass-modal {
+    @apply rounded-4xl p-6 bg-primary-800/30;
+    backdrop-filter: blur(4px);
   }
 
-  .type-block {
-    @apply text-emerald-600;
+  /* inspired in  https://atlaspuplabs.com/blog/liquid-glass-but-in-css?utm_source=tldrwebdev */
+  .glass-section {
+    text-wrap: nowrap;
+    @apply glassy-shadow;
+    backdrop-filter: blur(20px);
   }
-  .type-event {
-    @apply text-indigo-600;
-  }
-  .type-task {
-    @apply text-pink-600;
-  }
-  .type-reminder {
-    @apply text-blue-600;
+  .glass-prop {
+    @apply rounded-3xl bg-primary-900/50;
+    text-wrap: nowrap;
   }
 </style>
