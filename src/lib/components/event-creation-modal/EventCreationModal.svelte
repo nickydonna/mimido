@@ -8,6 +8,7 @@
   import CompressIcon from "~icons/uit/compress";
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
   import GlassButton from "../glass-button/GlassButton.svelte";
+  import GlassInput from "../glass-input/GlassInput.svelte";
 
   const { open, date } = $props<{ open: boolean; date: Date }>();
 
@@ -55,14 +56,14 @@
     <div
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
-      <div class="glass-section h-12 px-6 py-3 rounded-3xl">
-        <input
-          class="w-full outline-none text-white"
-          bind:value={input}
-          placeholder="Type your event information ..."
-          oninput={(e) => callParse(e.currentTarget.value)}
-        />
-      </div>
+      <GlassInput
+        class="w-full outline-none text-white"
+        bind:value={input}
+        placeholder="Type your event information ..."
+        oninput={(e) => callParse(e.currentTarget.value)}
+      />
+
+      <hr class="my-6 border-primary-100/50 -mx-6" />
       {#if result != null}
         <div class="flex gap-0.5 my-4 glass-prop h-12 px-4 py-3">
           <HoverableIcon
@@ -96,7 +97,15 @@
         </div>
         <hr class="my-6 border-primary-100/50 -mx-6" />
         <div class="flex items-center">
-          <div class="flex-1">Press Enter to save ...</div>
+          <div class="flex-1">
+            Press
+            <span
+              class="mx-1 p-1 rounded bg-emerald-700 shadow shadow-emerald-400"
+            >
+              ↵
+            </span>
+            to save ...
+          </div>
           <GlassButton>Save</GlassButton>
         </div>
       {/if}
@@ -111,14 +120,13 @@
   }
 
   .glass-modal {
-    @apply rounded-4xl p-6 bg-primary-800/30;
+    @apply glassy-shadow rounded-4xl p-6 bg-primary-800/30;
     backdrop-filter: blur(4px);
   }
 
   /* inspired in  https://atlaspuplabs.com/blog/liquid-glass-but-in-css?utm_source=tldrwebdev */
   .glass-section {
     text-wrap: nowrap;
-    @apply glassy-shadow;
     backdrop-filter: blur(20px);
   }
   .glass-prop {

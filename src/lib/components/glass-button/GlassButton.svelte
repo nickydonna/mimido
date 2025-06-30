@@ -50,15 +50,23 @@
 {/if}
 
 <style lang="postcss">
+  @reference "../../../app.css";
+
   .glass-button {
-    box-shadow:
-      inset 2px 2px 5px rgba(195, 218, 255, 0.2),
-      inset -10px -10px 20px rgba(229, 253, 190, 0.1),
-      inset -2px -2px 30px rgba(247, 255, 226, 0.2);
+    @apply glassy-shadow relative;
+    transition: box-shadow 1s ease-in-out;
   }
-  .glass-button:hover {
-    box-shadow: 0px 0px 20px 5px rgba(255, 255, 255, 1);
-    // opacity: 1;
-    // transition: opacity 0.3s ease-in-out;
+
+  .glass-button::after {
+    content: "";
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none;
+    border-radius: inherit; /* Ensure the shadow follows the button's border-radius */
+    @apply absolute inset-0 w-full h-full shadow-primary-300 shadow;
+  }
+
+  .glass-button:hover::after {
+    opacity: 1;
   }
 </style>
