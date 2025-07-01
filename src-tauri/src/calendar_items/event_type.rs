@@ -1,4 +1,4 @@
-use chrono::DateTime;
+use chrono::{DateTime, TimeZone};
 use diesel::{
     deserialize::{FromSql, FromSqlRow},
     expression::AsExpression,
@@ -61,8 +61,8 @@ impl From<EventType> for icalendar::Property {
 const EVENT_TYPE_RE: &str = r"@(?P<event_type>event|block|reminder|task)";
 
 impl ExtractableFromInput for EventType {
-    fn extract_from_input(
-        _: DateTime<chrono_tz::Tz>,
+    fn extract_from_input<Tz: TimeZone>(
+        _: DateTime<Tz>,
         input: &str,
     ) -> Result<impl Into<ExtractedInput<Self>>, String> {
         let re = RegexBuilder::new(EVENT_TYPE_RE)
@@ -86,7 +86,7 @@ impl ExtractableFromInput for EventType {
             "block" => EventType::Block,
             "reminder" => EventType::Reminder,
             "task" => EventType::Task,
-            _ => Err(format!("Invalid event type: {}", input))?,
+            _ => Err(format!("Invalid event type: {input}"))?,
         };
 
         Ok((
@@ -94,13 +94,18 @@ impl ExtractableFromInput for EventType {
             format!("{} {}", &input[0..general.start()], &input[general.end()..])
                 .trim()
                 .to_string(),
-        )
-            .into())
+        ))
+    }
+}
+
+impl From<EventType> for String {
+    fn from(value: EventType) -> Self {
+        format!("{value}")
     }
 }
 
 impl ToInput for EventType {
     fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
-        format!("@{}", self)
+        format!("@{self}")
     }
 }

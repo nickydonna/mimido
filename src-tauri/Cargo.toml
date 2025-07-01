@@ -14,6 +14,9 @@ edition = "2021"
 name = "mimido_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[dependencies.libdav]
+path = "../../libdav/"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -30,7 +33,7 @@ diesel = { version = "2.2.11", features = [
 diesel_migrations = "2.1.0"
 lazy_static = "1.4"
 chrono = { version = "0.4.39", features = ["serde"] }
-libdav = "0.9.1"
+# libdav = "0.9.1"
 icalendar = { version = "0.16.12", features = ["serde", "serde_json"] }
 http = "1.2.0"
 tower-http = { version = "0.6.2", features = ["auth"] }
@@ -38,6 +41,7 @@ hyper-util = { version = "0.1.10", features = [
   "client",
   "client-legacy",
   "tokio",
+  "tracing",
 ] }
 hyper-rustls = "0.27.5"
 anyhow = "1.0.96"
@@ -54,4 +58,5 @@ regex = "1.11.1"
 libsqlite3-sys = { version = "0.28.0", features = ["bundled"] }
 tauri-plugin-log = "2"
 log = { version = "0.4.27", features = ["max_level_info"] }
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+uuid = { version = "1.17.0", features = ["v4"] }
+itertools = "0.14.0"

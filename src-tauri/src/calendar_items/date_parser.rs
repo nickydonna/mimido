@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+use log::info;
 use regex::{Match, Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 
@@ -83,7 +84,7 @@ impl EventDate {
         };
 
         if hour > 23 || minute > 59 {
-            log::warn!("Invalid time: {}:{}", hour, minute);
+            log::warn!("Invalid time: {hour}:{minute}");
             return None;
         }
 
@@ -159,18 +160,17 @@ impl EventDate {
         }
     }
 
-    fn calculate_utc_date(
-        base: DateTime<chrono_tz::Tz>,
+    fn calculate_date<Tz: TimeZone>(
+        base: DateTime<Tz>,
         plus: Duration,
         start: NaiveTime,
         end: Option<NaiveTime>,
-    ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>)> {
+    ) -> Option<(DateTime<Tz>, Option<DateTime<Tz>>)> {
         let date = base + plus;
         let datetime = date.with_time(start);
-        let start = datetime.earliest().map(|d| d.to_utc())?;
-        let end = end
-            .and_then(|end| date.with_time(end).earliest())
-            .map(|d| d.to_utc());
+        let start = datetime.earliest()?;
+        let end = end.and_then(|end| date.with_time(end).earliest());
+        println!("{} -> {}", date.to_rfc2822(), start.to_rfc2822());
         Some((start, end))
     }
 
@@ -180,105 +180,96 @@ impl EventDate {
             .to_string()
     }
 
-    pub fn from_natural(
+    pub fn from_natural<Tz: TimeZone>(
         date_string: &str,
-        reference_date: DateTime<chrono_tz::Tz>,
-    ) -> Option<(DateTime<Utc>, Option<DateTime<Utc>>, String)> {
+        reference_date: DateTime<Tz>,
+    ) -> Option<(DateTime<Tz>, Option<DateTime<Tz>>, String)> {
         let tz = reference_date.timezone();
+        println!("{:?}", reference_date);
         let (case, re) = DateExpressionCases::iter()
             .map(|case| (case, Regex::from(case)))
             .find(|(_, re)| re.is_match(date_string))?;
 
-        let (start, end, stripped_string): (DateTime<Utc>, Option<DateTime<Utc>>, String) =
-            match case {
-                DateExpressionCases::AbsoluteDates => {
-                    let matched = re.captures(date_string)?;
-                    let start = matched.name("start")?.as_str();
-                    let start = NaiveDateTime::parse_from_str(start, "%d/%m/%y %H:%M").ok()?;
-                    let start = tz.from_local_datetime(&start).earliest()?.to_utc();
-                    let end = matched.name("end")?.as_str();
-                    let end = NaiveDateTime::parse_from_str(end, "%d/%m/%y %H:%M").ok()?;
-                    let end = tz.from_local_datetime(&end).earliest()?.to_utc();
-                    let stripped = Self::remove_matched(date_string, matched.get(0)?);
-                    (start, Some(end), stripped)
-                }
-                DateExpressionCases::AbsoluteRange => {
-                    let matched = re.captures(date_string)?;
-                    let base = matched.name("date")?.as_str();
-                    let base = NaiveDate::parse_from_str(base, "%d/%m/%y").ok()?;
-                    let start_time = matched.name("start_time")?.as_str();
-                    let start_time = NaiveTime::parse_from_str(start_time, "%H:%M").ok()?;
-                    let end_time = matched.name("end_time")?.as_str();
-                    let end_time = NaiveTime::parse_from_str(end_time, "%H:%M").ok()?;
-                    let start = tz
-                        .from_local_datetime(&base.and_time(start_time))
-                        .earliest()?
-                        .to_utc();
-                    let end = tz
-                        .from_local_datetime(&base.and_time(end_time))
-                        .earliest()?
-                        .to_utc();
-                    let stripped = Self::remove_matched(date_string, matched.get(0)?);
-                    (start, Some(end), stripped)
-                }
-                DateExpressionCases::Tomorrow => {
-                    let matched = re.find(date_string)?;
-                    let stripped = Self::remove_matched(date_string, matched);
-                    let (s, e, stripped) = Self::get_time(&stripped);
-                    let (start, end) =
-                        Self::calculate_utc_date(reference_date, Duration::days(1), s, e)?;
-                    (start, end, stripped)
-                }
-                DateExpressionCases::Today => {
-                    let matched = re.find(date_string)?;
-                    let stripped = Self::remove_matched(date_string, matched);
-                    let (s, e, stripped) = Self::get_time(&stripped);
-                    let (start, end) =
-                        Self::calculate_utc_date(reference_date, Duration::days(0), s, e)?;
-                    (start, end, stripped)
-                }
-                DateExpressionCases::NextWeek => {
-                    let matched = re.find(date_string)?;
-                    let stripped = Self::remove_matched(date_string, matched);
-                    let (s, e, stripped) = Self::get_time(&stripped);
-                    let (start, end) =
-                        Self::calculate_utc_date(reference_date, Duration::weeks(1), s, e)?;
-                    (start, end, stripped)
-                }
-                DateExpressionCases::NextWeekday => {
-                    let weekday = re
-                        .captures(date_string)?
-                        .name("weekday")?
-                        .as_str()
-                        .parse::<chrono::Weekday>()
-                        .ok()?;
-                    let duration = weekday.days_since(reference_date.weekday());
-                    let matched = re.find(date_string)?;
-                    let stripped = Self::remove_matched(date_string, matched);
-                    let (s, e, stripped) = Self::get_time(&stripped);
-                    let (start, end) = Self::calculate_utc_date(
-                        reference_date,
-                        Duration::days(duration as i64),
-                        s,
-                        e,
-                    )?;
-                    (start, end, stripped)
-                }
-                DateExpressionCases::RelativeTime => {
-                    let caps = re.captures(date_string)?;
-                    let (Some(number), Some(unit)) = (caps.name("number"), caps.name("unit"))
-                    else {
-                        return None;
-                    };
-                    let num = number.as_str().parse::<u32>().ok()?;
-                    let duration = Self::parse_relative_time(num, unit.as_str())?;
-                    let matched = re.find(date_string)?;
-                    let stripped = Self::remove_matched(date_string, matched);
-                    let (s, e, stripped) = Self::get_time(&stripped);
-                    let (start, end) = Self::calculate_utc_date(reference_date, duration, s, e)?;
-                    (start, end, stripped)
-                }
-            };
+        let (start, end, stripped_string): (DateTime<Tz>, Option<DateTime<Tz>>, String) = match case
+        {
+            DateExpressionCases::AbsoluteDates => {
+                let matched = re.captures(date_string)?;
+                let start = matched.name("start")?.as_str();
+                let start = NaiveDateTime::parse_from_str(start, "%d/%m/%y %H:%M").ok()?;
+                let start = tz.from_local_datetime(&start).earliest()?;
+                let end = matched.name("end")?.as_str();
+                let end = NaiveDateTime::parse_from_str(end, "%d/%m/%y %H:%M").ok()?;
+                let end = tz.from_local_datetime(&end).earliest()?;
+                let stripped = Self::remove_matched(date_string, matched.get(0)?);
+                (start, Some(end), stripped)
+            }
+            DateExpressionCases::AbsoluteRange => {
+                let matched = re.captures(date_string)?;
+                let base = matched.name("date")?.as_str();
+                let base = NaiveDate::parse_from_str(base, "%d/%m/%y").ok()?;
+                let start_time = matched.name("start_time")?.as_str();
+                let start_time = NaiveTime::parse_from_str(start_time, "%H:%M").ok()?;
+                let end_time = matched.name("end_time")?.as_str();
+                let end_time = NaiveTime::parse_from_str(end_time, "%H:%M").ok()?;
+                let start = tz
+                    .from_local_datetime(&base.and_time(start_time))
+                    .earliest()?;
+                let end = tz
+                    .from_local_datetime(&base.and_time(end_time))
+                    .earliest()?;
+                let stripped = Self::remove_matched(date_string, matched.get(0)?);
+                (start, Some(end), stripped)
+            }
+            DateExpressionCases::Tomorrow => {
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let (s, e, stripped) = Self::get_time(&stripped);
+                let (start, end) = Self::calculate_date(reference_date, Duration::days(1), s, e)?;
+                (start, end, stripped)
+            }
+            DateExpressionCases::Today => {
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let (s, e, stripped) = Self::get_time(&stripped);
+                let (start, end) = Self::calculate_date(reference_date, Duration::days(0), s, e)?;
+                (start, end, stripped)
+            }
+            DateExpressionCases::NextWeek => {
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let (s, e, stripped) = Self::get_time(&stripped);
+                let (start, end) = Self::calculate_date(reference_date, Duration::weeks(1), s, e)?;
+                (start, end, stripped)
+            }
+            DateExpressionCases::NextWeekday => {
+                let weekday = re
+                    .captures(date_string)?
+                    .name("weekday")?
+                    .as_str()
+                    .parse::<chrono::Weekday>()
+                    .ok()?;
+                let duration = weekday.days_since(reference_date.weekday());
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let (s, e, stripped) = Self::get_time(&stripped);
+                let (start, end) =
+                    Self::calculate_date(reference_date, Duration::days(duration as i64), s, e)?;
+                (start, end, stripped)
+            }
+            DateExpressionCases::RelativeTime => {
+                let caps = re.captures(date_string)?;
+                let (Some(number), Some(unit)) = (caps.name("number"), caps.name("unit")) else {
+                    return None;
+                };
+                let num = number.as_str().parse::<u32>().ok()?;
+                let duration = Self::parse_relative_time(num, unit.as_str())?;
+                let matched = re.find(date_string)?;
+                let stripped = Self::remove_matched(date_string, matched);
+                let (s, e, stripped) = Self::get_time(&stripped);
+                let (start, end) = Self::calculate_date(reference_date, duration, s, e)?;
+                (start, end, stripped)
+            }
+        };
 
         Some((start, end, stripped_string))
     }
@@ -286,6 +277,7 @@ impl EventDate {
 
 #[cfg(test)]
 mod tests {
+    use crate::calendar_items::Utc;
     use chrono::{TimeZone, Timelike};
 
     use super::*;
@@ -297,12 +289,41 @@ mod tests {
             .with_timezone(&chrono_tz::Tz::UTC)
     }
 
+    fn compare_date<Tz1: TimeZone, Tz2: TimeZone>(expected: DateTime<Tz1>, value: DateTime<Tz2>) {
+        let e_utc = expected.to_utc();
+        let v_utc = value.to_utc();
+        assert_eq!(e_utc.year(), v_utc.year());
+        assert_eq!(e_utc.month(), v_utc.month());
+        assert_eq!(e_utc.day(), v_utc.day());
+        assert_eq!(e_utc.hour(), v_utc.hour());
+        assert_eq!(e_utc.minute(), v_utc.minute());
+        assert_eq!(e_utc.second(), v_utc.second());
+    }
+
+    #[test]
+    fn test_tomorrow_with_other_tz() {
+        let reference = chrono_tz::America::Argentina::Buenos_Aires
+            .with_ymd_and_hms(2025, 10, 10, 10, 30, 0)
+            .unwrap();
+        println!("{reference}");
+        let (result, end, stripped) = EventDate::from_natural("tomorrow at 11", reference).unwrap();
+        let expected = (reference + Duration::days(1))
+            .with_hour(11)
+            .unwrap()
+            .with_minute(0)
+            .unwrap();
+
+        compare_date(expected, result);
+        assert!(end.is_none());
+        assert_eq!(stripped, "");
+    }
+
     #[test]
     fn test_tomorrow() {
         let reference = create_test_date();
         let (result, end, stripped) = EventDate::from_natural("tomorrow", reference).unwrap();
         let expected = reference + Duration::days(1);
-        assert_eq!(result.date_naive(), expected.date_naive());
+        compare_date(expected, result);
         assert!(end.is_none());
         assert_eq!(stripped, "");
     }

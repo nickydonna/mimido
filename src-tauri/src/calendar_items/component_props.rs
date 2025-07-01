@@ -31,6 +31,12 @@ pub enum ComponentProps {
     Exdate,
 }
 
+impl From<ComponentProps> for String {
+    fn from(value: ComponentProps) -> Self {
+        value.as_ref().to_string()
+    }
+}
+
 pub fn get_property_or_default<Cmp: icalendar::Component, T: FromStr>(
     event: &Cmp,
     property: ComponentProps,

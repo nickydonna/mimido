@@ -3,16 +3,24 @@
 
   import { commands, type DisplayUpsertInfo } from "../../../bindings";
   import { unwrap } from "$lib/result";
+  // @ts-expect-error iconify
   import CalendarIcon from "~icons/uit/calendar";
+  // @ts-expect-error iconify
+  import SubjectIcon from "~icons/uit/subject";
+  // @ts-expect-error iconify
   import ProcessIcon from "~icons/uit/process";
+  // @ts-expect-error iconify
   import CompressIcon from "~icons/uit/compress";
+
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
   import GlassButton from "../glass-button/GlassButton.svelte";
   import GlassInput from "../glass-input/GlassInput.svelte";
+  import { timeStore } from "../../../stores/times";
 
-  const { open, date } = $props<{ open: boolean; date: Date }>();
-
-  let input = $state("@block hello tomorrow at 15:30 every Mon");
+  const { open } = $props<{ open: boolean; date: Date }>();
+  const date = $timeStore;
+  console.log(formatISO(date));
+  let input = $state("@block Work today at 10-13 every weekday");
   let result = $state<DisplayUpsertInfo | null>(null);
 
   /**
@@ -46,12 +54,16 @@
     result = unwrap(res);
   }, 100);
 
+  async function save() {
+    await commands.saveEvent(6, formatISO(date), input);
+  }
+
   $effect(() => {
     callParse(input);
   });
 </script>
 
-{#if open}
+{#if !open}
   <div class="fixed w-dvw h-dvh inset-0 z-[100]">
     <div
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
@@ -66,11 +78,7 @@
       <hr class="my-6 border-primary-100/50 -mx-6" />
       {#if result != null}
         <div class="flex gap-0.5 my-4 glass-prop h-12 px-4 py-3">
-          <HoverableIcon
-            iconCmp={CalendarIcon}
-            text="Summary:"
-            class="mt-0.5"
-          />
+          <HoverableIcon iconCmp={SubjectIcon} text="Summary:" class="mt-0.5" />
           {result.summary}
         </div>
         <div class="flex flex-wrap gap-2">
@@ -79,7 +87,12 @@
             {result.event_type}
           </div>
           {#if result.starts_at != null && result.ends_at != null}
-            <div class="glass-prop h-9 px-3.5 py-2 text-sm">
+            <div class="glass-prop flex gap-1 h-9 px-3.5 py-2 text-sm">
+              <HoverableIcon
+                iconCmp={CalendarIcon}
+                text="Date:"
+                class="mt-0.5"
+              />
               {format(parseISO(result.starts_at), "MMM dd 'at' HH:mm")}
               {#if isSameDay(result.starts_at, result.ends_at)}
                 {format(parseISO(result.ends_at), "'until' HH:mm")}
@@ -106,7 +119,7 @@
             </span>
             to save ...
           </div>
-          <GlassButton>Save</GlassButton>
+          <GlassButton onclick={save}>Save</GlassButton>
         </div>
       {/if}
     </div>
@@ -115,20 +128,11 @@
 
 <style lang="postcss">
   @reference "../../../app.css";
-  input::placeholder {
-    color: var(--color-neutral-300);
-  }
-
   .glass-modal {
     @apply glassy-shadow rounded-4xl p-6 bg-primary-800/30;
     backdrop-filter: blur(4px);
   }
 
-  /* inspired in  https://atlaspuplabs.com/blog/liquid-glass-but-in-css?utm_source=tldrwebdev */
-  .glass-section {
-    text-wrap: nowrap;
-    backdrop-filter: blur(20px);
-  }
   .glass-prop {
     @apply rounded-3xl bg-primary-900/50;
     text-wrap: nowrap;

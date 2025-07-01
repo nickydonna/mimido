@@ -63,6 +63,14 @@ async parseEvent(dateOfInputStr: string, componentInput: string) : Promise<Resul
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async saveEvent(calendarId: number, dateOfInputStr: string, componentInput: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_event", { calendarId, dateOfInputStr, componentInput }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -80,7 +88,7 @@ export type Calendar = { id: number; name: string; url: string; etag: string | n
 /**
  * Simplified version of a [`EventUpsertInfo`] for showing to the user while creating
  */
-export type DisplayUpsertInfo = { summary: string; starts_at: string | null; ends_at: string | null; recurrence: string | null; status: EventStatus; event_type: EventType; postponed: number; urgency: number; load: number; priority: number }
+export type DisplayUpsertInfo = { summary: string; starts_at: string | null; ends_at: string | null; recurrence: string | null; status: EventStatus; event_type: EventType; postponed: number; urgency: number; load: number; importance: number }
 export type Event = { id: number; calendar_id: number; uid: string; href: string; ical_data: string; summary: string; description: string | null; starts_at: string; ends_at: string; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string }
 export type EventStatus = "Backlog" | "Todo" | "Doing" | "Done"
 export type EventType = "Event" | "Block" | "Reminder" | "Task"

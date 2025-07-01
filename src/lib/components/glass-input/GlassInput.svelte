@@ -16,6 +16,10 @@
 <style lang="postcss">
   @reference "../../../app.css";
 
+  input::placeholder {
+    color: var(--color-neutral-300);
+  }
+
   .glass-input {
     @apply glassy-shadow relative;
     transition: box-shadow 1s ease-in-out;

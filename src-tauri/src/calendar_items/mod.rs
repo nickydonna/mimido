@@ -1,16 +1,9 @@
 use chrono::{DateTime, NaiveTime, TimeZone, Utc};
-use icalendar::DatePerhapsTime;
+use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike};
 
-use crate::{
-    calendar_items::{
-        event_creator::{EventDateInfo, EventUpsertInfo},
-        event_status::EventStatus,
-        event_type::EventType,
-    },
-    models::{
-        event::{Event, NewEvent},
-        todo::{NewTodo, Todo},
-    },
+use crate::calendar_items::{
+    component_props::ComponentProps, event_creator::EventUpsertInfo, event_status::EventStatus,
+    event_type::EventType, rrule_parser::EventRecurrence,
 };
 
 pub(crate) mod component_props;
@@ -21,25 +14,32 @@ pub(crate) mod event_type;
 pub(crate) mod input_traits;
 pub(crate) mod rrule_parser;
 
-pub(crate) enum CalendarItem {
-    Event(Event),
-    NewEvent(NewEvent),
-    Todo(Todo),
-    NewTodo(NewTodo),
-}
+impl From<EventUpsertInfo> for CalendarComponent {
+    fn from(value: EventUpsertInfo) -> Self {
+        match value.date_info.0 {
+            Some(date_info) => {
+                let mut event = icalendar::Event::new()
+                    .summary(&value.summary)
+                    .starts(date_info.start)
+                    .ends(date_info.end)
+                    .add_property(ComponentProps::Type, value.event_type)
+                    .add_property(ComponentProps::Status, value.status)
+                    .add_property(ComponentProps::Load, value.load.to_string())
+                    .add_property(ComponentProps::Urgency, value.urgency.to_string())
+                    .add_property(ComponentProps::Importance, value.importance.to_string())
+                    .done();
 
-impl TryFrom<CalendarItem> for icalendar::Calendar {
-    type Error = String;
-    fn try_from(value: CalendarItem) -> Result<Self, String> {
-        let component = match value {
-            CalendarItem::Event(event) => todo!(),
-            CalendarItem::NewEvent(new_event) => icalendar::Event::try_from(new_event),
-            CalendarItem::Todo(todo) => todo!(),
-            CalendarItem::NewTodo(new_todo) => todo!(),
-        }?;
-        let mut cal = icalendar::Calendar::new();
-        cal.push(component);
-        Ok(cal)
+                if let Some(recurrence) = date_info.get_recurrence_as_cal_property() {
+                    event.add_property(ComponentProps::RRule, recurrence);
+                }
+
+                event.into()
+            }
+            None => {
+                let todo = icalendar::Todo::new().summary(&value.summary).done();
+                todo.into()
+            }
+        }
     }
 }
 
@@ -55,28 +55,28 @@ pub struct DisplayUpsertInfo {
     pub postponed: i32,
     pub urgency: i32,
     pub load: i32,
-    pub priority: i32,
+    pub importance: i32,
 }
 
 impl From<EventUpsertInfo> for DisplayUpsertInfo {
     fn from(value: EventUpsertInfo) -> Self {
-        let (starts_at, ends_at) = value
+        let (starts_at, ends_at, recurrence) = value
             .date_info
             .0
-            .map(|EventDateInfo { start, end }| (Some(start), Some(end)))
-            .unwrap_or((None, None));
+            .map(|info| (Some(info.start), Some(info.end), info.recurrence))
+            .unwrap_or((None, None, EventRecurrence(None)));
 
         Self {
             summary: value.summary,
             starts_at,
             ends_at,
-            recurrence: value.recurrence.to_natural_language().ok(),
+            recurrence: recurrence.to_natural_language().ok(),
             status: value.status,
             event_type: value.event_type,
             postponed: value.postponed,
             urgency: value.urgency,
             load: value.load,
-            priority: value.priority,
+            importance: value.importance,
         }
     }
 }

@@ -1,11 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone};
 use regex::{Regex, RegexBuilder};
 use rrule::{Frequency, NWeekday, RRule, RRuleSet, Weekday};
 use strum::IntoEnumIterator;
-
-use crate::calendar_items::input_traits::ExtractedInput;
-
-use super::input_traits::ExtractableFromInput;
 
 #[derive(Copy, Clone, Debug, strum_macros::EnumIter)]
 enum NaturalLangCases {
@@ -87,29 +83,23 @@ impl TryFrom<&RRuleSet> for NaturalLangCases {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EventRecurrence(pub Option<RRuleSet>);
 
-impl From<EventRecurrence> for Option<String> {
-    fn from(value: EventRecurrence) -> Self {
-        todo!()
-    }
-}
-
-impl ExtractableFromInput for EventRecurrence {
-    fn extract_from_input(
-        date_of_input: DateTime<chrono_tz::Tz>,
-        input: &str,
-    ) -> Result<impl Into<ExtractedInput<Self>>, String> {
-        let rrule = EventRecurrence::from_natural(input, date_of_input.with_timezone(&Utc));
-        if let Some((rrule, result_input)) = rrule {
-            Ok((EventRecurrence(Some(rrule)), result_input))
-        } else {
-            Ok((EventRecurrence(None), input.to_string()))
-        }
-    }
-}
-
 impl EventRecurrence {
+    pub fn some(rule_set: RRuleSet) -> EventRecurrence {
+        EventRecurrence(Some(rule_set))
+    }
+    pub fn none() -> EventRecurrence {
+        EventRecurrence(None)
+    }
+
+    pub fn get_calendar_property(self) -> Option<String> {
+        let rule_set = self.0?;
+        let rule = rule_set.get_rrule().first()?;
+        Some(rule.to_string())
+    }
+
     fn parse_weekdays(natural_string: &str) -> Option<Vec<NWeekday>> {
         let re = RegexBuilder::new(r"(?P<day>Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thurdsay|Friday|Saturday|Sunday)")
             .case_insensitive(true)
@@ -139,9 +129,9 @@ impl EventRecurrence {
             .copied()
     }
 
-    pub fn from_natural(
+    pub fn from_natural<Tz: TimeZone>(
         natural_string: &str,
-        dt_start: DateTime<Utc>,
+        dt_start: &DateTime<Tz>,
     ) -> Option<(RRuleSet, String)> {
         let (case, re) = NaturalLangCases::iter()
             .map(|case| (case, Regex::from(case)))
@@ -263,13 +253,15 @@ impl EventRecurrence {
 // Unit Tests
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
+
     use super::*;
 
     #[test]
     fn test_no_recur_is_none() {
         let rrule = "hello";
         let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date);
+        let parsed = EventRecurrence::from_natural(rrule, &date);
         assert_eq!(parsed, None)
     }
 
@@ -277,7 +269,7 @@ mod tests {
     fn test_invalid_sequence_is_none() {
         let rrule = "every";
         let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date);
+        let parsed = EventRecurrence::from_natural(rrule, &date);
         assert_eq!(parsed, None)
     }
 
@@ -285,7 +277,7 @@ mod tests {
     fn test_alone_day_is_none() {
         let rrule = "Meet on monday";
         let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date);
+        let parsed = EventRecurrence::from_natural(rrule, &date);
         assert_eq!(parsed, None)
     }
 
@@ -293,7 +285,7 @@ mod tests {
     fn test_parse_basic_weekly_rrule() {
         let rrule = "every monday";
         let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date)
+        let parsed = EventRecurrence::from_natural(rrule, &date)
             .expect("Should parse successfully")
             .0;
 
@@ -314,7 +306,7 @@ mod tests {
     fn test_parse_every_x_days() {
         let rrule = "every 2 days";
         let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date)
+        let parsed = EventRecurrence::from_natural(rrule, &date)
             .expect("Should parse successfully")
             .0;
 
@@ -333,7 +325,8 @@ mod tests {
         let rrule = "every weekday";
         let date = Utc::now();
 
-        let parsed = EventRecurrence::from_natural(rrule, date).expect("Should parse successfully");
+        let parsed =
+            EventRecurrence::from_natural(rrule, &date).expect("Should parse successfully");
         let rrule = parsed
             .0
             .get_rrule()
@@ -358,7 +351,8 @@ mod tests {
         let rrule = "every weekend";
         let date = Utc::now();
 
-        let parsed = EventRecurrence::from_natural(rrule, date).expect("Should parse successfully");
+        let parsed =
+            EventRecurrence::from_natural(rrule, &date).expect("Should parse successfully");
         let rrule = parsed
             .0
             .get_rrule()
@@ -379,7 +373,8 @@ mod tests {
     fn test_parse_month_rrule() {
         let rrule = "every month on monday";
         let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date).expect("Should parse successfully");
+        let parsed =
+            EventRecurrence::from_natural(rrule, &date).expect("Should parse successfully");
 
         let rrule = parsed
             .0
@@ -396,9 +391,13 @@ mod tests {
 
     #[test]
     fn test_parse_week_rrule() {
+        let start_date = Utc
+            .with_ymd_and_hms(2024, 3, 15, 12, 0, 0)
+            .unwrap()
+            .with_timezone(&chrono_tz::Tz::UTC);
         let rrule = "every tue, wed";
-        let date = Utc::now();
-        let parsed = EventRecurrence::from_natural(rrule, date).expect("Should parse successfully");
+        let parsed = EventRecurrence::from_natural(rrule, &start_date.to_utc())
+            .expect("Should parse successfully");
 
         let rrule = parsed
             .0
@@ -413,6 +412,10 @@ mod tests {
                 NWeekday::new(None, Weekday::Tue),
                 NWeekday::new(None, Weekday::Wed),
             ]
+        );
+        assert_eq!(
+            EventRecurrence(Some(parsed.0)).get_calendar_property(),
+            Some("FREQ=WEEKLY;BYHOUR=12;BYMINUTE=0;BYSECOND=0;BYDAY=TU,WE".to_string())
         );
     }
 
@@ -429,7 +432,7 @@ mod tests {
         ];
 
         for rrule in valid_test_rrules {
-            let parsed = EventRecurrence::from_natural(rrule, date);
+            let parsed = EventRecurrence::from_natural(rrule, &date);
             assert!(parsed.is_some())
         }
     }
@@ -501,14 +504,14 @@ mod tests {
 
         for rrule in test_rrules {
             let parsed =
-                EventRecurrence::from_natural(rrule, date).expect("Should parse successfully");
+                EventRecurrence::from_natural(rrule, &date).expect("Should parse successfully");
 
             let natural_language = EventRecurrence(Some(parsed.0.clone()))
                 .to_natural_language()
                 .unwrap();
 
             // Ensure we can parse the result back
-            let reparsed = EventRecurrence::from_natural(&natural_language, date)
+            let reparsed = EventRecurrence::from_natural(&natural_language, &date)
                 .expect("Should be able to parse natural language back to RRULE");
 
             assert_eq!(

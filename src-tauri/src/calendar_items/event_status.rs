@@ -1,4 +1,4 @@
-use chrono::DateTime;
+use chrono::{DateTime, TimeZone};
 use diesel::{
     deserialize::{FromSql, FromSqlRow},
     expression::AsExpression,
@@ -62,8 +62,8 @@ impl From<EventStatus> for icalendar::Property {
 const EVENT_STATUS_RE: &str = r"%(?P<event_status>backlog|todo|doing|done)";
 
 impl ExtractableFromInput for EventStatus {
-    fn extract_from_input(
-        _: DateTime<chrono_tz::Tz>,
+    fn extract_from_input<Tz: TimeZone>(
+        _: DateTime<Tz>,
         input: &str,
     ) -> Result<impl Into<ExtractedInput<Self>>, String> {
         let re = RegexBuilder::new(EVENT_STATUS_RE)
@@ -88,7 +88,7 @@ impl ExtractableFromInput for EventStatus {
             "todo" => EventStatus::Todo,
             "doing" => EventStatus::Doing,
             "done" => EventStatus::Done,
-            _ => Err(format!("Invalid event status: {}", captured))?,
+            _ => Err(format!("Invalid event status: {captured}"))?,
         };
         Ok((
             status,
@@ -99,8 +99,14 @@ impl ExtractableFromInput for EventStatus {
     }
 }
 
+impl From<EventStatus> for String {
+    fn from(value: EventStatus) -> Self {
+        format!("{value}")
+    }
+}
+
 impl ToInput for EventStatus {
     fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
-        format!("%{}", self)
+        format!("%{self}")
     }
 }

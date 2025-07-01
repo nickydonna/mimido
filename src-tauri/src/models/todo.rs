@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use libdav::FetchedResource;
 
-use super::{event::NewEvent, IcalParseableTrait};
+use super::IcalParseableTrait;
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
 #[diesel(table_name = todos)]
@@ -59,7 +59,7 @@ impl_ical_parseable!(NewTodo);
 
 pub(crate) trait TodoTrait: IcalParseableTrait {
     fn get_start(&self) -> Option<DateTime<Utc>>;
-    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
+    fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
         format!(
             "{} {} {}",
             self.get_type(),

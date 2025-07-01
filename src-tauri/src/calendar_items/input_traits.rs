@@ -1,4 +1,4 @@
-use chrono::DateTime;
+use chrono::{DateTime, TimeZone};
 
 pub trait ToInput {
     fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String;
@@ -14,8 +14,8 @@ impl<T> From<(T, String)> for ExtractedInput<T> {
 }
 
 pub trait ExtractableFromInput {
-    fn extract_from_input(
-        date_of_input: DateTime<chrono_tz::Tz>,
+    fn extract_from_input<Tz: TimeZone>(
+        date_of_input: DateTime<Tz>,
         input: &str,
     ) -> Result<impl Into<ExtractedInput<Self>>, String>
     where

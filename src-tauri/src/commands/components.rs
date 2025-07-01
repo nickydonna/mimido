@@ -1,17 +1,23 @@
 use crate::{
+    caldav::Caldav,
     calendar_items::{
         event_creator::EventUpsertInfo,
         input_traits::{ExtractableFromInput, ExtractedInput},
         DisplayUpsertInfo,
     },
     establish_connection,
-    models::event::{Event, EventTrait},
+    models::{
+        event::{Event, EventTrait},
+        Calendar, Server,
+    },
     util::{stringify, DateTimeStr},
 };
-use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
+use chrono::{DateTime, FixedOffset, Utc};
 use diesel::prelude::*;
+use icalendar::Component;
+use log::info;
 use now::DateTimeNow;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, serde::Serialize, specta::Type)]
 pub struct ExtendedEvent {
@@ -54,7 +60,8 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
 
     let conn = &mut establish_connection();
 
-    let parsed: DateTime<Utc> = DateTimeStr(datetime).try_into()?;
+    let parsed: DateTime<FixedOffset> = DateTimeStr(datetime).try_into()?;
+    let parsed = parsed.to_utc();
     let start = parsed.beginning_of_day();
     let end = parsed.end_of_day();
 
@@ -82,10 +89,62 @@ pub async fn parse_event(
     date_of_input_str: String,
     component_input: String,
 ) -> Result<DisplayUpsertInfo, String> {
-    let parsed_date: DateTime<Utc> = DateTimeStr(date_of_input_str).try_into()?;
-    let parsed_date = parsed_date.with_timezone(&Tz::UTC);
+    let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
+    // let parsed_date = parsed_date.with_timezone(&Tz::UTC);
+    info!("{parsed_date}");
 
     let ExtractedInput(data, _) =
         EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
     Ok(data.into())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn save_event(
+    calendar_id: i32,
+    date_of_input_str: String,
+    component_input: String,
+) -> Result<(), String> {
+    use crate::schema::calendars::dsl as calendars_dsl;
+    use crate::schema::servers::dsl as server_dsl;
+
+    let conn = &mut establish_connection();
+
+    let (server, calendar) = server_dsl::servers
+        .inner_join(calendars_dsl::calendars)
+        .filter(calendars_dsl::id.eq(calendar_id))
+        .select((Server::as_select(), Calendar::as_select()))
+        .first::<(Server, Calendar)>(conn)
+        .map_err(|e| e.to_string())?;
+
+    let caldav = Caldav::new(server).await?;
+
+    let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
+    // let parsed_date = parsed_date.with_timezone(&Tz::UTC);
+    info!("{parsed_date}");
+
+    let ExtractedInput(data, _) =
+        EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
+
+    let mut new_calendar_cmp: icalendar::CalendarComponent = data.into();
+
+    let uid = Uuid::new_v4().to_string();
+    let new_calendar_cmp = set_uid_or(&mut new_calendar_cmp, &uid);
+    let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
+
+    caldav
+        .create_cmp(calendar.url, uid, cal)
+        .await
+        .map_err(stringify)?;
+
+    Ok(())
+}
+
+fn set_uid_or(cmp: &mut icalendar::CalendarComponent, uid: &str) -> icalendar::CalendarComponent {
+    let updated: icalendar::CalendarComponent = match cmp {
+        icalendar::CalendarComponent::Todo(todo) => todo.uid(uid).done().into(),
+        icalendar::CalendarComponent::Event(event) => event.uid(uid).done().into(),
+        _ => todo!(),
+    };
+    updated
 }

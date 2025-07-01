@@ -56,6 +56,7 @@ pub fn run() {
             commands::calendar::sync_all_calendars,
             commands::components::list_events_for_day,
             commands::components::parse_event,
+            commands::components::save_event,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
@@ -67,7 +68,6 @@ pub fn run() {
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())

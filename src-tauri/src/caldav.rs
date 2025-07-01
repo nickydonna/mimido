@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use futures::future::try_join_all;
 use http::Uri;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -6,10 +8,11 @@ use hyper_util::{
     rt::TokioExecutor,
 };
 use libdav::{
-    dav::{FoundCollection, WebDavClient},
+    dav::{mime_types, FoundCollection, WebDavClient},
     names,
 };
 use libdav::{CalDavClient, FetchedResource};
+use log::info;
 use tower_http::auth::AddAuthorization;
 
 use crate::models::{NewCalendar, Server};
@@ -130,5 +133,26 @@ impl Caldav {
             None => vec![self.caldav_client.base_url().clone()],
         };
         Ok(urls)
+    }
+
+    pub async fn create_cmp(
+        &self,
+        base_href: impl Display,
+        id: impl Display,
+        calendar: icalendar::Calendar,
+    ) -> anyhow::Result<()> {
+        let href = format!("{base_href}{id}.ics");
+        info!("{href}");
+        info!("{calendar}");
+        let v = self
+            .caldav_client
+            .create_resource(
+                &href,
+                calendar.to_string().as_bytes().to_vec(),
+                mime_types::CALENDAR,
+            )
+            .await?;
+        info!("res {v:?}");
+        Ok(())
     }
 }

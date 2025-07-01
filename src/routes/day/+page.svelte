@@ -290,7 +290,7 @@
 
     .event-card-block {
       @apply m-px bg-polka-indigo-800 border-indigo-900;
-      grid-column: "event /reminder";
+      grid-column: event / reminder;
       z-index: 0;
     }
 
