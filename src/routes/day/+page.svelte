@@ -29,6 +29,7 @@
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
 
+  let open = $state(true);
   let dragging = $state<Event | undefined>(undefined);
   let currentTimeInView = $state(false);
   let currentTime: Date = $state(new Date());
@@ -122,7 +123,7 @@
   }
 </script>
 
-<EventCreationModal {date} open />
+<EventCreationModal {open} onclose={() => (open = false)} />
 <div>
   <div
     class="flex sticky top-0 bg-primary-950 py-3 px-1"

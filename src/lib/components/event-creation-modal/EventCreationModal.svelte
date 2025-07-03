@@ -11,13 +11,16 @@
   import ProcessIcon from "~icons/uit/process";
   // @ts-expect-error iconify
   import CompressIcon from "~icons/uit/compress";
+  // @ts-expect-error iconify
+  import MultiplyIcon from "~icons/uit/multiply";
 
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
   import GlassButton from "../glass-button/GlassButton.svelte";
   import GlassInput from "../glass-input/GlassInput.svelte";
   import { timeStore } from "../../../stores/times";
+  import GlassIcon from "../glass-icon/GlassIcon.svelte";
 
-  const { open } = $props<{ open: boolean; date: Date }>();
+  let { open, onclose } = $props<{ open: boolean; onclose?: () => void }>();
   const date = $timeStore;
   console.log(formatISO(date));
   let input = $state("@block Work today at 10-13 every weekday");
@@ -63,11 +66,22 @@
   });
 </script>
 
-{#if !open}
+{#snippet hr()}
+  <div class="my-4 h-0.5 bg-primary-100/30 -mx-5 rounded"></div>
+{/snippet}
+
+{#if open}
   <div class="fixed w-dvw h-dvh inset-0 z-[100]">
     <div
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
+      <div class="flex items-center w-full mb-2">
+        <div class="flex-1">Create {result?.event_type ?? "Event"}</div>
+        <GlassIcon size="xs" onclick={onclose}>
+          <MultiplyIcon />
+        </GlassIcon>
+      </div>
+      {@render hr()}
       <GlassInput
         class="w-full outline-none text-white"
         bind:value={input}
@@ -75,7 +89,7 @@
         oninput={(e) => callParse(e.currentTarget.value)}
       />
 
-      <hr class="my-6 border-primary-100/50 -mx-6" />
+      {@render hr()}
       {#if result != null}
         <div class="flex gap-0.5 my-4 glass-prop h-12 px-4 py-3">
           <HoverableIcon iconCmp={SubjectIcon} text="Summary:" class="mt-0.5" />
@@ -108,7 +122,7 @@
             {/if}
           {/if}
         </div>
-        <hr class="my-6 border-primary-100/50 -mx-6" />
+        {@render hr()}
         <div class="flex items-center">
           <div class="flex-1">
             Press

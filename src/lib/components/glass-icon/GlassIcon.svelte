@@ -15,11 +15,11 @@
     | (HTMLButtonAttributes & BaseProps);
 
   const sizes: Record<SizeType, string> = {
-    xs: "px-3 py-2 text-xs",
-    sm: "px-4 py-2 text-sm",
-    md: "px-5 py-2.5 text-sm",
-    lg: "px-5 py-3 text-base",
-    xl: "px-6 py-3.5 text-base",
+    xs: "p-2 text-xs",
+    sm: "p-3  text-sm",
+    md: "p-4  text-sm",
+    lg: "p-5 text-base",
+    xl: "p-6 text-lg",
   };
 
   let props: Props = $props();
@@ -54,5 +54,19 @@
 
   .glass-button {
     @apply glassy-shadow relative;
+    transition: box-shadow 1s ease-in-out;
+  }
+
+  .glass-button::after {
+    content: "";
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+    pointer-events: none;
+    border-radius: inherit; /* Ensure the shadow follows the button's border-radius */
+    @apply absolute inset-0 w-full h-full inset-ring-primary-300 inset-ring-2;
+  }
+
+  .glass-button:hover::after {
+    opacity: 1;
   }
 </style>
