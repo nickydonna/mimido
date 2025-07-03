@@ -19,6 +19,9 @@ dependencies:
     version: 2.2.1
 
 devDependencies:
+  '@iconify-json/solar':
+    specifier: ^1.2.2
+    version: 1.2.2
   '@iconify-json/uim':
     specifier: ^1.2.3
     version: 1.2.3
@@ -332,6 +335,12 @@ packages:
 
   /@floating-ui/utils@0.2.9:
     resolution: {integrity: sha512-MDWhGtE+eHw5JW7lq4qhc5yRLS11ERl1c7Z6Xd0a58DozHES6EnNNwUWbMiG4J9Cgj053Bhk8zvlhFYKVhULwg==}
+    dev: true
+
+  /@iconify-json/solar@1.2.2:
+    resolution: {integrity: sha512-lcTb6DWL4HZObiY1W3fHfuxxuQHUc6CFHFeywKEx7Ry0k+dU6POZCMC7oVLr0F8vuf+KgaQ3oOoGO/yFzOwrNg==}
+    dependencies:
+      '@iconify/types': 2.0.0
     dev: true
 
   /@iconify-json/uim@1.2.3:

@@ -4,13 +4,13 @@
   import { commands, type DisplayUpsertInfo } from "../../../bindings";
   import { unwrap } from "$lib/result";
   // @ts-expect-error iconify
-  import CalendarIcon from "~icons/uit/calendar";
+  import CalendarIcon from "~icons/solar/calendar-date-linear";
   // @ts-expect-error iconify
-  import SubjectIcon from "~icons/uit/subject";
+  import SubjectIcon from "~icons/solar/text-field-broken";
   // @ts-expect-error iconify
-  import ProcessIcon from "~icons/uit/process";
+  import HistoryBoldIcon from "~icons/solar/history-bold";
   // @ts-expect-error iconify
-  import CompressIcon from "~icons/uit/compress";
+  import CompressIcon from "~icons/solar/posts-carousel-horizontal-line-duotone";
   // @ts-expect-error iconify
   import MultiplyIcon from "~icons/uit/multiply";
 
@@ -102,11 +102,7 @@
           </div>
           {#if result.starts_at != null && result.ends_at != null}
             <div class="glass-prop flex gap-1 h-9 px-3.5 py-2 text-sm">
-              <HoverableIcon
-                iconCmp={CalendarIcon}
-                text="Date:"
-                class="mt-0.5"
-              />
+              <HoverableIcon iconCmp={CalendarIcon} text="Date:" />
               {format(parseISO(result.starts_at), "MMM dd 'at' HH:mm")}
               {#if isSameDay(result.starts_at, result.ends_at)}
                 {format(parseISO(result.ends_at), "'until' HH:mm")}
@@ -116,7 +112,7 @@
             </div>
             {#if result.recurrence}
               <div class="flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm">
-                <HoverableIcon iconCmp={ProcessIcon} text="Recurrence:" />
+                <HoverableIcon iconCmp={HistoryBoldIcon} text="Recurrence:" />
                 {result.recurrence}
               </div>
             {/if}

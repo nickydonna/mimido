@@ -22,7 +22,7 @@
 
 {#if !hoverred}
   <span
-    class={["text-slate-300", rest.class]}
+    class={["m-0.5 text-slate-300", rest.class]}
     role="tooltip"
     onmouseenter={onEnter}
     transition:slide={{

@@ -24,12 +24,10 @@
   import { timeStore } from "../../stores/times";
   import EventCard from "$lib/components/event-card";
   import type { PageProps } from "./$types";
-  import EventCreationModal from "$lib/components/event-creation-modal/EventCreationModal.svelte";
 
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
 
-  let open = $state(true);
   let dragging = $state<Event | undefined>(undefined);
   let currentTimeInView = $state(false);
   let currentTime: Date = $state(new Date());
@@ -123,7 +121,6 @@
   }
 </script>
 
-<EventCreationModal {open} onclose={() => (open = false)} />
 <div>
   <div
     class="flex sticky top-0 bg-primary-950 py-3 px-1"
@@ -177,14 +174,14 @@
         style="grid-column: reminder; grid-row: tracks;">Reminder</span
       >
 
-      {#if !currentTimeInView && !dragging}
-        <Button
-          class="fixed bottom-[2rem] end-6 z-40"
-          onclick={scrollCurrentIntoView}
-        >
-          Current Time
-        </Button>
-      {/if}
+      <!-- {#if !currentTimeInView && !dragging} -->
+      <!--   <Button -->
+      <!--     class="fixed bottom-[2rem] end-6 z-40" -->
+      <!--     onclick={scrollCurrentIntoView} -->
+      <!--   > -->
+      <!--     Current Time -->
+      <!--   </Button> -->
+      <!-- {/if} -->
       <!-- Time indicator -->
       <div
         class="pointer-events-none"
