@@ -48,11 +48,3 @@
     {@render props.children?.()}
   </a>
 {/if}
-
-<style lang="postcss">
-  @reference "../../../app.css";
-
-  .glass-button {
-    @apply glassy-shadow relative;
-  }
-</style>

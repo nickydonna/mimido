@@ -15,11 +15,11 @@
     | (HTMLButtonAttributes & BaseProps);
 
   const sizes: Record<SizeType, string> = {
-    xs: "p-2 text-xs",
-    sm: "p-3  text-sm",
-    md: "p-4  text-sm",
-    lg: "p-5 text-base",
-    xl: "p-6 text-lg",
+    xs: "p-1 text-xs",
+    sm: "p-2 text-sm",
+    md: "p-3 text-sm",
+    lg: "p-4 text-base",
+    xl: "p-5 text-lg",
   };
 
   let props: Props = $props();
@@ -33,7 +33,7 @@
   }
 
   let classes = $derived([
-    "glass-clickable rounded-3xl cursor-pointer",
+    "glass-clickable rounded-4xl cursor-pointer",
     sizes[size],
     className,
   ]);
@@ -48,25 +48,3 @@
     {@render props.children?.()}
   </a>
 {/if}
-
-<style lang="postcss">
-  @reference "../../../app.css";
-
-  .glass-button {
-    @apply glassy-shadow relative;
-    transition: box-shadow 1s ease-in-out;
-  }
-
-  .glass-button::after {
-    content: "";
-    opacity: 0;
-    transition: opacity 1s ease-in-out;
-    pointer-events: none;
-    border-radius: inherit; /* Ensure the shadow follows the button's border-radius */
-    @apply absolute inset-0 w-full h-full inset-ring-primary-300 inset-ring-2;
-  }
-
-  .glass-button:hover::after {
-    opacity: 1;
-  }
-</style>
