@@ -113,6 +113,7 @@ impl Caldav {
             url: collection.href.clone(),
             name: display_name.clone().unwrap_or(collection.href.clone()),
             etag: collection.etag,
+            default_value: false,
             server_id: self.server.id,
         })
     }

@@ -14,7 +14,6 @@
   import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
 
   let { children } = $props();
-  let open = $state(false);
 
   let activeUrl = $derived(page.url.pathname);
 </script>
@@ -38,9 +37,6 @@
         </GlassGrouppedButton>
       </GlassButtonGroup>
     </div>
-    <GlassIcon size="lg" onclick={() => (open = true)}>
-      <CalendarAddIcon />
-    </GlassIcon>
+    <EventCreationModal />
   </div>
 </div>
-<EventCreationModal {open} onclose={() => (open = false)} />

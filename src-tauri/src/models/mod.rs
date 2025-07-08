@@ -34,6 +34,7 @@ pub struct Calendar {
     pub url: String,
     pub etag: Option<String>,
     pub server_id: i32,
+    pub default_value: bool,
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
@@ -43,6 +44,7 @@ pub struct NewCalendar {
     pub url: String,
     pub etag: Option<String>,
     pub server_id: i32,
+    pub default_value: bool,
 }
 
 pub trait IcalParseableTrait {

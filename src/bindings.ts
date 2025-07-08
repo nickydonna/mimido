@@ -84,7 +84,7 @@ async saveEvent(calendarId: number, dateOfInputStr: string, componentInput: stri
 
 /** user-defined types **/
 
-export type Calendar = { id: number; name: string; url: string; etag: string | null; server_id: number }
+export type Calendar = { id: number; name: string; url: string; etag: string | null; server_id: number; default_value: boolean }
 /**
  * Simplified version of a [`EventUpsertInfo`] for showing to the user while creating
  */

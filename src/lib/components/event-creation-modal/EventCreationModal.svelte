@@ -1,5 +1,7 @@
 <script lang="ts">
   import { format, formatISO, isSameDay, parseISO } from "date-fns";
+  import { createDialog } from "svelte-headlessui";
+  import Transition from "svelte-transition";
 
   import { commands, type DisplayUpsertInfo } from "../../../bindings";
   import { unwrap } from "$lib/result";
@@ -15,6 +17,8 @@
   import MultiplyIcon from "~icons/uit/multiply";
   // @ts-expect-error iconify
   import RoutingIcon from "~icons/solar/routing-line-duotone";
+  // @ts-expect-error iconify
+  import CalendarAddIcon from "~icons/solar/calendar-add-linear";
 
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
   import GlassButton from "../glass-button/GlassButton.svelte";
@@ -22,7 +26,7 @@
   import { timeStore } from "../../../stores/times";
   import GlassIcon from "../glass-icon/GlassIcon.svelte";
 
-  let { open, onclose } = $props<{ open: boolean; onclose?: () => void }>();
+  const dialog = createDialog({ label: "Create Event" });
   const date = $timeStore;
   console.log(formatISO(date));
   let input = $state("@block Work today at 10-13 every weekday");
@@ -59,10 +63,10 @@
     result = unwrap(res);
   }, 100);
 
-  let saving = $state(true);
+  let saving = $state(false);
   async function save() {
     saving = true;
-    await commands.saveEvent(6, formatISO(date), input);
+    await commands.saveEvent(5, formatISO(date), input);
     saving = false;
   }
 
@@ -75,14 +79,27 @@
   <div class="my-4 h-0.5 bg-primary-100/30 -mx-5 rounded"></div>
 {/snippet}
 
-{#if open}
+<GlassIcon size="lg" onclick={() => dialog.open()}>
+  <CalendarAddIcon />
+</GlassIcon>
+
+<Transition
+  show={$dialog.expanded}
+  enter="ease-in-out duration-300"
+  enterFrom="opacity-0"
+  enterTo="opacity-100"
+  leave="ease-in-out duration-300"
+  leaveFrom="opacity-100"
+  leaveTo="opacity-0"
+>
   <div class="fixed w-dvw h-dvh inset-0 z-[100]">
     <div
+      use:dialog.modal
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
       <div class="flex items-center w-full mb-2">
         <div class="flex-1">Create {result?.event_type ?? "Event"}</div>
-        <GlassIcon size="xs" onclick={onclose}>
+        <GlassIcon size="xs" onclick={() => dialog.close()}>
           <MultiplyIcon />
         </GlassIcon>
       </div>
@@ -92,7 +109,6 @@
         class="w-full outline-none text-white"
         bind:value={input}
         placeholder="Type your event information ..."
-        oninput={(e) => callParse(e.currentTarget.value)}
       />
 
       {@render hr()}
@@ -145,7 +161,7 @@
       {/if}
     </div>
   </div>
-{/if}
+</Transition>
 
 <style lang="postcss">
   @reference "../../../app.css";
