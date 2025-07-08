@@ -4,8 +4,8 @@ use crate::{
 };
 use diesel::prelude::*;
 
-pub(crate) mod event;
-pub(crate) mod todo;
+pub(crate) mod vevent;
+pub(crate) mod vtodo;
 
 #[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize, specta::Type, Clone)]
 #[diesel(table_name = servers)]

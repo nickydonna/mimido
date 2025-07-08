@@ -7,7 +7,7 @@ use crate::{
     },
     establish_connection,
     models::{
-        event::{Event, EventTrait},
+        vevent::{VEvent, VEventTrait},
         Calendar, Server,
     },
     util::{stringify, DateTimeStr},
@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug, serde::Serialize, specta::Type)]
 pub struct ExtendedEvent {
-    pub event: Event,
+    pub event: VEvent,
     /// The start date of the event, if recurrent the value for the current query
     pub starts_at: DateTime<Utc>,
     /// The end date of the event, if recurrent the value for the current query
@@ -30,7 +30,7 @@ pub struct ExtendedEvent {
 }
 
 impl ExtendedEvent {
-    pub fn on_day(event: &Event, query_date: DateTime<Utc>) -> Option<Self> {
+    pub fn on_day(event: &VEvent, query_date: DateTime<Utc>) -> Option<Self> {
         if !event.has_rrule && event.starts_at.date_naive() != query_date.date_naive() {
             log::warn!(
                 "Event {} does not have a recurrence rule and is not on the requested date",
@@ -56,7 +56,7 @@ impl ExtendedEvent {
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
 pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>, String> {
-    use crate::schema::events::dsl as event_dsl;
+    use crate::schema::vevents::dsl as event_dsl;
 
     let conn = &mut establish_connection();
 
@@ -65,13 +65,13 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
     let start = parsed.beginning_of_day();
     let end = parsed.end_of_day();
 
-    let events = event_dsl::events
+    let events = event_dsl::vevents
         .filter(
             event_dsl::has_rrule.eq(true).or(event_dsl::starts_at
                 .ge(start)
                 .and(event_dsl::ends_at.le(end))),
         )
-        .select(Event::as_select())
+        .select(VEvent::as_select())
         .load(conn)
         .map_err(stringify)?;
 

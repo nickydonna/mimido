@@ -11,7 +11,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    events (id) {
+    vevents (id) {
         id -> Integer,
         calendar_id -> Integer,
         uid -> Text,
@@ -46,7 +46,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    todos (id) {
+    vtodos (id) {
         id -> Integer,
         calendar_id -> Integer,
         uid -> Text,
@@ -68,7 +68,7 @@ diesel::table! {
 }
 
 diesel::joinable!(calendars -> servers (server_id));
-diesel::joinable!(events -> calendars (calendar_id));
-diesel::joinable!(todos -> calendars (calendar_id));
+diesel::joinable!(vevents -> calendars (calendar_id));
+diesel::joinable!(vtodos -> calendars (calendar_id));
 
-diesel::allow_tables_to_appear_in_same_query!(calendars, events, servers, todos,);
+diesel::allow_tables_to_appear_in_same_query!(calendars, vevents, servers, vtodos);

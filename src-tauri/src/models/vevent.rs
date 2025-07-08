@@ -23,8 +23,8 @@ use super::IcalParseableTrait;
 #[derive(
     Queryable, Selectable, Insertable, AsChangeset, Debug, Clone, serde::Serialize, specta::Type,
 )]
-#[diesel(table_name = events)]
-pub struct Event {
+#[diesel(table_name = vevents)]
+pub struct VEvent {
     pub id: i32,
     pub calendar_id: i32,
     pub uid: String,
@@ -48,8 +48,8 @@ pub struct Event {
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, Clone)]
-#[diesel(table_name = events)]
-pub struct NewEvent {
+#[diesel(table_name = vevents)]
+pub struct NewVEvent {
     pub calendar_id: i32,
     pub uid: String,
     pub href: String,
@@ -101,10 +101,10 @@ fn get_start_string(event: &icalendar::Event) -> Option<String> {
     }
 }
 
-impl_ical_parseable!(Event);
-impl_ical_parseable!(NewEvent);
+impl_ical_parseable!(VEvent);
+impl_ical_parseable!(NewVEvent);
 
-pub trait EventTrait: IcalParseableTrait {
+pub trait VEventTrait: IcalParseableTrait {
     /// Get [`Event::starts_at`]
     fn get_start(&self) -> DateTime<Utc>;
     /// Get [`Event::ends_at`]
@@ -221,7 +221,7 @@ pub trait EventTrait: IcalParseableTrait {
 
 macro_rules! impl_event_trait {
     ($t: ty) => {
-        impl EventTrait for $t {
+        impl VEventTrait for $t {
             fn get_start(&self) -> DateTime<Utc> {
                 self.starts_at
             }
@@ -236,12 +236,12 @@ macro_rules! impl_event_trait {
     };
 }
 
-impl_event_trait!(Event);
-impl_event_trait!(NewEvent);
+impl_event_trait!(VEvent);
+impl_event_trait!(NewVEvent);
 
-impl TryFrom<NewEvent> for icalendar::Event {
+impl TryFrom<NewVEvent> for icalendar::Event {
     type Error = String;
-    fn try_from(new_event: NewEvent) -> Result<Self, String> {
+    fn try_from(new_event: NewVEvent) -> Result<Self, String> {
         if new_event.event_type == EventType::Task {
             return Err("Event can't be tasks".to_string());
         }
@@ -296,7 +296,7 @@ fn get_start_and_end(
     Ok((start, end))
 }
 
-impl NewEvent {
+impl NewVEvent {
     pub fn new_from_resource(
         cal_id: i32,
         fetched_resource: &FetchedResource,
@@ -306,7 +306,7 @@ impl NewEvent {
             .content
             .as_ref()
             .map_err(|e| e.to_string())?;
-        NewEvent::new_from_ical_data(cal_id, href, content.data.clone())
+        NewVEvent::new_from_ical_data(cal_id, href, content.data.clone())
     }
 
     pub fn new_from_ical_data(
@@ -342,7 +342,7 @@ impl NewEvent {
 
         let (starts_at, ends_at) = get_start_and_end(&calendar_item)?;
 
-        let new_event = NewEvent {
+        let new_event = NewVEvent {
             calendar_id: cal_id,
             uid: uid.to_string(),
             href,
@@ -364,7 +364,7 @@ impl NewEvent {
             postponed,
         };
         let rrule_str = new_event.get_rrule_from_ical().map(|r| r.to_string());
-        Ok(Some(NewEvent {
+        Ok(Some(NewVEvent {
             has_rrule: rrule_str.is_some(),
             rrule_str,
             ..new_event
@@ -394,7 +394,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/basic.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewEvent::new_from_ical_data(1, "/hello".into(), ics)
+        let event = NewVEvent::new_from_ical_data(1, "/hello".into(), ics)
             .unwrap()
             .unwrap();
 
@@ -428,7 +428,7 @@ mod tests {
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
 
-        let event = NewEvent::new_from_ical_data(1, "/hello".into(), ics)
+        let event = NewVEvent::new_from_ical_data(1, "/hello".into(), ics)
             .unwrap()
             .unwrap();
         let recurrence = event.get_next_recurrence_from_date(
@@ -453,7 +453,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewEvent::new_from_ical_data(1, "/cal".into(), ics);
+        let event = NewVEvent::new_from_ical_data(1, "/cal".into(), ics);
 
         assert!(event.is_ok());
         let event = event.unwrap();
@@ -475,7 +475,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewEvent::new_from_ical_data(1, "/cal".into(), ics);
+        let event = NewVEvent::new_from_ical_data(1, "/cal".into(), ics);
 
         assert!(event.is_ok());
         let event = event.unwrap();

@@ -12,8 +12,8 @@ use libdav::FetchedResource;
 use super::IcalParseableTrait;
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
-#[diesel(table_name = todos)]
-pub struct Todo {
+#[diesel(table_name = vtodos)]
+pub struct VTodo {
     pub id: i32,
     pub calendar_id: i32,
     pub uid: String,
@@ -34,8 +34,8 @@ pub struct Todo {
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
-#[diesel(table_name = todos)]
-pub struct NewTodo {
+#[diesel(table_name = vtodos)]
+pub struct NewVTodo {
     pub calendar_id: i32,
     pub href: String,
     pub uid: String,
@@ -54,10 +54,10 @@ pub struct NewTodo {
     pub last_modified: i64,
 }
 
-impl_ical_parseable!(Todo);
-impl_ical_parseable!(NewTodo);
+impl_ical_parseable!(VTodo);
+impl_ical_parseable!(NewVTodo);
 
-pub(crate) trait TodoTrait: IcalParseableTrait {
+pub(crate) trait VTodoTrait: IcalParseableTrait {
     fn get_start(&self) -> Option<DateTime<Utc>>;
     fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
         format!(
@@ -71,7 +71,7 @@ pub(crate) trait TodoTrait: IcalParseableTrait {
 
 macro_rules! impl_todo_trait {
     ($t: ty) => {
-        impl TodoTrait for $t {
+        impl VTodoTrait for $t {
             fn get_start(&self) -> Option<DateTime<Utc>> {
                 None
             }
@@ -79,20 +79,20 @@ macro_rules! impl_todo_trait {
     };
 }
 
-impl_todo_trait!(Todo);
-impl_todo_trait!(NewTodo);
+impl_todo_trait!(VTodo);
+impl_todo_trait!(NewVTodo);
 
-impl NewTodo {
+impl NewVTodo {
     pub fn new_from_resource(
         calendar_id: i32,
         fetched_resource: &FetchedResource,
-    ) -> Result<Option<NewTodo>, String> {
+    ) -> Result<Option<NewVTodo>, String> {
         let href = fetched_resource.href.clone();
         let content = fetched_resource
             .content
             .as_ref()
             .map_err(|e| e.to_string())?;
-        NewTodo::new_from_ical_data(calendar_id, href, content.data.clone())
+        NewVTodo::new_from_ical_data(calendar_id, href, content.data.clone())
     }
 
     pub fn new_from_ical_data(
@@ -126,7 +126,7 @@ impl NewTodo {
             last_modified,
         } = GeneralComponentProps::try_from(first_todo)?;
 
-        Ok(Some(NewTodo {
+        Ok(Some(NewVTodo {
             calendar_id,
             uid: uid.to_string(),
             href,
@@ -157,7 +157,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/todo.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let todo = NewTodo::new_from_ical_data(1, "test".to_string(), ics);
+        let todo = NewVTodo::new_from_ical_data(1, "test".to_string(), ics);
 
         assert!(todo.is_ok());
         let todo = todo.unwrap();

@@ -1,7 +1,7 @@
 use crate::{
     caldav::Caldav,
     establish_connection,
-    models::{event::NewEvent, todo::NewTodo, Calendar, Server},
+    models::{vevent::NewVEvent, vtodo::NewVTodo, Calendar, Server},
     util::stringify,
 };
 use diesel::{delete, insert_into};
@@ -69,9 +69,9 @@ fn list_servers() -> Result<Vec<Server>, String> {
 #[specta::specta]
 pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
     use crate::schema::calendars::dsl as calendars_dsl;
-    use crate::schema::events::dsl as event_dsl;
     use crate::schema::servers::dsl as server_dsl;
-    use crate::schema::todos::dsl as todo_dsl;
+    use crate::schema::vevents::dsl as event_dsl;
+    use crate::schema::vtodos::dsl as todo_dsl;
 
     let conn = &mut establish_connection();
 
@@ -90,23 +90,23 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     // Clean the events from that calendar
-    delete(event_dsl::events)
+    delete(event_dsl::vevents)
         .filter(event_dsl::calendar_id.eq(calendar_id))
         .execute(conn)
         .map_err(stringify)?;
     // Clean the todos from that calendar
-    delete(todo_dsl::todos)
+    delete(todo_dsl::vtodos)
         .filter(todo_dsl::calendar_id.eq(calendar_id))
         .execute(conn)
         .map_err(stringify)?;
 
     let events = items
         .iter()
-        .flat_map(|fetched_resource| NewEvent::new_from_resource(calendar_id, fetched_resource))
+        .flat_map(|fetched_resource| NewVEvent::new_from_resource(calendar_id, fetched_resource))
         .flatten()
-        .collect::<Vec<NewEvent>>();
+        .collect::<Vec<NewVEvent>>();
 
-    insert_into(event_dsl::events)
+    insert_into(event_dsl::vevents)
         .values(events)
         .execute(conn)
         .map(|_| ())
@@ -114,11 +114,11 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
 
     let todos = items
         .iter()
-        .flat_map(|fetched_resource| NewTodo::new_from_resource(calendar_id, fetched_resource))
+        .flat_map(|fetched_resource| NewVTodo::new_from_resource(calendar_id, fetched_resource))
         .flatten()
-        .collect::<Vec<NewTodo>>();
+        .collect::<Vec<NewVTodo>>();
 
-    insert_into(todo_dsl::todos)
+    insert_into(todo_dsl::vtodos)
         .values(todos)
         .execute(conn)
         .map(|_| ())
