@@ -1,7 +1,8 @@
 use crate::{
     caldav::Caldav,
     establish_connection,
-    models::{NewServer, Server},
+    models::{Calendar, NewServer, Server},
+    util::stringify,
 };
 use diesel::prelude::*;
 use futures::TryFutureExt;
@@ -41,12 +42,23 @@ pub async fn create_server(
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub async fn list_servers() -> Vec<Server> {
-    use crate::schema::servers::dsl::*;
+pub fn list_servers() -> Result<Vec<(Server, Vec<Calendar>)>, String> {
+    use crate::schema::servers::dsl as server_dsl;
 
     let conn = &mut establish_connection();
-    servers
+    let servers = server_dsl::servers
         .select(Server::as_select())
         .load(conn)
-        .expect("To Load servers")
+        .map_err(stringify)?;
+
+    let calendars = Calendar::belonging_to(&servers)
+        .select(Calendar::as_select())
+        .load(conn)
+        .map_err(stringify)?;
+    Ok(calendars
+        .grouped_by(&servers)
+        .into_iter()
+        .zip(servers)
+        .map(|(calendars, server)| (server, calendars))
+        .collect::<Vec<(Server, Vec<Calendar>)>>())
 }

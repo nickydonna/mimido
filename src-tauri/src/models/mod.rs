@@ -7,7 +7,17 @@ use diesel::prelude::*;
 pub(crate) mod vevent;
 pub(crate) mod vtodo;
 
-#[derive(Queryable, Selectable, Insertable, Debug, serde::Serialize, specta::Type, Clone)]
+#[derive(
+    Queryable,
+    Selectable,
+    Identifiable,
+    Insertable,
+    Debug,
+    serde::Serialize,
+    specta::Type,
+    Clone,
+    PartialEq,
+)]
 #[diesel(table_name = servers)]
 pub struct Server {
     pub id: i32,
@@ -26,7 +36,19 @@ pub struct NewServer {
     pub last_sync: Option<i64>,
 }
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type)]
+#[derive(
+    Queryable,
+    Selectable,
+    Insertable,
+    Identifiable,
+    Associations,
+    AsChangeset,
+    Debug,
+    PartialEq,
+    serde::Serialize,
+    specta::Type,
+)]
+#[diesel(belongs_to(Server))]
 #[diesel(table_name = calendars)]
 pub struct Calendar {
     pub id: i32,

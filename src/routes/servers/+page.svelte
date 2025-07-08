@@ -1,19 +1,11 @@
 <script lang="ts">
-  import {
-    Card,
-    Button,
-    Input,
-    Label,
-    Table,
-    TableBody,
-    TableBodyCell,
-    TableBodyRow,
-    Spinner,
-  } from "flowbite-svelte";
+  import { Button, Input, Label, Spinner } from "flowbite-svelte";
   import { commands, type Server, type Result } from "../../bindings";
   import { invalidateAll } from "$app/navigation";
   import type { PageProps } from "./$types";
   import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
+  import DisclosureGroup from "$lib/components/disclosure/DisclosureGroup.svelte";
+  import Disclosure from "$lib/components/disclosure/Disclosure.svelte";
 
   let { data }: PageProps = $props();
 
@@ -48,24 +40,17 @@
 </script>
 
 <div>
-  <Card padding="sm" class="mx-auto" color="primary">
-    <div class="flex flex-col items-center pb-4">
-      <!-- <Avatar size="lg" src={frog} /> -->
-      <h5 class="mb-1 text-xl font-medium text-gray-900 dark:text-white">
-        Mimi
-      </h5>
-      <span class="text-sm text-gray-500 dark:text-gray-400">A Mimi</span>
-      <div class="mt-4 flex space-x-3 lg:mt-6 rtl:space-x-reverse">
-        <GlassButton onclick={syncAllCalendars} disabled={loadingCalendars}>
-          {#if loadingCalendars}
-            <Spinner class="me-3" size="4" />
-          {:else}
-            Sync
-          {/if}
-        </GlassButton>
-      </div>
+  <div class="flex items-center">
+    <div class="flex-1">
+      <h1 class="text-lg md:text-4xl text-primary-200">Configuration</h1>
     </div>
-  </Card>
+    <div>
+      <GlassButton onclick={syncAllCalendars} loading={loadingCalendars}>
+        Sync
+      </GlassButton>
+    </div>
+  </div>
+  <div class="my-5 h-0.5 bg-primary-100/30 -mx-5 rounded"></div>
   {#if servers.length === 0}
     <div class="flex flex-col items-center">
       <h3 class="mb-2 text-xl font-medium text-gray-900 dark:text-white">
@@ -76,35 +61,53 @@
       </p>
     </div>
   {:else}
-    <Table class="mt-3" color="primary">
-      <caption
-        class="border-b rounded-t border-primary-400 p-5 text-left text-lg font-semibold bg-primary-800 text-primary-200"
-      >
-        Added Servers
-      </caption>
-      <TableBody>
-        {#each servers as server}
-          <TableBodyRow>
-            <TableBodyCell>
-              {server.server_url}
-            </TableBodyCell>
-            <TableBodyCell>
-              {server.user}
-            </TableBodyCell>
-            <TableBodyCell>
-              {#if server.last_sync == null}
-                Never Synced
-              {:else}
-                Synced on: {new Date(server.last_sync).toLocaleString("en-UK", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
-              {/if}
-            </TableBodyCell>
-          </TableBodyRow>
-        {/each}
-      </TableBody>
-    </Table>
+    <h2 class="text-lg md:text-2xl text-primary-200">Added Servers</h2>
+    <DisclosureGroup>
+      {#each servers as [server, calendars], index}
+        <Disclosure label={`Server for ${server.user}`} expanded={index === 0}>
+          {#snippet header()}
+            <div class="flex">
+              <div
+                class="border-b p-4 pl-8 text-primary-300 dark:border-primary-700"
+              >
+                {server.server_url}
+              </div>
+              <div
+                class="border-b p-4 pl-8 text-primary-300 dark:border-primary-700"
+              >
+                {server.user}
+              </div>
+              <div
+                class="border-b p-4 pl-8 text-primary-300 dark:border-primary-700"
+              >
+                {#if server.last_sync == null}
+                  Never Synced
+                {:else}
+                  Synced: {new Date(server.last_sync).toLocaleString("en-UK", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
+                {/if}
+              </div>
+            </div>
+          {/snippet}
+          {#snippet content()}
+            {#each calendars as calendar}
+              <div
+                class="flex border-b p-4 pl-8 text-primary-300 dark:border-primary-700"
+              >
+                <div class="flex-1">
+                  {calendar.name}
+                </div>
+                <div>
+                  {calendar.default_value}
+                </div>
+              </div>
+            {/each}
+          {/snippet}
+        </Disclosure>
+      {/each}
+    </DisclosureGroup>
   {/if}
   <form class="flex flex-col space-y-6 mt-5" onsubmit={addServer}>
     <h3 class="p-0 text-xl font-medium text-primary-200">Add Server</h3>

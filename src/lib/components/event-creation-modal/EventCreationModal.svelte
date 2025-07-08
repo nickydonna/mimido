@@ -1,6 +1,7 @@
 <script lang="ts">
   import { format, formatISO, isSameDay, parseISO } from "date-fns";
   import { createDialog } from "svelte-headlessui";
+  // @ts-expect-error no types
   import Transition from "svelte-transition";
 
   import { commands, type DisplayUpsertInfo } from "../../../bindings";
@@ -92,7 +93,7 @@
   leaveFrom="opacity-100"
   leaveTo="opacity-0"
 >
-  <div class="fixed w-dvw h-dvh inset-0 z-[100]">
+  <div class="fixed w-dvw h-dvh inset-0 z-[100] glass-modal-backdrop">
     <div
       use:dialog.modal
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
@@ -165,6 +166,12 @@
 
 <style lang="postcss">
   @reference "../../../app.css";
+
+  .glass-modal-backdrop {
+    @apply bg-black/20;
+    backdrop-filter: blur(0.5px);
+  }
+
   .glass-modal {
     @apply glassy-shadow rounded-4xl p-6 bg-primary-800/30;
     backdrop-filter: blur(4px);

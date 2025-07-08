@@ -13,8 +13,13 @@ async createServer(serverUrl: string, user: string, password: string) : Promise<
     else return { status: "error", error: e  as any };
 }
 },
-async listServers() : Promise<Server[]> {
-    return await TAURI_INVOKE("list_servers");
+async listServers() : Promise<Result<([Server, Calendar[]])[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_servers") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 },
 async listCalendars() : Promise<Result<Calendar[], string>> {
     try {
