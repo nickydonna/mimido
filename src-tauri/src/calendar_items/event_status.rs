@@ -35,7 +35,7 @@ pub enum EventStatus {
     #[strum(serialize = "back")]
     Backlog,
     Todo,
-    Doing,
+    InProgress,
     Done,
 }
 
@@ -59,7 +59,7 @@ impl From<EventStatus> for icalendar::Property {
     }
 }
 
-const EVENT_STATUS_RE: &str = r"%(?P<event_status>backlog|todo|doing|done)";
+const EVENT_STATUS_RE: &str = r"%(?P<event_status>backlog|todo|inprogress|doing|done|b|t|i|d)";
 
 impl ExtractableFromInput for EventStatus {
     fn extract_from_input<Tz: TimeZone>(
@@ -84,10 +84,10 @@ impl ExtractableFromInput for EventStatus {
             .expect("Already check if it's some");
 
         let status = match captured.to_lowercase().as_str() {
-            "backlog" => EventStatus::Backlog,
-            "todo" => EventStatus::Todo,
-            "doing" => EventStatus::Doing,
-            "done" => EventStatus::Done,
+            "backlog" | "b" => EventStatus::Backlog,
+            "todo" | "t" => EventStatus::Todo,
+            "doing" | "inprogress" | "i" => EventStatus::InProgress,
+            "done" | "d" => EventStatus::Done,
             _ => Err(format!("Invalid event status: {captured}"))?,
         };
         Ok((

@@ -20,7 +20,7 @@
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
-  import { type Event, type EventType } from "../../bindings";
+  import { type VEvent, type EventType } from "../../bindings";
   import { timeStore } from "../../stores/times";
   import EventCard from "$lib/components/event-card";
   import type { PageProps } from "./$types";
@@ -28,7 +28,7 @@
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
 
-  let dragging = $state<Event | undefined>(undefined);
+  let dragging = $state<VEvent | undefined>(undefined);
   let currentTimeInView = $state(false);
   let currentTime: Date = $state(new Date());
   let hoverTime: Date | undefined = $state(undefined);

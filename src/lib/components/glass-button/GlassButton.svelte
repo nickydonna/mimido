@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SizeType } from "flowbite-svelte";
+  import { Spinner, type SizeType } from "flowbite-svelte";
   import {
     type HTMLButtonAttributes,
     type HTMLAnchorAttributes,
@@ -8,6 +8,7 @@
   type BaseProps = {
     size?: SizeType;
     disabled?: boolean;
+    loading?: boolean;
   };
 
   type Props =
@@ -24,7 +25,13 @@
 
   let props: Props = $props();
 
-  let { class: className, size = "md", disabled } = $derived(props);
+  let {
+    class: className,
+    size = "md",
+    disabled: propsDisabled,
+    loading,
+  } = $derived(props);
+  let disabled = $derived(propsDisabled || loading);
 
   function isButtonProps(
     props: Props,
@@ -33,13 +40,19 @@
   }
 
   let classes = $derived([
+    "glass-button",
+    disabled ? "text-primary-400" : "text-primary-100",
     "glass-clickable rounded-3xl cursor-pointer",
     sizes[size],
     className,
+    {
+      loading,
+    },
   ]);
 </script>
 
 {#if isButtonProps(props)}
+  <div class="justify-center"></div>
   <button {...props} type={props.type ?? "button"} class={classes} {disabled}>
     {@render props.children?.()}
   </button>

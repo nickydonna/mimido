@@ -4,7 +4,7 @@
   import { commands, type DisplayUpsertInfo } from "../../../bindings";
   import { unwrap } from "$lib/result";
   // @ts-expect-error iconify
-  import CalendarIcon from "~icons/solar/calendar-date-linear";
+  import ClockIcon from "~icons/solar/clock-circle-broken";
   // @ts-expect-error iconify
   import SubjectIcon from "~icons/solar/text-field-broken";
   // @ts-expect-error iconify
@@ -13,6 +13,8 @@
   import CompressIcon from "~icons/solar/posts-carousel-horizontal-line-duotone";
   // @ts-expect-error iconify
   import MultiplyIcon from "~icons/uit/multiply";
+  // @ts-expect-error iconify
+  import RoutingIcon from "~icons/solar/routing-line-duotone";
 
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
   import GlassButton from "../glass-button/GlassButton.svelte";
@@ -57,8 +59,11 @@
     result = unwrap(res);
   }, 100);
 
+  let saving = $state(true);
   async function save() {
+    saving = true;
     await commands.saveEvent(6, formatISO(date), input);
+    saving = false;
   }
 
   $effect(() => {
@@ -83,6 +88,7 @@
       </div>
       {@render hr()}
       <GlassInput
+        disabled={saving}
         class="w-full outline-none text-white"
         bind:value={input}
         placeholder="Type your event information ..."
@@ -100,9 +106,14 @@
             <HoverableIcon iconCmp={CompressIcon} text="Type:" />
             {result.event_type}
           </div>
+          <div class={["flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm"]}>
+            <HoverableIcon iconCmp={RoutingIcon} text="Status:" />
+            {result.status}
+          </div>
+
           {#if result.starts_at != null && result.ends_at != null}
             <div class="glass-prop flex gap-1 h-9 px-3.5 py-2 text-sm">
-              <HoverableIcon iconCmp={CalendarIcon} text="Date:" />
+              <HoverableIcon iconCmp={ClockIcon} text="Date:" />
               {format(parseISO(result.starts_at), "MMM dd 'at' HH:mm")}
               {#if isSameDay(result.starts_at, result.ends_at)}
                 {format(parseISO(result.ends_at), "'until' HH:mm")}
@@ -129,7 +140,7 @@
             </span>
             to save ...
           </div>
-          <GlassButton onclick={save}>Save</GlassButton>
+          <GlassButton loading={saving} onclick={save}>Save</GlassButton>
         </div>
       {/if}
     </div>

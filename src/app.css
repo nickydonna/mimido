@@ -73,21 +73,36 @@
     inset -2px -2px 30px rgba(247, 255, 226, 0.2);
 }
 
-@layer component {
-  .glass-clickable {
-    @apply glassy-shadow relative;
+@keyframes color-animation {
+  0% {
+    color: var(--color-start);
   }
 
-  .glass-clickable::after {
-    @apply absolute inset-0 w-full h-full opacity-0 pointer-events-none;
-    @apply ring-2 ring-inset ring-primary-300;
-    @apply transition-opacity duration-600 ease-in-out;
-    content: "";
-    border-radius: inherit;
-    /* Ensure the shadow follows the button's border-radius */
+  50% {
+    color: var(--color-end);
   }
+}
 
-  .glass-clickable:hover::after {
-    @apply opacity-100;
-  }
+.glass-clickable {
+  @apply glassy-shadow relative;
+}
+
+.glass-clickable:not(.loading)::after {
+  @apply absolute inset-0 w-full h-full opacity-0 pointer-events-none;
+  @apply ring-2 ring-inset ring-primary-300;
+  @apply transition-opacity duration-600 ease-in-out;
+  content: "";
+  border-radius: inherit;
+}
+
+.glass-clickable:not(.loading):hover::after {
+  @apply opacity-100;
+}
+
+.glass-clickable.loading::after {
+  @apply absolute inset-0 w-full h-full pointer-events-none;
+  @apply shadow-md shadow-primary-300;
+  @apply animate-pulse duration-500;
+  content: "";
+  border-radius: inherit;
 }

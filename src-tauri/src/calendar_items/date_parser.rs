@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
-use log::info;
 use regex::{Match, Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 
@@ -185,7 +184,6 @@ impl EventDate {
         reference_date: DateTime<Tz>,
     ) -> Option<(DateTime<Tz>, Option<DateTime<Tz>>, String)> {
         let tz = reference_date.timezone();
-        println!("{:?}", reference_date);
         let (case, re) = DateExpressionCases::iter()
             .map(|case| (case, Regex::from(case)))
             .find(|(_, re)| re.is_match(date_string))?;

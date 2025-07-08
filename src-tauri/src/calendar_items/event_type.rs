@@ -58,7 +58,7 @@ impl From<EventType> for icalendar::Property {
     }
 }
 
-const EVENT_TYPE_RE: &str = r"@(?P<event_type>event|block|reminder|task)";
+const EVENT_TYPE_RE: &str = r"(@|.)(?P<event_type>event|block|reminder|task|e|b|r|t)";
 
 impl ExtractableFromInput for EventType {
     fn extract_from_input<Tz: TimeZone>(
@@ -82,10 +82,10 @@ impl ExtractableFromInput for EventType {
             .expect("Already check if it's some");
 
         let event_type = match captured.to_lowercase().as_str() {
-            "event" => EventType::Event,
-            "block" => EventType::Block,
-            "reminder" => EventType::Reminder,
-            "task" => EventType::Task,
+            "event" | "e" => EventType::Event,
+            "block" | "b" => EventType::Block,
+            "reminder" | "r" => EventType::Reminder,
+            "task" | "t" => EventType::Task,
             _ => Err(format!("Invalid event type: {input}"))?,
         };
 

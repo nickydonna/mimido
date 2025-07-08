@@ -11,6 +11,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    servers (id) {
+        server_url -> Text,
+        user -> Text,
+        password -> Text,
+        id -> Integer,
+        last_sync -> Nullable<BigInt>,
+    }
+}
+
+diesel::table! {
     vevents (id) {
         id -> Integer,
         calendar_id -> Integer,
@@ -32,16 +42,6 @@ diesel::table! {
         postponed -> Integer,
         has_rrule -> Bool,
         rrule_str -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
-    servers (id) {
-        server_url -> Text,
-        user -> Text,
-        password -> Text,
-        id -> Integer,
-        last_sync -> Nullable<BigInt>,
     }
 }
 
@@ -71,4 +71,4 @@ diesel::joinable!(calendars -> servers (server_id));
 diesel::joinable!(vevents -> calendars (calendar_id));
 diesel::joinable!(vtodos -> calendars (calendar_id));
 
-diesel::allow_tables_to_appear_in_same_query!(calendars, vevents, servers, vtodos);
+diesel::allow_tables_to_appear_in_same_query!(calendars, servers, vevents, vtodos,);

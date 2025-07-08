@@ -13,17 +13,18 @@
   import { commands, type Server, type Result } from "../../bindings";
   import { invalidateAll } from "$app/navigation";
   import type { PageProps } from "./$types";
+  import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
 
   let { data }: PageProps = $props();
 
   let { servers } = $derived(data);
 
-  let syncingCalendars = $state(false);
+  let loadingCalendars = $state(false);
   const syncAllCalendars = async () => {
-    syncingCalendars = true;
+    loadingCalendars = true;
     await commands.syncAllCalendars();
     await invalidateAll();
-    syncingCalendars = false;
+    loadingCalendars = false;
   };
 
   let result = $state<Result<Server, string> | null>(null);
@@ -55,16 +56,13 @@
       </h5>
       <span class="text-sm text-gray-500 dark:text-gray-400">A Mimi</span>
       <div class="mt-4 flex space-x-3 lg:mt-6 rtl:space-x-reverse">
-        <Button
-          onclick={syncAllCalendars}
-          color="primary"
-          disabled={syncingCalendars}
-        >
-          {#if syncingCalendars}
+        <GlassButton onclick={syncAllCalendars} disabled={loadingCalendars}>
+          {#if loadingCalendars}
             <Spinner class="me-3" size="4" />
+          {:else}
+            Sync
           {/if}
-          Resync
-        </Button>
+        </GlassButton>
       </div>
     </div>
   </Card>

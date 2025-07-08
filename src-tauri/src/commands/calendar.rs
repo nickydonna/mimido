@@ -7,6 +7,7 @@ use crate::{
 use diesel::{delete, insert_into};
 use diesel::{prelude::*, update};
 use futures::future::join_all;
+use log::info;
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
@@ -16,10 +17,11 @@ pub async fn sync_all_calendars() -> Result<(), String> {
     // Get all servers and fetch their calendars
     let servers = list_servers()?;
     let syncs = servers.iter().map(|server| fetch_calendars(server.id));
-    let _ = join_all(syncs)
+    let r = join_all(syncs)
         .await
         .into_iter()
         .collect::<Result<Vec<Vec<Calendar>>, String>>()?;
+    info!("{r:?}");
 
     let calendars = list_calendars()?;
     let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
