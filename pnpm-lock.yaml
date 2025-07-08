@@ -61,6 +61,12 @@ devDependencies:
   svelte-check:
     specifier: ^4.2.2
     version: 4.2.2(svelte@5.34.8)(typescript@5.6.3)
+  svelte-headlessui:
+    specifier: ^0.0.46
+    version: 0.0.46(svelte@5.34.8)
+  svelte-transition:
+    specifier: ^0.0.17
+    version: 0.0.17(svelte@5.34.8)
   tailwindcss:
     specifier: ^4.1.10
     version: 4.1.10
@@ -1635,6 +1641,22 @@ packages:
       typescript: 5.6.3
     transitivePeerDependencies:
       - picomatch
+    dev: true
+
+  /svelte-headlessui@0.0.46(svelte@5.34.8):
+    resolution: {integrity: sha512-yl3Pd7/LmIgl6uZ6dB9FuWNGJ+P7bazgJpwhNLA7Rk+AqYITv0vFXjGgl4D9ogAiPCrwjTkEAFMl8ovsk3FJ5Q==}
+    peerDependencies:
+      svelte: ^4.0.0 || ^5.0.0
+    dependencies:
+      svelte: 5.34.8
+    dev: true
+
+  /svelte-transition@0.0.17(svelte@5.34.8):
+    resolution: {integrity: sha512-df3kJdJogRNDGiEwJSb7Pdk8/7ZTcQapHhtQ5VicaT/oUP/BNH5qR5Q3sKvptBvOD0uJSzjjMVC5oLwdgjUdRw==}
+    peerDependencies:
+      svelte: ^3.59.1 || ^4.0.0 || ^5.0.0
+    dependencies:
+      svelte: 5.34.8
     dev: true
 
   /svelte@5.34.8:

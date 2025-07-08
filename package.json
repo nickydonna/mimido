@@ -19,6 +19,8 @@
     "@tauri-apps/plugin-sql": "~2.2.1"
   },
   "devDependencies": {
+    "svelte-headlessui": "^0.0.46",
+    "svelte-transition": "^0.0.17",
     "@iconify-json/solar": "^1.2.2",
     "@iconify-json/uim": "^1.2.3",
     "@iconify-json/uit": "^1.2.3",
