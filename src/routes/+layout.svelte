@@ -44,17 +44,3 @@
   </div>
 </div>
 <EventCreationModal {open} onclose={() => (open = false)} />
-<!-- <BottomNav -->
-<!--   position="sticky" -->
-<!--   navType="application" -->
-<!--   {activeUrl} -->
-<!--   outerClass="z-50 " -->
-<!--   innerClass="grid-cols-2 bg-primary-500 rounded-full border-primary-700" -->
-<!-- > -->
-<!--   <BottomNavItem btnName="Day" href="/day" appBtnPosition="left"> -->
-<!--     <CalendarEditOutline /> -->
-<!--   </BottomNavItem> -->
-<!--   <BottomNavItem btnName="Server" href="/servers" appBtnPosition="right"> -->
-<!--     <UserOutline /> -->
-<!--   </BottomNavItem> -->
-<!-- </BottomNav> -->
