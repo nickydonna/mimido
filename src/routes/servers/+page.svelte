@@ -6,6 +6,7 @@
   import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
   import DisclosureGroup from "$lib/components/disclosure/DisclosureGroup.svelte";
   import Disclosure from "$lib/components/disclosure/Disclosure.svelte";
+  import Toggle from "$lib/components/toggle/Toggle.svelte";
 
   let { data }: PageProps = $props();
 
@@ -100,7 +101,10 @@
                   {calendar.name}
                 </div>
                 <div>
-                  {calendar.default_value}
+                  <Toggle
+                    label="Default Calendar"
+                    checked={calendar.default_value}
+                  />
                 </div>
               </div>
             {/each}

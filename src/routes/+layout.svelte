@@ -27,6 +27,7 @@
 <div class="fixed z-[90] bottom-8 w-dvw">
   <div class="container mx-auto flex items-center px-2 gap-2">
     <div class="flex-1"></div>
+    <EventCreationModal />
     <div>
       <GlassButtonGroup size="lg">
         <GlassGrouppedButton href="/day" active={activeUrl === "/day"}>
@@ -37,6 +38,5 @@
         </GlassGrouppedButton>
       </GlassButtonGroup>
     </div>
-    <EventCreationModal />
   </div>
 </div>
