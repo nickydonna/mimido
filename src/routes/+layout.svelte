@@ -8,12 +8,12 @@
   import SettingsIcon from "~icons/solar/settings-broken";
 
   import { page } from "$app/state";
-  import GlassIcon from "$lib/components/glass-icon/GlassIcon.svelte";
   import EventCreationModal from "$lib/components/event-creation-modal/EventCreationModal.svelte";
   import GlassButtonGroup from "$lib/components/glass-button-group/GlassButtonGroup.svelte";
   import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
+  import type { LayoutProps } from "./$types";
 
-  let { children } = $props();
+  let { children, data }: LayoutProps = $props();
 
   let activeUrl = $derived(page.url.pathname);
 </script>
@@ -27,7 +27,7 @@
 <div class="fixed z-[90] bottom-8 w-dvw">
   <div class="container mx-auto flex items-center px-2 gap-2">
     <div class="flex-1"></div>
-    <EventCreationModal />
+    <EventCreationModal defaultCalendar={data.defaultCalendar} />
     <div>
       <GlassButtonGroup size="lg">
         <GlassGrouppedButton href="/day" active={activeUrl === "/day"}>

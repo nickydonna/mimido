@@ -1,6 +1,11 @@
 <script lang="ts">
   import { Button, Input, Label, Spinner } from "flowbite-svelte";
-  import { commands, type Server, type Result } from "../../bindings";
+  import {
+    commands,
+    type Server,
+    type Result,
+    type Calendar,
+  } from "../../bindings";
   import { invalidateAll } from "$app/navigation";
   import type { PageProps } from "./$types";
   import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
@@ -37,6 +42,19 @@
     result = response;
     await invalidateAll();
     creating = false;
+  }
+
+  async function handleDefaultChange(
+    calendar: Calendar,
+    setAsDefault: boolean,
+  ) {
+    if (!setAsDefault) {
+      return;
+    }
+    loadingCalendars = true;
+    await commands.setDefaultCalendar(calendar.id);
+    await invalidateAll();
+    loadingCalendars = false;
   }
 </script>
 
@@ -103,7 +121,9 @@
                 <div>
                   <Toggle
                     label="Default Calendar"
+                    disabled={loadingCalendars}
                     checked={calendar.default_value}
+                    onchange={(value) => handleDefaultChange(calendar, value)}
                   />
                 </div>
               </div>

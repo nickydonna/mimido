@@ -57,6 +57,26 @@ pub fn list_calendars() -> Result<Vec<Calendar>, String> {
         .map_err(stringify)
 }
 
+#[tauri::command()]
+#[specta::specta]
+pub fn set_default_calendar(calendar_id: i32) -> Result<(), String> {
+    use crate::schema::calendars::dsl as calendars_dsl;
+
+    let conn = &mut establish_connection();
+    conn.transaction::<(), diesel::result::Error, _>(|conn| {
+        diesel::update(calendars_dsl::calendars)
+            .set(calendars_dsl::default_value.eq(false))
+            .execute(conn)?;
+
+        diesel::update(calendars_dsl::calendars)
+            .filter(calendars_dsl::id.eq(calendar_id))
+            .set(calendars_dsl::default_value.eq(true))
+            .execute(conn)?;
+        Ok(())
+    })
+    .map_err(|_| "Could not update default".to_string())
+}
+
 fn list_servers() -> Result<Vec<Server>, String> {
     use crate::schema::servers::dsl::*;
 

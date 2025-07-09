@@ -54,6 +54,7 @@ pub fn run() {
             commands::calendar::fetch_calendars,
             commands::calendar::sync_calendar,
             commands::calendar::sync_all_calendars,
+            commands::calendar::set_default_calendar,
             commands::components::list_events_for_day,
             commands::components::parse_event,
             commands::components::save_event,

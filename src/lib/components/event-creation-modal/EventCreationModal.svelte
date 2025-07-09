@@ -1,10 +1,13 @@
 <script lang="ts">
   import { format, formatISO, isSameDay, parseISO } from "date-fns";
   import { createDialog } from "svelte-headlessui";
-  // @ts-expect-error no types
   import Transition from "svelte-transition";
 
-  import { commands, type DisplayUpsertInfo } from "../../../bindings";
+  import {
+    commands,
+    type Calendar,
+    type DisplayUpsertInfo,
+  } from "../../../bindings";
   import { unwrap } from "$lib/result";
   // @ts-expect-error iconify
   import ClockIcon from "~icons/solar/clock-circle-broken";
@@ -27,9 +30,10 @@
   import { timeStore } from "../../../stores/times";
   import GlassIcon from "../glass-icon/GlassIcon.svelte";
 
-  const dialog = createDialog({ label: "Create Event" });
+  let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
+
+  const dialog = createDialog({ label: "Create Event", expanded: true });
   const date = $timeStore;
-  console.log(formatISO(date));
   let input = $state("@block Work today at 10-13 every weekday");
   let result = $state<DisplayUpsertInfo | null>(null);
 
@@ -66,8 +70,13 @@
 
   let saving = $state(false);
   async function save() {
+    console.log(defaultCalendar);
+    if (defaultCalendar == null) {
+      alert("Please pick a default calendar");
+      return;
+    }
     saving = true;
-    await commands.saveEvent(5, formatISO(date), input);
+    await commands.saveEvent(defaultCalendar.id, formatISO(date), input);
     saving = false;
   }
 
@@ -98,8 +107,17 @@
       use:dialog.modal
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
-      <div class="flex items-center w-full mb-2">
-        <div class="flex-1">Create {result?.event_type ?? "Event"}</div>
+      <div class="flex items-center gap-3 w-full mb-2">
+        <div class="flex-1">
+          Create {result?.event_type ?? "Event"}
+          {#if defaultCalendar != null}
+            at
+            <span class="text-lg text-primary-200 underline"
+              >{defaultCalendar.name}</span
+            >
+          {/if}
+        </div>
+
         <GlassIcon size="xs" onclick={() => dialog.close()}>
           <MultiplyIcon />
         </GlassIcon>
@@ -111,7 +129,6 @@
         bind:value={input}
         placeholder="Type your event information ..."
       />
-
       {@render hr()}
       {#if result != null}
         <div class="flex gap-0.5 my-4 glass-prop h-12 px-4 py-3">

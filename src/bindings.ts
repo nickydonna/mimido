@@ -53,6 +53,14 @@ async syncAllCalendars() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async setDefaultCalendar(calendarId: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_default_calendar", { calendarId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async listEventsForDay(datetime: string) : Promise<Result<ExtendedEvent[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("list_events_for_day", { datetime }) };
