@@ -7,7 +7,8 @@ diesel::table! {
         url -> Text,
         etag -> Nullable<Text>,
         server_id -> Integer,
-        default_value -> Bool,
+        is_default -> Bool,
+        sync_token -> Nullable<Text>,
     }
 }
 

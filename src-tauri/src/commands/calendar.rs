@@ -65,12 +65,12 @@ pub fn set_default_calendar(calendar_id: i32) -> Result<(), String> {
     let conn = &mut establish_connection();
     conn.transaction::<(), diesel::result::Error, _>(|conn| {
         diesel::update(calendars_dsl::calendars)
-            .set(calendars_dsl::default_value.eq(false))
+            .set(calendars_dsl::is_default.eq(false))
             .execute(conn)?;
 
         diesel::update(calendars_dsl::calendars)
             .filter(calendars_dsl::id.eq(calendar_id))
-            .set(calendars_dsl::default_value.eq(true))
+            .set(calendars_dsl::is_default.eq(true))
             .execute(conn)?;
         Ok(())
     })

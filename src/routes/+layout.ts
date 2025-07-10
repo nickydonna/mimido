@@ -13,7 +13,7 @@ export const load: LayoutLoad = async () => {
   const result = await commands.listCalendars();
   const calendars = unwrap(result);
 
-  return { defaultCalendar: calendars.find(cal => cal.default_value) };
+  return { defaultCalendar: calendars.find(cal => cal.is_default) };
 
 }
 

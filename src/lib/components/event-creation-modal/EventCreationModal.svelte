@@ -32,7 +32,7 @@
 
   let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
 
-  const dialog = createDialog({ label: "Create Event", expanded: true });
+  const dialog = createDialog({ label: "Create Event" });
   const date = $timeStore;
   let input = $state("@block Work today at 10-13 every weekday");
   let result = $state<DisplayUpsertInfo | null>(null);

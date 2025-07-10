@@ -1,15 +1,15 @@
 use std::fmt::Display;
 
 use futures::future::try_join_all;
-use http::Uri;
+use http::{HeaderValue, Request, StatusCode, Uri};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::{
     client::legacy::{connect::HttpConnector, Client as HyperClient},
     rt::TokioExecutor,
 };
 use libdav::{
-    dav::{mime_types, FoundCollection, WebDavClient},
-    names,
+    dav::{mime_types, FoundCollection, WebDavClient, WebDavError},
+    names, Depth,
 };
 use libdav::{CalDavClient, FetchedResource};
 use log::info;
@@ -95,25 +95,35 @@ impl Caldav {
             .caldav_client
             .get_properties(
                 &collection.href,
-                &[
-                    &names::DISPLAY_NAME,
-                    &names::SYNC_COLLECTION,
-                    &names::SYNC_LEVEL,
-                    &names::SYNC_TOKEN,
-                ],
+                &[&names::DISPLAY_NAME, &names::SYNC_TOKEN],
             )
             .await?;
 
         let (_, display_name) = &properties[0];
-        // let (_, sync_collection) = &properties[1];
-        // let (_, sync_level) = &properties[2];
-        // let (_, sync_token) = &properties[3];
+        let (_, sync_token) = &properties[1];
+
+        let uri = self.caldav_client.relative_uri(&collection.href)?;
+
+        if let Some(sync_token) = sync_token {
+            self.get_sync_report(&collection.href, sync_token).await?;
+        }
+        let prop_sync = self
+            .caldav_client
+            .propfind(
+                &uri,
+                &[&names::DISPLAY_NAME, &names::GETETAG, &names::SYNC_TOKEN],
+                libdav::Depth::Zero,
+            )
+            .await?;
+        check_status(prop_sync.0.status).map_err(WebDavError::BadStatusCode)?;
+        print!("{prop_sync:?}");
 
         Ok(NewCalendar {
             url: collection.href.clone(),
             name: display_name.clone().unwrap_or(collection.href.clone()),
             etag: collection.etag,
-            default_value: false,
+            is_default: false,
+            sync_token: sync_token.clone(),
             server_id: self.server.id,
         })
     }
@@ -153,7 +163,67 @@ impl Caldav {
                 mime_types::CALENDAR,
             )
             .await?;
+        Ok(())
+    }
+
+    pub async fn fetch_changes(
+        &self,
+        base_href: impl Display,
+        id: impl Display,
+        calendar: icalendar::Calendar,
+    ) -> anyhow::Result<()> {
+        let href = format!("{base_href}{id}.ics");
+        info!("{href}");
+        info!("{calendar}");
+        let v = self
+            .caldav_client
+            .create_resource(
+                &href,
+                calendar.to_string().as_bytes().to_vec(),
+                mime_types::CALENDAR,
+            )
+            .await?;
         info!("res {v:?}");
         Ok(())
+    }
+
+    async fn get_sync_report(
+        &self,
+        calendar_href: &str,
+        sync_token: &str,
+    ) -> Result<(), WebDavError> {
+        let mut body = String::from(r#"<sync-collection xmlns="DAV:">"#);
+        body.push_str(&format!("<sync-token>{sync_token}</sync-token>"));
+        body.push_str(
+            r#"
+                <sync-level>1</sync-level>
+                <prop>
+                    <getetag />
+                </prop>
+            </sync-collection>
+            "#,
+        );
+
+        let uri = self.caldav_client.relative_uri(calendar_href)?;
+        let request = Request::builder()
+            .method("REPORT")
+            .uri(uri)
+            .header("Content-Type", "application/xml; charset=utf-8")
+            .header("Depth", HeaderValue::from(Depth::Zero))
+            .body(body)?;
+
+        let (head, body) = self.caldav_client.request(request).await?;
+        println!("{body:?}");
+        Ok(())
+    }
+}
+
+/// Checks if the status code is success. If it is not, return it as an error.
+#[inline]
+pub(crate) fn check_status(status: StatusCode) -> Result<(), StatusCode> {
+    if status.is_success() {
+        Ok(())
+    } else {
+        Err(status)
     }
 }

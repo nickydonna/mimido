@@ -122,7 +122,7 @@
                   <Toggle
                     label="Default Calendar"
                     disabled={loadingCalendars}
-                    checked={calendar.default_value}
+                    checked={calendar.is_default}
                     onchange={(value) => handleDefaultChange(calendar, value)}
                   />
                 </div>
