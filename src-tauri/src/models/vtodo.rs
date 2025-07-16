@@ -1,4 +1,5 @@
 use crate::{
+    caldav::Href,
     calendar_items::{
         component_props::GeneralComponentProps, event_status::EventStatus, event_type::EventType,
     },
@@ -6,7 +7,7 @@ use crate::{
     schema::*,
 };
 use chrono::{DateTime, Utc};
-use diesel::prelude::*;
+use diesel::{delete, insert_into, prelude::*, update};
 use libdav::FetchedResource;
 
 use super::IcalParseableTrait;
@@ -31,6 +32,47 @@ pub struct VTodo {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+}
+
+impl VTodo {
+    pub fn by_href(conn: &mut SqliteConnection, vtodo_href: &Href) -> anyhow::Result<Option<Self>> {
+        use crate::schema::vtodos::dsl as todo_dsl;
+
+        todo_dsl::vtodos
+            .filter(todo_dsl::href.eq(&vtodo_href.0))
+            .select(Self::as_select())
+            .first::<Self>(conn)
+            .optional()
+            .map_err(anyhow::Error::new)
+    }
+    pub fn delete_all(conn: &mut SqliteConnection, calendar_id: i32) -> anyhow::Result<()> {
+        use crate::schema::vtodos::dsl as todo_dsl;
+        delete(todo_dsl::vtodos)
+            .filter(todo_dsl::calendar_id.eq(calendar_id))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    /// will return true if the vevent has been found and deleted
+    pub fn delete_by_id(conn: &mut SqliteConnection, vevent_id: i32) -> anyhow::Result<bool> {
+        use crate::schema::vtodos::dsl as todo_dsl;
+        let res = delete(todo_dsl::vtodos)
+            .filter(todo_dsl::id.eq(vevent_id))
+            .execute(conn)?;
+        Ok(res > 0)
+    }
+
+    /// Will try to find it, if it doesn't find it it will do nothing
+    /// will return true if the vevent has been found and deleted
+    pub fn try_delete_by_href(
+        conn: &mut SqliteConnection,
+        vevent_href: &Href,
+    ) -> anyhow::Result<bool> {
+        match Self::by_href(conn, vevent_href)? {
+            Some(vevent) => Self::delete_by_id(conn, vevent.id),
+            None => Ok(false),
+        }
+    }
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
@@ -58,6 +100,10 @@ impl_ical_parseable!(VTodo);
 impl_ical_parseable!(NewVTodo);
 
 pub(crate) trait VTodoTrait: IcalParseableTrait {
+    fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
+    fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo>;
+    fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
+
     fn get_start(&self) -> Option<DateTime<Utc>>;
     fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
         format!(
@@ -75,6 +121,31 @@ macro_rules! impl_todo_trait {
             fn get_start(&self) -> Option<DateTime<Utc>> {
                 None
             }
+            fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo> {
+                use crate::schema::vtodos::dsl as todo_dsl;
+                let val = insert_into(todo_dsl::vtodos)
+                    .values(self)
+                    .returning(VTodo::as_returning())
+                    .get_result(conn)?;
+                Ok(val)
+            }
+            fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo> {
+                use crate::schema::vtodos::dsl as todo_dsl;
+                let val = update(todo_dsl::vtodos.filter(todo_dsl::id.eq(id)))
+                    .set(self)
+                    .returning(VTodo::as_returning())
+                    .get_result(conn)?;
+                Ok(val)
+            }
+
+            fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo> {
+                let href = Href(self.href.clone());
+                let vevent = VTodo::by_href(conn, &href)?;
+                match vevent {
+                    Some(old) => self.update(conn, old.id),
+                    None => self.save(conn),
+                }
+            }
         }
     };
 }
@@ -83,22 +154,22 @@ impl_todo_trait!(VTodo);
 impl_todo_trait!(NewVTodo);
 
 impl NewVTodo {
-    pub fn new_from_resource(
+    pub fn from_resource(
         calendar_id: i32,
         fetched_resource: &FetchedResource,
     ) -> Result<Option<NewVTodo>, String> {
-        let href = fetched_resource.href.clone();
+        let href = &fetched_resource.href;
         let content = fetched_resource
             .content
             .as_ref()
             .map_err(|e| e.to_string())?;
-        NewVTodo::new_from_ical_data(calendar_id, href, content.data.clone())
+        NewVTodo::from_ical_data(calendar_id, href, &content.data)
     }
 
-    pub fn new_from_ical_data(
+    pub fn from_ical_data(
         calendar_id: i32,
-        href: String,
-        ical_data: String,
+        href: &str,
+        ical_data: &str,
     ) -> Result<Option<Self>, String> {
         let calendar_item: icalendar::Calendar = ical_data.parse()?;
         let first_todo = calendar_item
@@ -129,8 +200,8 @@ impl NewVTodo {
         Ok(Some(NewVTodo {
             calendar_id,
             uid: uid.to_string(),
-            href,
-            ical_data,
+            href: href.to_string(),
+            ical_data: ical_data.to_string(),
             last_modified,
             summary: summary.to_string(),
             // TODO: Use real completed and sycn with status
@@ -157,7 +228,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/todo.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let todo = NewVTodo::new_from_ical_data(1, "test".to_string(), ics);
+        let todo = NewVTodo::from_ical_data(1, "test", ics.as_str());
 
         assert!(todo.is_ok());
         let todo = todo.unwrap();

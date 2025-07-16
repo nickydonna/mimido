@@ -1,5 +1,7 @@
+use std::error::Error;
 use std::fmt::Display;
 
+use crate::models::{NewCalendar, Server};
 use futures::future::try_join_all;
 use http::{HeaderValue, Request, StatusCode, Uri};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -8,14 +10,13 @@ use hyper_util::{
     rt::TokioExecutor,
 };
 use libdav::{
-    dav::{mime_types, FoundCollection, WebDavClient, WebDavError},
-    names, Depth,
+    dav::{mime_types, FoundCollection, WebDavClient},
+    names, Depth, PropertyName,
 };
 use libdav::{CalDavClient, FetchedResource};
 use log::info;
+use newtype::NewType;
 use tower_http::auth::AddAuthorization;
-
-use crate::models::{NewCalendar, Server};
 
 pub type HyperAuthClient =
     CalDavClient<AddAuthorization<HyperClient<HttpsConnector<HttpConnector>, String>>>;
@@ -24,6 +25,45 @@ pub type HyperAuthClient =
 pub struct Caldav {
     server: Server,
     caldav_client: HyperAuthClient,
+}
+
+#[derive(Debug)]
+enum CaldavError {
+    NodeNotFound(String),
+    ErrorResponse(StatusCode),
+}
+
+impl std::fmt::Display for CaldavError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CaldavError::NodeNotFound(val) => write!(f, "Could not find node {val} on xml"),
+            CaldavError::ErrorResponse(s) => write!(f, "Request returned {s}"),
+        }
+    }
+}
+impl Error for CaldavError {}
+
+#[derive(NewType, Debug)]
+pub struct Href(pub String);
+#[derive(NewType, Debug)]
+pub struct Etag(pub String);
+
+impl std::fmt::Display for Href {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for Etag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug)]
+pub enum CmpSyncResult {
+    Deleted(Href),
+    Upserted(Href, Etag),
 }
 
 impl Caldav {
@@ -102,22 +142,6 @@ impl Caldav {
         let (_, display_name) = &properties[0];
         let (_, sync_token) = &properties[1];
 
-        let uri = self.caldav_client.relative_uri(&collection.href)?;
-
-        if let Some(sync_token) = sync_token {
-            self.get_sync_report(&collection.href, sync_token).await?;
-        }
-        let prop_sync = self
-            .caldav_client
-            .propfind(
-                &uri,
-                &[&names::DISPLAY_NAME, &names::GETETAG, &names::SYNC_TOKEN],
-                libdav::Depth::Zero,
-            )
-            .await?;
-        check_status(prop_sync.0.status).map_err(WebDavError::BadStatusCode)?;
-        print!("{prop_sync:?}");
-
         Ok(NewCalendar {
             url: collection.href.clone(),
             name: display_name.clone().unwrap_or(collection.href.clone()),
@@ -153,9 +177,7 @@ impl Caldav {
         calendar: icalendar::Calendar,
     ) -> anyhow::Result<()> {
         let href = format!("{base_href}{id}.ics");
-        info!("{href}");
-        info!("{calendar}");
-        let v = self
+        let _ = self
             .caldav_client
             .create_resource(
                 &href,
@@ -166,32 +188,23 @@ impl Caldav {
         Ok(())
     }
 
-    pub async fn fetch_changes(
+    pub async fn fetch_resource(
         &self,
-        base_href: impl Display,
-        id: impl Display,
-        calendar: icalendar::Calendar,
-    ) -> anyhow::Result<()> {
-        let href = format!("{base_href}{id}.ics");
-        info!("{href}");
-        info!("{calendar}");
-        let v = self
+        calendar_href: &Href,
+        href: &Href,
+    ) -> anyhow::Result<Option<FetchedResource>> {
+        let mut v = self
             .caldav_client
-            .create_resource(
-                &href,
-                calendar.to_string().as_bytes().to_vec(),
-                mime_types::CALENDAR,
-            )
+            .get_calendar_resources(&calendar_href.0, [&href.0])
             .await?;
-        info!("res {v:?}");
-        Ok(())
+        Ok(v.pop())
     }
 
-    async fn get_sync_report(
+    pub async fn get_sync_report(
         &self,
         calendar_href: &str,
         sync_token: &str,
-    ) -> Result<(), WebDavError> {
+    ) -> anyhow::Result<(String, Vec<CmpSyncResult>)> {
         let mut body = String::from(r#"<sync-collection xmlns="DAV:">"#);
         body.push_str(&format!("<sync-token>{sync_token}</sync-token>"));
         body.push_str(
@@ -213,17 +226,56 @@ impl Caldav {
             .body(body)?;
 
         let (head, body) = self.caldav_client.request(request).await?;
-        println!("{body:?}");
-        Ok(())
+        check_status(head.status)?;
+        let body = std::str::from_utf8(&body)?;
+
+        let doc = roxmltree::Document::parse(body)?;
+
+        let sync_token =
+            get_node_prop_by_name(doc.root_element(), names::SYNC_TOKEN).expect("Sync token");
+        info!("s {sync_token:?}");
+        let responses = get_node_by_name(doc.root_element(), names::RESPONSE)
+            .ok_or(CaldavError::NodeNotFound("Response".to_string()))?;
+
+        let result = responses
+            .descendants()
+            .filter_map(|res| {
+                let href = get_node_prop_by_name(res, names::HREF)?;
+                let status = get_node_prop_by_name(res, names::STATUS)?;
+                info!("a {href} - {status}");
+
+                if status.contains("404") {
+                    Some(CmpSyncResult::Deleted(Href(href)))
+                } else if status.contains("200") {
+                    let etag = get_node_prop_by_name(res, names::GETETAG).expect("To have etag");
+                    Some(CmpSyncResult::Upserted(Href(href), Etag(etag)))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<CmpSyncResult>>();
+        Ok((sync_token, result))
     }
 }
 
+#[inline]
+fn get_node_prop_by_name(node: roxmltree::Node, prop: PropertyName) -> Option<String> {
+    get_node_by_name(node, prop).and_then(|node| node.text().map(str::to_string))
+}
+
+#[inline]
+fn get_node_by_name<'a, 'b>(
+    node: roxmltree::Node<'a, 'b>,
+    prop: PropertyName<'_, '_>,
+) -> Option<roxmltree::Node<'a, 'b>> {
+    node.descendants().find(|node| node.tag_name() == prop)
+}
 /// Checks if the status code is success. If it is not, return it as an error.
 #[inline]
-pub(crate) fn check_status(status: StatusCode) -> Result<(), StatusCode> {
+fn check_status(status: StatusCode) -> Result<(), CaldavError> {
     if status.is_success() {
         Ok(())
     } else {
-        Err(status)
+        Err(CaldavError::ErrorResponse(status))
     }
 }

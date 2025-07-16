@@ -29,6 +29,8 @@ pub enum ComponentProps {
     RDate,
     #[strum(serialize = "EXDATE")]
     Exdate,
+    #[strum(serialize = "DURATION")]
+    Duration,
 }
 
 impl From<ComponentProps> for String {

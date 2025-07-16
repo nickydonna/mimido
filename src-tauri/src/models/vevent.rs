@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
+    caldav::Href,
     calendar_items::{
         component_props::{get_string_property, ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
@@ -12,10 +13,11 @@ use crate::{
     impl_ical_parseable,
     schema::*,
 };
-use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
-use diesel::prelude::*;
-use icalendar::{Component, DatePerhapsTime, EventLike, Property};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeDelta, TimeZone, Utc};
+use diesel::{delete, insert_into, prelude::*, update};
+use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike, Property};
 use libdav::FetchedResource;
+use log::{error, info, warn};
 use rrule::{RRuleError, RRuleSet};
 
 use super::IcalParseableTrait;
@@ -45,6 +47,51 @@ pub struct VEvent {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+}
+
+impl VEvent {
+    pub fn by_href(
+        conn: &mut SqliteConnection,
+        vevent_href: &Href,
+    ) -> anyhow::Result<Option<Self>> {
+        use crate::schema::vevents::dsl as event_dsl;
+
+        event_dsl::vevents
+            .filter(event_dsl::href.eq(&vevent_href.0))
+            .select(Self::as_select())
+            .first::<Self>(conn)
+            .optional()
+            .map_err(anyhow::Error::new)
+    }
+    pub fn delete_all(conn: &mut SqliteConnection, calendar_id: i32) -> anyhow::Result<()> {
+        use crate::schema::vevents::dsl as event_dsl;
+        // Clean the events from that calendar
+        delete(event_dsl::vevents)
+            .filter(event_dsl::calendar_id.eq(calendar_id))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    /// will return true if the vevent has been found and deleted
+    pub fn delete_by_id(conn: &mut SqliteConnection, vevent_id: i32) -> anyhow::Result<bool> {
+        use crate::schema::vevents::dsl as event_dsl;
+        let res = delete(event_dsl::vevents)
+            .filter(event_dsl::id.eq(vevent_id))
+            .execute(conn)?;
+        Ok(res > 0)
+    }
+
+    /// Will try to find it, if it doesn't find it it will do nothing
+    /// will return true if the vevent has been found and deleted
+    pub fn try_delete_by_href(
+        conn: &mut SqliteConnection,
+        vevent_href: &Href,
+    ) -> anyhow::Result<bool> {
+        match Self::by_href(conn, vevent_href)? {
+            Some(vevent) => Self::delete_by_id(conn, vevent.id),
+            None => Ok(false),
+        }
+    }
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, Clone)]
@@ -105,6 +152,9 @@ impl_ical_parseable!(VEvent);
 impl_ical_parseable!(NewVEvent);
 
 pub trait VEventTrait: IcalParseableTrait {
+    fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
+    fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VEvent>;
+    fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
     /// Get [`Event::starts_at`]
     fn get_start(&self) -> DateTime<Utc>;
     /// Get [`Event::ends_at`]
@@ -232,6 +282,31 @@ macro_rules! impl_event_trait {
             fn get_rrule_str(&self) -> Option<String> {
                 self.rrule_str.clone()
             }
+
+            fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
+                use crate::schema::vevents::dsl as events_dsl;
+                let val = insert_into(events_dsl::vevents)
+                    .values(self)
+                    .returning(VEvent::as_returning())
+                    .get_result(conn)?;
+                Ok(val)
+            }
+            fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VEvent> {
+                use crate::schema::vevents::dsl as events_dsl;
+                let val = update(events_dsl::vevents.filter(events_dsl::id.eq(id)))
+                    .set(self)
+                    .returning(VEvent::as_returning())
+                    .get_result(conn)?;
+                Ok(val)
+            }
+            fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
+                let href = Href(self.href.clone());
+                let vevent = VEvent::by_href(conn, &href)?;
+                match vevent {
+                    Some(old) => self.update(conn, old.id),
+                    None => self.save(conn),
+                }
+            }
         }
     };
 }
@@ -285,36 +360,46 @@ fn get_start_and_end(
         .next()
         .ok_or("No event component".to_string())?;
 
+    if event.get_start().is_none() {
+        warn!("No start {event:?}");
+    }
+
     let start = event
         .get_start()
         .and_then(|s| date_from_calendar_to_utc(s, timezone))
-        .ok_or("Missing start date".to_string())?;
-    let end = event
-        .get_end()
-        .and_then(|e| date_from_calendar_to_utc(e, timezone))
-        .ok_or("Missing end date".to_string())?;
+        .ok_or(format!("Missing start date {calendar:?}"))?;
+
+    let end = if let Some(end) = event.get_end() {
+        date_from_calendar_to_utc(end, timezone)
+    } else {
+        event
+            .property_value(ComponentProps::Duration.as_ref())
+            .and_then(parse_duration)
+            .map(|dur| start + dur)
+    }
+    .ok_or(format!("Missing end date {calendar:?}"))?;
     Ok((start, end))
 }
 
 impl NewVEvent {
-    pub fn new_from_resource(
+    pub fn from_resource(
         cal_id: i32,
         fetched_resource: &FetchedResource,
     ) -> Result<Option<Self>, String> {
-        let href = fetched_resource.href.clone();
+        let href = &fetched_resource.href;
         let content = fetched_resource
             .content
             .as_ref()
             .map_err(|e| e.to_string())?;
-        NewVEvent::new_from_ical_data(cal_id, href, content.data.clone())
+        NewVEvent::from_ical_data(cal_id, href, &content.data)
     }
 
-    pub fn new_from_ical_data(
+    pub fn from_ical_data(
         cal_id: i32,
-        href: String,
-        ical_data: String,
+        href: &str,
+        ical_data: &str,
     ) -> Result<Option<Self>, String> {
-        let calendar_item: icalendar::Calendar = ical_data.clone().parse()?;
+        let calendar_item: icalendar::Calendar = ical_data.parse()?;
         let first_event = calendar_item
             .components
             .iter()
@@ -345,8 +430,8 @@ impl NewVEvent {
         let new_event = NewVEvent {
             calendar_id: cal_id,
             uid: uid.to_string(),
-            href,
-            ical_data,
+            href: href.to_string(),
+            ical_data: ical_data.to_string(),
             starts_at,
             ends_at,
             last_modified,
@@ -372,6 +457,32 @@ impl NewVEvent {
     }
 }
 
+fn parse_duration(duration_str: &str) -> Option<TimeDelta> {
+    let dur = duration_str.parse::<iso8601::Duration>().ok()?;
+    let chrono_d = match dur {
+        iso8601::Duration::YMDHMS {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            millisecond,
+        } => {
+            if year > 0 || month > 0 {
+                warn!("Duration had month ({month}) and year ({year})");
+            }
+            TimeDelta::milliseconds(millisecond as i64)
+                + TimeDelta::seconds(second as i64)
+                + TimeDelta::minutes(minute as i64)
+                + TimeDelta::hours(hour as i64)
+                + TimeDelta::days(day as i64)
+        }
+        iso8601::Duration::Weeks(w) => TimeDelta::weeks(w as i64),
+    };
+    Some(chrono_d)
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -394,7 +505,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/basic.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewVEvent::new_from_ical_data(1, "/hello".into(), ics)
+        let event = NewVEvent::from_ical_data(1, "/hello".into(), ics.as_str())
             .unwrap()
             .unwrap();
 
@@ -428,7 +539,7 @@ mod tests {
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
 
-        let event = NewVEvent::new_from_ical_data(1, "/hello".into(), ics)
+        let event = NewVEvent::from_ical_data(1, "/hello", ics.as_str())
             .unwrap()
             .unwrap();
         let recurrence = event.get_next_recurrence_from_date(
@@ -453,7 +564,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewVEvent::new_from_ical_data(1, "/cal".into(), ics);
+        let event = NewVEvent::from_ical_data(1, "/cal", ics.as_str());
 
         assert!(event.is_ok());
         let event = event.unwrap();
@@ -475,7 +586,7 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewVEvent::new_from_ical_data(1, "/cal".into(), ics);
+        let event = NewVEvent::from_ical_data(1, "/cal", ics.as_str());
 
         assert!(event.is_ok());
         let event = event.unwrap();

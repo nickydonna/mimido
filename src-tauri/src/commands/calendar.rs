@@ -1,13 +1,17 @@
 use crate::{
-    caldav::Caldav,
+    caldav::{Caldav, CmpSyncResult, Href},
     establish_connection,
-    models::{vevent::NewVEvent, vtodo::NewVTodo, Calendar, Server},
-    util::stringify,
+    models::{
+        vevent::{NewVEvent, VEvent},
+        vtodo::{NewVTodo, VTodo},
+        Calendar, NewVCmp, Server, VCmp,
+    },
+    util::{filter_err_and_map, stringify},
 };
-use diesel::{delete, insert_into};
+use diesel::insert_into;
 use diesel::{prelude::*, update};
 use futures::future::join_all;
-use log::info;
+use log::{info, warn};
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
@@ -90,19 +94,10 @@ fn list_servers() -> Result<Vec<Server>, String> {
 #[tauri::command()]
 #[specta::specta]
 pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
-    use crate::schema::calendars::dsl as calendars_dsl;
-    use crate::schema::servers::dsl as server_dsl;
-    use crate::schema::vevents::dsl as event_dsl;
-    use crate::schema::vtodos::dsl as todo_dsl;
-
     let conn = &mut establish_connection();
 
-    let (server, calendar) = server_dsl::servers
-        .inner_join(calendars_dsl::calendars)
-        .filter(calendars_dsl::id.eq(calendar_id))
-        .select((Server::as_select(), Calendar::as_select()))
-        .first::<(Server, Calendar)>(conn)
-        .map_err(|e| e.to_string())?;
+    let (server, calendar) =
+        Calendar::by_id_with_server(conn, calendar_id).map_err(|e| e.to_string())?;
 
     let caldav = Caldav::new(server).await?;
 
@@ -112,40 +107,83 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     // Clean the events from that calendar
-    delete(event_dsl::vevents)
-        .filter(event_dsl::calendar_id.eq(calendar_id))
-        .execute(conn)
-        .map_err(stringify)?;
-    // Clean the todos from that calendar
-    delete(todo_dsl::vtodos)
-        .filter(todo_dsl::calendar_id.eq(calendar_id))
-        .execute(conn)
-        .map_err(stringify)?;
+    // VEvent::delete_all(conn, calendar_id).map_err(|e| e.to_string())?;
+    // VTodo::delete_all(conn, calendar_id).map_err(|e| e.to_string())?;
 
     let events = items
         .iter()
-        .flat_map(|fetched_resource| NewVEvent::new_from_resource(calendar_id, fetched_resource))
-        .flatten()
-        .collect::<Vec<NewVEvent>>();
+        .map(|fetched_resource| NewVCmp::from_resource(calendar_id, fetched_resource))
+        .filter_map(|new_v| match new_v {
+            Ok(new_v) => Some(new_v),
+            Err(e) => {
+                warn!("{e}");
+                None
+            }
+        })
+        .flat_map(|cmp| cmp.upsert_by_href(conn))
+        .collect::<Vec<VCmp>>();
 
-    insert_into(event_dsl::vevents)
-        .values(events)
-        .execute(conn)
-        .map(|_| ())
+    Ok(())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), String> {
+    let conn = &mut establish_connection();
+
+    let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id).map_err(stringify)?;
+
+    let Some(sync_token) = calendar.sync_token.clone() else {
+        return Ok(());
+    };
+    let caldav = Caldav::new(server).await?;
+    let (new_sync_token, results) = caldav
+        .get_sync_report(&calendar.url, &sync_token)
+        .await
         .map_err(stringify)?;
 
-    let todos = items
+    let calendar_href = Href(calendar.url.clone());
+    let del_res = results
         .iter()
-        .flat_map(|fetched_resource| NewVTodo::new_from_resource(calendar_id, fetched_resource))
+        .filter_map(|r| match r {
+            CmpSyncResult::Upserted(_, _) => None,
+            CmpSyncResult::Deleted(href) => Some(href),
+        })
+        .map(|href| {
+            // Try to delete both entries since we don't know which type it is
+            let vtodo_del = VTodo::try_delete_by_href(conn, href);
+            let vevent_del = VEvent::try_delete_by_href(conn, href);
+            vevent_del.and(vtodo_del)
+        })
+        .collect::<Vec<anyhow::Result<bool>>>();
+    info!("Del {del_res:?}");
+
+    let results = results
+        .iter()
+        .filter_map(|r| match r {
+            CmpSyncResult::Upserted(href, etag) => Some((href, etag)),
+            CmpSyncResult::Deleted(_) => None,
+        })
+        .map(|(href, _)| caldav.fetch_resource(&calendar_href, href));
+
+    let r = join_all(results)
+        .await
+        .into_iter()
+        .filter_map(filter_err_and_map)
         .flatten()
-        .collect::<Vec<NewVTodo>>();
-
-    insert_into(todo_dsl::vtodos)
-        .values(todos)
-        .execute(conn)
-        .map(|_| ())
+        .map(|f| NewVCmp::from_resource(calendar.id, &f))
+        .filter_map(filter_err_and_map)
+        .map(|cmp| {
+            match &cmp {
+                NewVCmp::Todo(new_vtodo) => info!("{}", new_vtodo.summary),
+                NewVCmp::Event(new_vevent) => info!("{}", new_vevent.summary),
+            }
+            cmp.upsert_by_href(conn).unwrap()
+        })
+        .collect::<Vec<VCmp>>();
+    calendar
+        .update_sync_token(conn, &new_sync_token)
         .map_err(stringify)?;
-
     Ok(())
 }
 
@@ -169,11 +207,14 @@ pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, String> {
     let calendars = found_calendars
         .into_iter()
         .flat_map(|new_cal| -> anyhow::Result<Calendar> {
-            let calendar_record = find_calendar_by_name(conn, &new_cal.name)?;
+            let calendar_record = Calendar::by_name(conn, &new_cal.name)?;
             if let Some(calendar) = calendar_record {
                 diesel::update(calendars_dsl::calendars)
                     .filter(calendars_dsl::id.eq(calendar.id))
-                    .set(calendars_dsl::etag.eq(&new_cal.etag))
+                    .set((
+                        calendars_dsl::etag.eq(&new_cal.etag),
+                        calendars_dsl::sync_token.eq(&new_cal.sync_token),
+                    ))
                     .returning(Calendar::as_select())
                     .get_result(conn)
                     .map_err(anyhow::Error::new)
@@ -187,17 +228,4 @@ pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, String> {
         })
         .collect::<Vec<Calendar>>();
     Ok(calendars)
-}
-
-fn find_calendar_by_name(
-    connection: &mut SqliteConnection,
-    name: &str,
-) -> anyhow::Result<Option<Calendar>> {
-    use crate::schema::calendars::dsl as calendars_dsl;
-
-    calendars_dsl::calendars
-        .filter(calendars_dsl::name.eq(name))
-        .first::<Calendar>(connection)
-        .optional()
-        .map_err(anyhow::Error::new)
 }

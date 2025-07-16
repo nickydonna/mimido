@@ -56,6 +56,10 @@
     await invalidateAll();
     loadingCalendars = false;
   }
+
+  async function handleSpecialSync(id: number) {
+    await commands.superSyncCalendar(id);
+  }
 </script>
 
 <div>
@@ -125,6 +129,11 @@
                     checked={calendar.is_default}
                     onchange={(value) => handleDefaultChange(calendar, value)}
                   />
+                </div>
+                <div>
+                  <GlassButton onclick={() => handleSpecialSync(calendar.id)}
+                    >S</GlassButton
+                  >
                 </div>
               </div>
             {/each}

@@ -1,11 +1,56 @@
 use crate::{
     calendar_items::{event_status::EventStatus, event_type::EventType},
+    models::{
+        vevent::{NewVEvent, VEvent, VEventTrait},
+        vtodo::{NewVTodo, VTodo, VTodoTrait},
+    },
     schema::*,
 };
-use diesel::prelude::*;
+use diesel::{dsl::update, prelude::*};
+use libdav::FetchedResource;
 
 pub(crate) mod vevent;
 pub(crate) mod vtodo;
+
+/// Enum to unify the [`VEvent`] and [`VTodo`] struct
+
+#[derive(Debug)]
+pub enum VCmp {
+    Todo(VTodo),
+    Event(VEvent),
+}
+
+/// Enum to unify the [`NewVEvent`] and [`NewVTodo`] struct
+#[derive(Debug)]
+pub enum NewVCmp {
+    Todo(NewVTodo),
+    Event(NewVEvent),
+}
+
+impl NewVCmp {
+    pub fn from_resource(
+        calendar_id: i32,
+        fetched_resource: &FetchedResource,
+    ) -> Result<NewVCmp, String> {
+        let todo = NewVTodo::from_resource(calendar_id, fetched_resource)?;
+        if let Some(todo) = todo {
+            return Ok(NewVCmp::Todo(todo));
+        }
+
+        let event = NewVEvent::from_resource(calendar_id, fetched_resource)?;
+        if let Some(event) = event {
+            return Ok(NewVCmp::Event(event));
+        }
+        Err("No Component found".to_string())
+    }
+
+    pub fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VCmp> {
+        match self {
+            NewVCmp::Todo(new_vtodo) => new_vtodo.upsert_by_href(conn).map(VCmp::Todo),
+            NewVCmp::Event(new_vevent) => new_vevent.upsert_by_href(conn).map(VCmp::Event),
+        }
+    }
+}
 
 #[derive(
     Queryable,
@@ -58,6 +103,51 @@ pub struct Calendar {
     pub server_id: i32,
     pub is_default: bool,
     pub sync_token: Option<String>,
+}
+
+impl Calendar {
+    pub fn by_id_with_server(
+        conn: &mut SqliteConnection,
+        calendar_id: i32,
+    ) -> anyhow::Result<(Server, Calendar)> {
+        use crate::schema::calendars::dsl as calendars_dsl;
+        use crate::schema::servers::dsl as server_dsl;
+
+        server_dsl::servers
+            .inner_join(calendars_dsl::calendars)
+            .filter(calendars_dsl::id.eq(calendar_id))
+            .select((Server::as_select(), Calendar::as_select()))
+            .first::<(Server, Calendar)>(conn)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn by_name(
+        connection: &mut SqliteConnection,
+        name: &str,
+    ) -> anyhow::Result<Option<Calendar>> {
+        use crate::schema::calendars::dsl as calendars_dsl;
+
+        calendars_dsl::calendars
+            .filter(calendars_dsl::name.eq(name))
+            .select(Calendar::as_select())
+            .first::<Calendar>(connection)
+            .optional()
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn update_sync_token(
+        &self,
+        conn: &mut SqliteConnection,
+        new_token: &str,
+    ) -> anyhow::Result<Calendar> {
+        use crate::schema::calendars::dsl as calendars_dsl;
+
+        update(calendars_dsl::calendars.filter(calendars_dsl::id.eq(self.id)))
+            .set(calendars_dsl::sync_token.eq(Some(new_token)))
+            .returning(Calendar::as_returning())
+            .get_result(conn)
+            .map_err(anyhow::Error::new)
+    }
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]

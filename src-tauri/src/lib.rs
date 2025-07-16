@@ -15,7 +15,6 @@ pub mod models;
 pub mod schema;
 pub(crate) mod util;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 lazy_static! {
@@ -55,6 +54,7 @@ pub fn run() {
             commands::calendar::sync_calendar,
             commands::calendar::sync_all_calendars,
             commands::calendar::set_default_calendar,
+            commands::calendar::super_sync_calendar,
             commands::components::list_events_for_day,
             commands::components::parse_event,
             commands::components::save_event,

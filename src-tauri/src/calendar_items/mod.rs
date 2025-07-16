@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveTime, TimeZone, Utc};
 use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike};
+use log::warn;
 
 use crate::calendar_items::{
     component_props::ComponentProps, event_creator::EventUpsertInfo, event_status::EventStatus,
@@ -87,7 +88,10 @@ pub fn date_from_calendar_to_utc(
 ) -> Option<DateTime<Utc>> {
     match original {
         DatePerhapsTime::DateTime(calendar_date_time) => match calendar_date_time {
-            icalendar::CalendarDateTime::Floating(_) => None,
+            icalendar::CalendarDateTime::Floating(floating) => floating
+                .and_local_timezone(timezone)
+                .earliest()
+                .map(|d| d.to_utc()),
             icalendar::CalendarDateTime::Utc(date_time) => Some(date_time),
             icalendar::CalendarDateTime::WithTimezone { date_time, tzid } => {
                 let tz: chrono_tz::Tz = tzid.parse().ok()?;
