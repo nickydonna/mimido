@@ -24,6 +24,8 @@
   import { timeStore } from "../../stores/times";
   import EventCard from "$lib/components/event-card";
   import type { PageProps } from "./$types";
+  import GlassButtonGroup from "$lib/components/glass-button-group/GlassButtonGroup.svelte";
+  import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
 
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
@@ -131,27 +133,21 @@
         {format("E do MMM yy ", date)}
       </p>
     </div>
-    <ButtonGroup size="md">
-      <Button
-        color="primary"
-        size="xs"
+    <GlassButtonGroup size="md">
+      <GlassGrouppedButton
         href="/day?date={formatISO(subDays(1, startOfDay(date)))}"
       >
         <AngleLeftOutline />
-      </Button>
-      <Button
-        size="xs"
-        color="primary"
-        href="/day?date={formatISO(startOfDay(currentTime))}">Today</Button
+      </GlassGrouppedButton>
+      <GlassGrouppedButton href="/day?date={formatISO(startOfDay(currentTime))}"
+        >Now</GlassGrouppedButton
       >
-      <Button
-        size="xs"
-        color="primary"
+      <GlassGrouppedButton
         href="/day?date={formatISO(addDays(1, startOfDay(date)))}"
       >
         <AngleRightOutline />
-      </Button>
-    </ButtonGroup>
+      </GlassGrouppedButton>
+    </GlassButtonGroup>
   </div>
   <div
     class="flex sticky top-0 bg-primary-950 py-3 px-1"
