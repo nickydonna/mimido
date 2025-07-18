@@ -250,8 +250,8 @@
             <div
               tabindex={i * 10 + (k + 1)}
               role="button"
-              class="group event-card event-card-{type.toLowerCase()}"
-              class:brightness-50={timeIndicator.nearestSlot > time}
+              class="group event-{type.toLowerCase()}"
+              class:brightness-80={timeIndicator.nearestSlot > time}
               style:grid-column={isBlockType
                 ? "event /reminder"
                 : e.event_type.toLowerCase()}
@@ -261,9 +261,7 @@
               <div class="absolute right-2 hidden group-hover:block"></div>
               {#if e.event_type === "Block"}
                 <div class="flex h-full flex-col items-center justify-center">
-                  <p
-                    class="inline-block text-2xl font-medium text-blue-900 opacity-65"
-                  >
+                  <p class="inline-block text-2xl font-medium text-white">
                     {e.summary.toUpperCase()}
                   </p>
                 </div>
@@ -281,9 +279,10 @@
 <style lang="postcss">
   @reference "../../app.css";
 
-  .event-card-block {
+  .event-block {
     // opacity: 0;
-    @apply p-0 m-px bg-polka-indigo-800 border-indigo-900 rounded-xl;
+    @apply p-0 m-px glassy-shadow rounded-xl;
+    backdrop-filter: blur(0.5px);
     grid-column: event / reminder;
     z-index: 0;
   }
