@@ -26,6 +26,7 @@
   import type { PageProps } from "./$types";
   import GlassButtonGroup from "$lib/components/glass-button-group/GlassButtonGroup.svelte";
   import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
+  import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
 
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
@@ -210,30 +211,23 @@
       </div>
 
       {#each timeBlocks as { time, check } (time)}
+        {@const formatedTime = format("HH:mm", time)}
+        {@const minutes = getMinutes(time)}
+
         <h2
           ondblclick={() => !dragging && handleTimeDoubleClick(time)}
           class="time-slot text-center text-xs cursor-pointer select-none"
           class:brightness-50={timeIndicator.nearestSlot >= time}
-          style:grid-row={`time-${format("HHmm", time)}`}
-        >
-          {format("HH:mm", time)}
-        </h2>
-        <div
-          class:hidden={hoverTime !== time}
-          class="z-40 text-center rounded-lg font-bold text-lg bg-blue-800"
-          style:grid-column="event / reminder"
           style:grid-row="time-{format('HHmm', time)}"
         >
-          {format("HH:mm", time)}
-        </div>
+          {formatedTime}
+        </h2>
         <div
           aria-hidden="true"
-          class="border-t border-dotted"
-          class:z-50={dragging}
-          class:border-gray-600={getMinutes(time) === 0}
-          class:border-gray-300={getMinutes(time) === 30}
-          class:border-gray-800={getMinutes(time) !== 0 &&
-            getMinutes(time) !== 30}
+          class={`border-t border-dotted ${dragging != null ? "z-50 pointer-events-auto" : "z-[-1] pointer-events-none"}`}
+          class:border-gray-600={minutes === 0}
+          class:border-gray-300={minutes === 30}
+          class:border-gray-800={minutes !== 0 && minutes !== 30}
           style:grid-column="event /reminder"
           style:grid-row="time-{format('HHmm', time)}"
           ondragenter={() => {
@@ -244,6 +238,17 @@
           }}
           ondragover={() => false}
         ></div>
+        <div
+          class="opacity-0 hover:opacity-100 rounded-4xl hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1"
+          style:grid-column="event"
+          style:grid-row="time-{format('HHmm', time)}"
+        >
+          <div class="text-center flex-1">
+            {formatedTime}
+          </div>
+          <GlassButton size="xs">+</GlassButton>
+        </div>
+
         {#each sortedEvents as [type, events], i}
           {@const isBlockType = type === "Block"}
           {#each events.filter((e) => timeCheck(e, check)) as e, k}
@@ -258,7 +263,6 @@
               style:grid-row={getScheduleSlot(e)}
               style:z-index={isBlockType ? 0 : k + 1}
             >
-              <div class="absolute right-2 hidden group-hover:block"></div>
               {#if e.event_type === "Block"}
                 <div class="flex h-full flex-col items-center justify-center">
                   <p class="inline-block text-2xl font-medium text-white">
@@ -281,7 +285,7 @@
 
   .event-block {
     // opacity: 0;
-    @apply p-0 m-px glassy-shadow rounded-xl;
+    @apply p-0 m-px glassy-shadow rounded-xl justify-center pointer-events-none;
     backdrop-filter: blur(0.5px);
     grid-column: event / reminder;
     z-index: 0;

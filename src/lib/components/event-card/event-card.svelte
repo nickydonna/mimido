@@ -53,22 +53,18 @@
 	@reference "../../../app.css";
 
 	.event-card {
-		@apply m-1 p-1 rounded-lg border shadow-2xl;
-		backdrop-filter: blur(1.5px);
+		@apply m-2 p-1 rounded-lg glassy-shadow;
+		backdrop-filter: blur(10px);
 	}
 
 	.event-card-event {
-		@apply text-white;
-		@apply glassy-shadow bg-emerald-800/50 border-green-900;
-		grid-column: event;
+		@apply bg-emerald-800/30;
 	}
 
 	.event-card-task {
-		@apply glassy-shadow bg-pink-600 border-pink-900;
-		grid-column: task;
+		@apply bg-lime-600/30;
 	}
 	.event-card-reminder {
-		@apply glass bg-blue-600 border-blue-900;
-		grid-column: reminder;
+		@apply bg-green-900/30;
 	}
 </style>
