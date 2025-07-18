@@ -119,6 +119,7 @@
   }
 
   function handleTimeDoubleClick(time: Date) {
+    console.log("asdf");
     // upsert.create(time);
   }
 </script>
@@ -211,7 +212,7 @@
       {#each timeBlocks as { time, check } (time)}
         <h2
           ondblclick={() => !dragging && handleTimeDoubleClick(time)}
-          class="time-slot m-0.5 text-center text-xs cursor-pointer select-none"
+          class="time-slot text-center text-xs cursor-pointer select-none"
           class:brightness-50={timeIndicator.nearestSlot >= time}
           style:grid-row={`time-${format("HHmm", time)}`}
         >
@@ -251,6 +252,9 @@
               role="button"
               class="group event-card event-card-{type.toLowerCase()}"
               class:brightness-50={timeIndicator.nearestSlot > time}
+              style:grid-column={isBlockType
+                ? "event /reminder"
+                : e.event_type.toLowerCase()}
               style:grid-row={getScheduleSlot(e)}
               style:z-index={isBlockType ? 0 : k + 1}
             >
@@ -277,30 +281,11 @@
 <style lang="postcss">
   @reference "../../app.css";
 
-  @layer components {
-    .event-card {
-      @apply p-0.5 relative rounded-lg border shadow-2xl;
-    }
-
-    .event-card-block {
-      @apply m-px bg-polka-indigo-800 border-indigo-900;
-      grid-column: event / reminder;
-      z-index: 0;
-    }
-
-    .event-card-event {
-      @apply glass bg-emerald-600 border-green-900 m-0.5;
-      grid-column: event;
-    }
-
-    .event-card-task {
-      @apply glass m-0.5 bg-pink-600 border-pink-900;
-      grid-column: task;
-    }
-    .event-card-reminder {
-      @apply glass m-0.5 bg-blue-600 border-blue-900;
-      grid-column: reminder;
-    }
+  .event-card-block {
+    // opacity: 0;
+    @apply p-0 m-px bg-polka-indigo-800 border-indigo-900 rounded-xl;
+    grid-column: event / reminder;
+    z-index: 0;
   }
 
   .blurred-time {
@@ -325,13 +310,12 @@
 
   .time-slot {
     grid-column: times;
-    margin-right: 0.5em;
-    border-right: 1px solid gray;
+    @apply text-center text-xs cursor-pointer select-none;
+    @apply p-3 mr-0.5 border-r border-slate-100/50;
   }
 
   .schedule {
-    margin: 20px 0;
-    display: grid;
+    @apply my-3 grid;
     grid-template-columns:
       [times] 4em
       [event-start] 1fr

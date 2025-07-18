@@ -12,10 +12,14 @@
 	} from "flowbite-svelte-icons";
 
 	let { event }: { event: ParsedEvent } = $props();
-	const sizeClass =
+
+	let classes = $derived([
+		"event-card",
+		`event-card-${event.event_type.toLowerCase()}`,
 		differenceInMinutes(event.starts_at, event.ends_at as Date) < 16
 			? "text-xs"
-			: "text-[0.6rem]";
+			: "text-[0.6rem]",
+	]);
 
 	let isDone = event.status === "Done";
 	let isTask = event.event_type === "Task";
@@ -26,12 +30,7 @@
 	);
 </script>
 
-<div
-	class:line-through={isDone}
-	class:text-gray-400={isDone}
-	class:text-gray-300={!isDone}
-	class={sizeClass}
->
+<div class:text-gray-400={isDone} class:text-white={!isDone} class={classes}>
 	<p>
 		<span class:line-through={isDone} class:text-gray-400={isDone}>
 			{event.summary}
@@ -49,3 +48,27 @@
 		{loadToString(load)}
 	{/if}
 </div>
+
+<style lang="postcss">
+	@reference "../../../app.css";
+
+	.event-card {
+		@apply m-1 p-1 rounded-lg border shadow-2xl;
+		backdrop-filter: blur(1.5px);
+	}
+
+	.event-card-event {
+		@apply text-white;
+		@apply glassy-shadow bg-emerald-800/50 border-green-900;
+		grid-column: event;
+	}
+
+	.event-card-task {
+		@apply glassy-shadow bg-pink-600 border-pink-900;
+		grid-column: task;
+	}
+	.event-card-reminder {
+		@apply glass bg-blue-600 border-blue-900;
+		grid-column: reminder;
+	}
+</style>
