@@ -89,7 +89,7 @@
   <div class="my-4 h-0.5 bg-primary-100/30 -mx-5 rounded"></div>
 {/snippet}
 
-<GlassIcon size="lg" onclick={() => dialog.open()}>
+<GlassIcon size="xl" onclick={() => dialog.open()}>
   <CalendarAddIcon />
 </GlassIcon>
 
