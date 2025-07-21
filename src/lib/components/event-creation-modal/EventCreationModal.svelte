@@ -1,5 +1,14 @@
 <script lang="ts">
-  import { format, formatISO, isSameDay, parseISO } from "date-fns";
+  import {
+    format,
+    formatISO,
+    getHours,
+    getMinutes,
+    isSameDay,
+    isToday,
+    isTomorrow,
+    parseISO,
+  } from "date-fns";
   import { createDialog } from "svelte-headlessui";
   import Transition from "svelte-transition";
 
@@ -8,6 +17,7 @@
     type Calendar,
     type DisplayUpsertInfo,
   } from "../../../bindings";
+  import { match, def } from "@korkje/adt";
   import { unwrap } from "$lib/result";
   // @ts-expect-error iconify
   import ClockIcon from "~icons/solar/clock-circle-broken";
@@ -21,20 +31,22 @@
   import MultiplyIcon from "~icons/uit/multiply";
   // @ts-expect-error iconify
   import RoutingIcon from "~icons/solar/routing-line-duotone";
-  // @ts-expect-error iconify
-  import CalendarAddIcon from "~icons/solar/calendar-add-linear";
 
   import HoverableIcon from "../hoverable-icon/HoverableIcon.svelte";
   import GlassButton from "../glass-button/GlassButton.svelte";
   import GlassInput from "../glass-input/GlassInput.svelte";
-  import { timeStore } from "../../../stores/times";
+  import { timeState } from "../../../stores/times.svelte";
   import GlassIcon from "../glass-icon/GlassIcon.svelte";
+  import {
+    eventUpsert,
+    eventUpserter,
+  } from "../../../stores/eventUpserter.svelte";
 
   let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
 
   const dialog = createDialog({ label: "Create Event" });
-  const date = $timeStore;
-  let input = $state("@block Work today at 10-13 every weekday");
+  const date = timeState.time;
+  let input = $state("");
   let result = $state<DisplayUpsertInfo | null>(null);
 
   /**
@@ -64,13 +76,47 @@
       return;
     }
     const res = await commands.parseEvent(formatISO(date), input);
-    console.log(unwrap(res));
     result = unwrap(res);
   }, 100);
 
+  function dateToString(time: Date): string {
+    const minutes = getMinutes(time);
+    if (isToday(time)) {
+      return minutes === 0
+        ? `today at ${getHours(time)}`
+        : `today at ${getHours(time)}:${getMinutes(time)}`;
+    }
+
+    if (isTomorrow(time)) {
+      return minutes === 0
+        ? `tomorrow at ${getHours(time)}`
+        : `tomorrow at ${getHours(time)}:${getMinutes(time)}`;
+    }
+
+    return minutes === 0
+      ? `at ${format(time, "dd/MM h")}`
+      : `at ${format(time, "dd/MM h:m")}`;
+  }
+
+  let ref = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    match(eventUpserter.state, {
+      None: () => dialog.close(),
+      Creating: ({ type, startDate }) => {
+        dialog.open();
+        input = `@${type.toLowerCase()} ${dateToString(startDate)} `;
+        // Set some delay to wait for things to render
+        setTimeout(() => {
+          ref?.focus();
+        }, 10);
+      },
+      [def]: () => dialog.open(),
+    });
+  });
+
   let saving = $state(false);
   async function save() {
-    console.log(defaultCalendar);
     if (defaultCalendar == null) {
       alert("Please pick a default calendar");
       return;
@@ -89,10 +135,6 @@
   <div class="my-4 h-0.5 bg-primary-100/30 -mx-5 rounded"></div>
 {/snippet}
 
-<GlassIcon size="xl" onclick={() => dialog.open()}>
-  <CalendarAddIcon />
-</GlassIcon>
-
 <Transition
   show={$dialog.expanded}
   enter="ease-in-out duration-300"
@@ -105,6 +147,9 @@
   <div class="fixed w-dvw h-dvh inset-0 z-[100] glass-modal-backdrop">
     <div
       use:dialog.modal
+      onclose={() => {
+        eventUpserter.state = eventUpsert.None;
+      }}
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
       <div class="flex items-center gap-3 w-full mb-2">
@@ -118,12 +163,18 @@
           {/if}
         </div>
 
-        <GlassIcon size="xs" onclick={() => dialog.close()}>
+        <GlassIcon
+          size="xs"
+          onclick={() => {
+            eventUpserter.state = eventUpsert.None;
+          }}
+        >
           <MultiplyIcon />
         </GlassIcon>
       </div>
       {@render hr()}
       <GlassInput
+        bind:ref
         disabled={saving}
         class="w-full outline-none text-white"
         bind:value={input}

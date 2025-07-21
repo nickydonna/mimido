@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@korkje/adt':
+    specifier: ^0.5.2
+    version: 0.5.2
   '@tauri-apps/api':
     specifier: ^2.6.0
     version: 2.6.0
@@ -416,6 +419,10 @@ packages:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
     dev: true
+
+  /@korkje/adt@0.5.2:
+    resolution: {integrity: sha512-ohA8fFU12yYAi490IICo39UnKClRPkfs71DOyLknlW+x7mXEyZ5fFB2mOVj6h9fmKaRmavUYm+d6wySj1bEQHA==}
+    dev: false
 
   /@polka/url@1.0.0-next.29:
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}

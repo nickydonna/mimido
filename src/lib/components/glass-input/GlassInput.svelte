@@ -1,11 +1,16 @@
 <script lang="ts">
   import type { HTMLInputAttributes } from "svelte/elements";
 
-  let { value = $bindable<string>(), ...props }: HTMLInputAttributes = $props();
+  let {
+    value = $bindable<string>(),
+    ref = $bindable<HTMLInputElement | null>(),
+    ...props
+  }: HTMLInputAttributes & { ref: HTMLInputElement | null } = $props();
 </script>
 
 <div class="glass-input h-12 px-6 py-3 rounded-3xl shadow-emerald-200 shadow">
   <input
+    bind:this={ref}
     class="w-full outline-none text-white"
     bind:value
     placeholder="Type your event information ..."

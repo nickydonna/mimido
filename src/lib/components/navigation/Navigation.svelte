@@ -5,8 +5,17 @@
   import CalendarDateIcon from "~icons/solar/calendar-date-linear";
   // @ts-expect-error iconify
   import SettingsIcon from "~icons/solar/settings-broken";
+  // @ts-expect-error iconify
+  import CalendarAddIcon from "~icons/solar/calendar-add-linear";
+
   import type { Calendar } from "../../../bindings";
   import EventCreationModal from "../event-creation-modal/EventCreationModal.svelte";
+  import GlassIcon from "../glass-icon/GlassIcon.svelte";
+  import {
+    eventUpsert,
+    eventUpserter,
+  } from "../../../stores/eventUpserter.svelte";
+  import { timeState } from "../../../stores/times.svelte";
 
   type Props = {
     activeUrl: string;
@@ -48,6 +57,14 @@
         {/snippet}
       </NavigationButton>
     </div>
+    <GlassIcon
+      size="xl"
+      onclick={() => {
+        eventUpserter.state = eventUpsert.Creating("Event", timeState.nextSlot);
+      }}
+    >
+      <CalendarAddIcon />
+    </GlassIcon>
 
     <EventCreationModal {defaultCalendar} />
   </nav>

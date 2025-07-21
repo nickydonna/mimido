@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Spinner, type SizeType } from "flowbite-svelte";
+  import { type SizeType } from "flowbite-svelte";
   import {
     type HTMLButtonAttributes,
     type HTMLAnchorAttributes,

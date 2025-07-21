@@ -17,26 +17,27 @@
     subSeconds,
   } from "date-fns/fp";
   import { type ParsedEvent } from "../../lib/util";
-  import Button from "flowbite-svelte/Button.svelte";
-  import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
   import { type VEvent, type EventType } from "../../bindings";
-  import { timeStore } from "../../stores/times";
+  import { timeState } from "../../stores/times.svelte";
   import EventCard from "$lib/components/event-card";
   import type { PageProps } from "./$types";
   import GlassButtonGroup from "$lib/components/glass-button-group/GlassButtonGroup.svelte";
   import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
   import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
+  import {
+    eventUpsert,
+    eventUpserter,
+  } from "../../stores/eventUpserter.svelte";
 
   let { data }: PageProps = $props();
   let { date, events } = $derived(data);
 
   let dragging = $state<VEvent | undefined>(undefined);
-  let currentTimeInView = $state(false);
-  let currentTime: Date = $state(new Date());
+  // let currentTimeInView = $state(false);
   let hoverTime: Date | undefined = $state(undefined);
-  let tags: string[] = $state([]);
-  let tagFilter: string | undefined = $state();
+  // let tags: string[] = $state([]);
+  // let tagFilter: string | undefined = $state();
   let current = $derived(startOfDay(date));
   let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }> =
     $derived.by(() => {
@@ -73,24 +74,23 @@
   });
 
   const modalZIndex = 40;
-  const scrollCurrentIntoView = () => {
-    document.getElementById("current-time")?.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    });
-  };
-
+  // const scrollCurrentIntoView = () => {
+  //   document.getElementById("current-time")?.scrollIntoView({
+  //     block: "center",
+  //     behavior: "smooth",
+  //   });
+  // };
+  //
   let timeIndicator: { nearestSlot: Date; offset: number } = $state({
     nearestSlot: new Date(),
     offset: 0,
   });
-  timeStore.subscribe((storeTime) => {
-    currentTime = storeTime;
-    const nearestSlot = roundToNearestMinutes(storeTime, {
+  $effect(() => {
+    const nearestSlot = roundToNearestMinutes(timeState.time, {
       nearestTo: 15,
       roundingMethod: "floor",
     });
-    const minutes = getMinutes(storeTime) - getMinutes(nearestSlot);
+    const minutes = getMinutes(timeState.time) - getMinutes(nearestSlot);
     timeIndicator = {
       nearestSlot: nearestSlot,
       offset: (minutes * 100) / 15,
@@ -120,8 +120,11 @@
   }
 
   function handleTimeDoubleClick(time: Date) {
-    console.log("asdf");
-    // upsert.create(time);
+    eventUpserter.state = eventUpsert.Creating("Event", time);
+  }
+
+  function handleClickSlot(type: EventType, time: Date) {
+    eventUpserter.state = eventUpsert.Creating(type, time);
   }
 </script>
 
@@ -141,7 +144,8 @@
       >
         <AngleLeftOutline />
       </GlassGrouppedButton>
-      <GlassGrouppedButton href="/day?date={formatISO(startOfDay(currentTime))}"
+      <GlassGrouppedButton
+        href="/day?date={formatISO(startOfDay(timeState.time))}"
         >Now</GlassGrouppedButton
       >
       <GlassGrouppedButton
@@ -192,7 +196,7 @@
           style:top="calc({timeIndicator.offset}% - 25px)"
         >
           <span class="relative px-2 text-pink-600 font-bold">
-            {format("HH:mm", currentTime)}
+            {format("HH:mm", timeState.time)}
           </span>
         </div>
       </div>
@@ -238,17 +242,22 @@
           }}
           ondragover={() => false}
         ></div>
-        <div
-          class="opacity-0 hover:opacity-100 rounded-4xl hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1"
-          style:grid-column="event"
-          style:grid-row="time-{format('HHmm', time)}"
-        >
-          <div class="text-center flex-1">
-            {formatedTime}
+        {#each ["Event", "Task", "Reminder"] as type}
+          <div
+            class="opacity-0 hover:opacity-100 rounded-4xl hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1"
+            style:grid-column={type.toLowerCase()}
+            style:grid-row="time-{format('HHmm', time)}"
+          >
+            <div class="text-center flex-1">
+              {formatedTime}
+            </div>
+            <GlassButton
+              size="xs"
+              onclick={() => handleClickSlot(type as EventType, time)}
+              >+</GlassButton
+            >
           </div>
-          <GlassButton size="xs">+</GlassButton>
-        </div>
-
+        {/each}
         {#each sortedEvents as [type, events], i}
           {@const isBlockType = type === "Block"}
           {#each events.filter((e) => timeCheck(e, check)) as e, k}
