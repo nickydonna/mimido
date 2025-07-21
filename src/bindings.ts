@@ -112,7 +112,11 @@ export type Calendar = { id: number; name: string; url: string; etag: string | n
 export type DisplayUpsertInfo = { summary: string; starts_at: string | null; ends_at: string | null; recurrence: string | null; status: EventStatus; event_type: EventType; postponed: number; urgency: number; load: number; importance: number }
 export type EventStatus = "Backlog" | "Todo" | "InProgress" | "Done"
 export type EventType = "Event" | "Block" | "Reminder" | "Task"
-export type ExtendedEvent = { event: VEvent; 
+export type ExtendedEvent = { 
+/**
+ * Date when the extended event was calculated
+ */
+query_date: string; event: VEvent; 
 /**
  * The start date of the event, if recurrent the value for the current query
  */

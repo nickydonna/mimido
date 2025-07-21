@@ -26,7 +26,7 @@
   import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
   import GlassButton from "$lib/components/glass-button/GlassButton.svelte";
   import {
-    eventUpsert,
+    EventUpsert,
     eventUpserter,
   } from "../../stores/eventUpserter.svelte";
 
@@ -120,11 +120,11 @@
   }
 
   function handleTimeDoubleClick(time: Date) {
-    eventUpserter.state = eventUpsert.Creating("Event", time);
+    eventUpserter.state = EventUpsert.Creating("Event", time);
   }
 
   function handleClickSlot(type: EventType, time: Date) {
-    eventUpserter.state = eventUpsert.Creating(type, time);
+    eventUpserter.state = EventUpsert.Creating(type, time);
   }
 </script>
 

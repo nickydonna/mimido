@@ -17,7 +17,7 @@ pub trait ExtractableFromInput {
     fn extract_from_input<Tz: TimeZone>(
         date_of_input: DateTime<Tz>,
         input: &str,
-    ) -> Result<impl Into<ExtractedInput<Self>>, String>
+    ) -> anyhow::Result<impl Into<ExtractedInput<Self>>>
     where
         Self: Sized;
 }

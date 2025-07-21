@@ -38,9 +38,10 @@
   import { timeState } from "../../../stores/times.svelte";
   import GlassIcon from "../glass-icon/GlassIcon.svelte";
   import {
-    eventUpsert,
+    EventUpsert,
     eventUpserter,
   } from "../../../stores/eventUpserter.svelte";
+  import { invalidateAll } from "$app/navigation";
 
   let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
 
@@ -123,12 +124,18 @@
     }
     saving = true;
     await commands.saveEvent(defaultCalendar.id, formatISO(date), input);
+    await invalidateAll();
+    eventUpserter.state = EventUpsert.None;
     saving = false;
   }
 
   $effect(() => {
     callParse(input);
   });
+
+  function handleClose() {
+    eventUpserter.state = EventUpsert.None;
+  }
 </script>
 
 {#snippet hr()}
@@ -147,9 +154,7 @@
   <div class="fixed w-dvw h-dvh inset-0 z-[100] glass-modal-backdrop">
     <div
       use:dialog.modal
-      onclose={() => {
-        eventUpserter.state = eventUpsert.None;
-      }}
+      onclose={handleClose}
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
     >
       <div class="flex items-center gap-3 w-full mb-2">
@@ -163,12 +168,7 @@
           {/if}
         </div>
 
-        <GlassIcon
-          size="xs"
-          onclick={() => {
-            eventUpserter.state = eventUpsert.None;
-          }}
-        >
+        <GlassIcon size="xs" onclick={handleClose}>
           <MultiplyIcon />
         </GlassIcon>
       </div>

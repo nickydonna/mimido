@@ -30,7 +30,7 @@ impl ExtractableFromInput for EventDateOption {
     fn extract_from_input<Tz: TimeZone>(
         date_of_input: DateTime<Tz>,
         input: &str,
-    ) -> Result<impl Into<ExtractedInput<Self>>, String> {
+    ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
         let dates = EventDate::from_natural(input, date_of_input);
         let Some((start, end, stripped)) = dates else {
             return Ok((EventDateOption(None), input.to_string()));
@@ -73,7 +73,7 @@ impl ExtractableFromInput for EventUpsertInfo {
     fn extract_from_input<Tz: TimeZone>(
         date_of_input: DateTime<Tz>,
         input: &str,
-    ) -> Result<impl Into<ExtractedInput<Self>>, String> {
+    ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
         let ExtractedInput(date_info, input) =
             EventDateOption::extract_from_input(date_of_input.clone(), input)?.into();
         let ExtractedInput(status, input) =

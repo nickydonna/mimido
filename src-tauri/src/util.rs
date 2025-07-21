@@ -9,10 +9,11 @@ pub fn stringify<T: ToString>(e: T) -> String {
 pub struct DateTimeStr(pub String);
 
 impl TryInto<DateTime<FixedOffset>> for DateTimeStr {
-    type Error = String;
+    type Error = anyhow::Error;
 
     fn try_into(self) -> Result<DateTime<FixedOffset>, Self::Error> {
-        DateTime::parse_from_rfc3339(&self.0).map_err(stringify)
+        let val = DateTime::parse_from_rfc3339(&self.0)?;
+        Ok(val)
     }
 }
 

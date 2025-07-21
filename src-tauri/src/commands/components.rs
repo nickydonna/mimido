@@ -1,26 +1,67 @@
 use crate::{
-    caldav::Caldav,
+    caldav::{Caldav, Href},
     calendar_items::{
         event_creator::EventUpsertInfo,
         input_traits::{ExtractableFromInput, ExtractedInput},
         DisplayUpsertInfo,
     },
+    commands::calendar::{super_sync_calendar, CalendarCommandError},
     establish_connection,
     models::{
         vevent::{VEvent, VEventTrait},
         Calendar, Server,
     },
-    util::{stringify, DateTimeStr},
+    util::DateTimeStr,
 };
 use chrono::{DateTime, FixedOffset, Utc};
 use diesel::prelude::*;
 use icalendar::Component;
+use libdav::sd::BootstrapError;
 use log::info;
 use now::DateTimeNow;
+use specta::Type;
 use uuid::Uuid;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ComponentsCommandError {
+    #[error("Diesel error {0:?}")]
+    Diesel(#[from] diesel::result::Error),
+    #[error("Could not connect to caldav")]
+    CaldavBootstrap(#[from] BootstrapError),
+    #[error("Error: {0}")]
+    Anyhow(#[from] anyhow::Error),
+    #[error(transparent)]
+    Calendar(#[from] CalendarCommandError),
+}
+
+impl From<ComponentsCommandError> for String {
+    fn from(value: ComponentsCommandError) -> Self {
+        value.to_string()
+    }
+}
+
+impl Type for ComponentsCommandError {
+    fn inline(
+        type_map: &mut specta::TypeCollection,
+        generics: specta::Generics,
+    ) -> specta::datatype::DataType {
+        String::inline(type_map, generics)
+    }
+}
+
+impl serde::Serialize for ComponentsCommandError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_ref())
+    }
+}
 
 #[derive(Clone, Debug, serde::Serialize, specta::Type)]
 pub struct ExtendedEvent {
+    /// Date when the extended event was calculated
+    pub query_date: DateTime<Utc>,
     pub event: VEvent,
     /// The start date of the event, if recurrent the value for the current query
     pub starts_at: DateTime<Utc>,
@@ -42,6 +83,7 @@ impl ExtendedEvent {
         let (starts_at, ends_at) = event.get_start_end_for_date(base);
         if starts_at > base && starts_at < query_date.end_of_day() {
             Some(Self {
+                query_date,
                 event: event.clone(),
                 starts_at,
                 ends_at,
@@ -55,7 +97,9 @@ impl ExtendedEvent {
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>, String> {
+pub async fn list_events_for_day(
+    datetime: String,
+) -> Result<Vec<ExtendedEvent>, ComponentsCommandError> {
     use crate::schema::vevents::dsl as event_dsl;
 
     let conn = &mut establish_connection();
@@ -72,8 +116,7 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
                 .and(event_dsl::ends_at.le(end))),
         )
         .select(VEvent::as_select())
-        .load(conn)
-        .map_err(stringify)?;
+        .load(conn)?;
 
     let events = events
         .iter()
@@ -88,7 +131,7 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
 pub async fn parse_event(
     date_of_input_str: String,
     component_input: String,
-) -> Result<DisplayUpsertInfo, String> {
+) -> Result<DisplayUpsertInfo, ComponentsCommandError> {
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
     // let parsed_date = parsed_date.with_timezone(&Tz::UTC);
     info!("{parsed_date}");
@@ -104,7 +147,7 @@ pub async fn save_event(
     calendar_id: i32,
     date_of_input_str: String,
     component_input: String,
-) -> Result<(), String> {
+) -> Result<(), ComponentsCommandError> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::servers::dsl as server_dsl;
 
@@ -114,8 +157,7 @@ pub async fn save_event(
         .inner_join(calendars_dsl::calendars)
         .filter(calendars_dsl::id.eq(calendar_id))
         .select((Server::as_select(), Calendar::as_select()))
-        .first::<(Server, Calendar)>(conn)
-        .map_err(|e| e.to_string())?;
+        .first::<(Server, Calendar)>(conn)?;
 
     let caldav = Caldav::new(server).await?;
 
@@ -129,18 +171,17 @@ pub async fn save_event(
     let mut new_calendar_cmp: icalendar::CalendarComponent = data.into();
 
     let uid = Uuid::new_v4().to_string();
-    let new_calendar_cmp = set_uid_or(&mut new_calendar_cmp, &uid);
+    let new_calendar_cmp = set_uid(&mut new_calendar_cmp, &uid);
     let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
 
-    caldav
-        .create_cmp(calendar.url, uid, cal)
-        .await
-        .map_err(stringify)?;
+    let cal_href: Href = calendar.url.clone().into();
+    caldav.create_cmp(&cal_href, uid, cal).await?;
+    super_sync_calendar(calendar.id).await?;
 
     Ok(())
 }
 
-fn set_uid_or(cmp: &mut icalendar::CalendarComponent, uid: &str) -> icalendar::CalendarComponent {
+fn set_uid(cmp: &mut icalendar::CalendarComponent, uid: &str) -> icalendar::CalendarComponent {
     let updated: icalendar::CalendarComponent = match cmp {
         icalendar::CalendarComponent::Todo(todo) => todo.uid(uid).done().into(),
         icalendar::CalendarComponent::Event(event) => event.uid(uid).done().into(),

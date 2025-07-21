@@ -12,7 +12,7 @@
   import EventCreationModal from "../event-creation-modal/EventCreationModal.svelte";
   import GlassIcon from "../glass-icon/GlassIcon.svelte";
   import {
-    eventUpsert,
+    EventUpsert,
     eventUpserter,
   } from "../../../stores/eventUpserter.svelte";
   import { timeState } from "../../../stores/times.svelte";
@@ -60,7 +60,7 @@
     <GlassIcon
       size="xl"
       onclick={() => {
-        eventUpserter.state = eventUpsert.Creating("Event", timeState.nextSlot);
+        eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
       }}
     >
       <CalendarAddIcon />

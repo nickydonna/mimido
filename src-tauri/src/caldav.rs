@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt::Display;
 
 use crate::models::{NewCalendar, Server};
@@ -11,7 +10,9 @@ use hyper_util::{
 };
 use libdav::{
     dav::{mime_types, FoundCollection, WebDavClient},
-    names, Depth, PropertyName,
+    names,
+    sd::BootstrapError,
+    Depth, PropertyName,
 };
 use libdav::{CalDavClient, FetchedResource};
 use log::info;
@@ -27,21 +28,13 @@ pub struct Caldav {
     caldav_client: HyperAuthClient,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 enum CaldavError {
+    #[error("Could not find {0} on xml")]
     NodeNotFound(String),
+    #[error("Request returnes {0}")]
     ErrorResponse(StatusCode),
 }
-
-impl std::fmt::Display for CaldavError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CaldavError::NodeNotFound(val) => write!(f, "Could not find node {val} on xml"),
-            CaldavError::ErrorResponse(s) => write!(f, "Request returned {s}"),
-        }
-    }
-}
-impl Error for CaldavError {}
 
 #[derive(NewType, Debug)]
 pub struct Href(pub String);
@@ -67,7 +60,7 @@ pub enum CmpSyncResult {
 }
 
 impl Caldav {
-    pub async fn new(server: Server) -> Result<Self, String> {
+    pub async fn new(server: Server) -> Result<Self, BootstrapError> {
         let uri = Uri::try_from(server.server_url.clone()).unwrap();
         let https_connector = HttpsConnectorBuilder::new()
             .with_native_roots()
@@ -78,21 +71,20 @@ impl Caldav {
         let https_client = HyperClient::builder(TokioExecutor::new()).build(https_connector);
         let https_client = AddAuthorization::basic(https_client, &server.user, &server.password);
         let webdav = WebDavClient::new(uri, https_client);
-        let Ok(client) = CalDavClient::bootstrap_via_service_discovery(webdav).await else {
-            return Err("Couldn't discover".to_string());
-        };
+        let client = CalDavClient::bootstrap_via_service_discovery(webdav).await?;
         Ok(Caldav {
             server,
             caldav_client: client,
         })
     }
 
-    pub async fn test(self) -> Result<bool, String> {
-        self.caldav_client
+    pub async fn test(self) -> anyhow::Result<bool> {
+        let res = self
+            .caldav_client
             .find_current_user_principal()
             .await
-            .map(|_| true)
-            .map_err(|e| e.to_string())
+            .map(|_| true)?;
+        Ok(res)
     }
 
     pub async fn list_calendars(&self) -> anyhow::Result<Vec<NewCalendar>> {
@@ -115,16 +107,13 @@ impl Caldav {
         Ok(calendars)
     }
 
-    pub async fn get_calendar_items(&self, href: &str) -> Result<Vec<FetchedResource>, String> {
-        let resources = self
+    pub async fn get_calendar_items(&self, href: &str) -> anyhow::Result<Vec<FetchedResource>> {
+        let resources = self.caldav_client.list_resources(href).await?;
+        let items = self
             .caldav_client
-            .list_resources(href)
-            .await
-            .map_err(|e| e.to_string())?;
-        self.caldav_client
             .get_calendar_resources(href, resources.into_iter().map(|e| e.href))
-            .await
-            .map_err(|e| e.to_string())
+            .await?;
+        Ok(items)
     }
 
     async fn fetch_calendar_details(
@@ -172,20 +161,20 @@ impl Caldav {
 
     pub async fn create_cmp(
         &self,
-        base_href: impl Display,
+        base_href: &Href,
         id: impl Display,
         calendar: icalendar::Calendar,
-    ) -> anyhow::Result<()> {
-        let href = format!("{base_href}{id}.ics");
+    ) -> anyhow::Result<Href> {
+        let href_str = format!("{base_href}{id}.ics");
         let _ = self
             .caldav_client
             .create_resource(
-                &href,
+                &href_str,
                 calendar.to_string().as_bytes().to_vec(),
                 mime_types::CALENDAR,
             )
             .await?;
-        Ok(())
+        Ok(href_str.into())
     }
 
     pub async fn fetch_resource(
@@ -202,8 +191,8 @@ impl Caldav {
 
     pub async fn get_sync_report(
         &self,
-        calendar_href: &str,
-        sync_token: &str,
+        calendar_href: &Href,
+        sync_token: impl Display,
     ) -> anyhow::Result<(String, Vec<CmpSyncResult>)> {
         let mut body = String::from(r#"<sync-collection xmlns="DAV:">"#);
         body.push_str(&format!("<sync-token>{sync_token}</sync-token>"));

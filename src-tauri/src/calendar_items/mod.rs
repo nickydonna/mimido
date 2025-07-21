@@ -1,6 +1,5 @@
 use chrono::{DateTime, NaiveTime, TimeZone, Utc};
 use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike};
-use log::warn;
 
 use crate::calendar_items::{
     component_props::ComponentProps, event_creator::EventUpsertInfo, event_status::EventStatus,

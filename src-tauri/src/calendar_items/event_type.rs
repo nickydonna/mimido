@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use chrono::{DateTime, TimeZone};
 use diesel::{
     deserialize::{FromSql, FromSqlRow},
@@ -64,11 +65,10 @@ impl ExtractableFromInput for EventType {
     fn extract_from_input<Tz: TimeZone>(
         _: DateTime<Tz>,
         input: &str,
-    ) -> Result<impl Into<ExtractedInput<Self>>, String> {
+    ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
         let re = RegexBuilder::new(EVENT_TYPE_RE)
             .case_insensitive(true)
-            .build()
-            .map_err(|e| e.to_string())?;
+            .build()?;
 
         let captured = re.captures(input);
         let Some(captured) = captured else {
@@ -86,7 +86,7 @@ impl ExtractableFromInput for EventType {
             "block" | "b" => EventType::Block,
             "reminder" | "r" => EventType::Reminder,
             "task" | "t" => EventType::Task,
-            _ => Err(format!("Invalid event type: {input}"))?,
+            _ => Err(anyhow!("Invalid event type: {input}"))?,
         };
 
         Ok((
