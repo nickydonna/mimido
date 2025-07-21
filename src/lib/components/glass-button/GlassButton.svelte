@@ -52,7 +52,6 @@
 </script>
 
 {#if isButtonProps(props)}
-  <div class="justify-center"></div>
   <button {...props} type={props.type ?? "button"} class={classes} {disabled}>
     {@render props.children?.()}
   </button>

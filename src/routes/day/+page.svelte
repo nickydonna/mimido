@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { inview } from "$lib/attachments/inview.svelte";
   import {
     formatISO,
     getMinutes,
@@ -34,7 +35,7 @@
   let { date, events } = $derived(data);
 
   let dragging = $state<VEvent | undefined>(undefined);
-  // let currentTimeInView = $state(false);
+  let currentTimeInView = $state(false);
   let hoverTime: Date | undefined = $state(undefined);
   // let tags: string[] = $state([]);
   // let tagFilter: string | undefined = $state();
@@ -74,13 +75,15 @@
   });
 
   const modalZIndex = 40;
-  // const scrollCurrentIntoView = () => {
-  //   document.getElementById("current-time")?.scrollIntoView({
-  //     block: "center",
-  //     behavior: "smooth",
-  //   });
-  // };
-  //
+
+  let currentTimeRef = $state<HTMLElement | null>();
+  const scrollCurrentIntoView = () => {
+    currentTimeRef?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  };
+
   let timeIndicator: { nearestSlot: Date; offset: number } = $state({
     nearestSlot: new Date(),
     offset: 0,
@@ -176,15 +179,14 @@
         style="grid-column: reminder; grid-row: tracks;">Reminder</span
       >
 
-      <!-- {#if !currentTimeInView && !dragging} -->
-      <!--   <Button -->
-      <!--     class="fixed bottom-[2rem] end-6 z-40" -->
-      <!--     onclick={scrollCurrentIntoView} -->
-      <!--   > -->
-      <!--     Current Time -->
-      <!--   </Button> -->
-      <!-- {/if} -->
-      <!-- Time indicator -->
+      {#if !currentTimeInView && !dragging}
+        <div class="fixed bottom-12 end-12 z-[100]">
+          <GlassButton onclick={scrollCurrentIntoView}>
+            Current Time
+          </GlassButton>
+        </div>
+      {/if}
+      <!-- Time indicato -->
       <div
         class="pointer-events-none"
         style:z-index={modalZIndex - 3}
@@ -194,8 +196,17 @@
         <div
           class="relative w-full"
           style:top="calc({timeIndicator.offset}% - 25px)"
+          bind:this={currentTimeRef}
+          {@attach inview({
+            onEnter: () => {
+              currentTimeInView = true;
+            },
+            onExit: () => {
+              currentTimeInView = false;
+            },
+          })}
         >
-          <span class="relative px-2 text-pink-600 font-bold">
+          <span class="relative px-2 text-violet-600 font-bold">
             {format("HH:mm", timeState.time)}
           </span>
         </div>
@@ -210,7 +221,7 @@
       >
         <div
           style:top="{timeIndicator.offset}%"
-          class="relative w-full border-b-2 border border-pink-600"
+          class="relative w-full border-b-2 border border-violet-600"
         ></div>
       </div>
 

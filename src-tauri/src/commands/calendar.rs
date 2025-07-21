@@ -130,8 +130,8 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), CalendarCommandError>
     let items = caldav.get_calendar_items(&calendar.url).await?;
 
     // Clean the events from that calendar
-    VEvent::delete_all(conn, calendar_id);
-    VTodo::delete_all(conn, calendar_id);
+    VEvent::delete_all(conn, calendar_id)?;
+    VTodo::delete_all(conn, calendar_id)?;
 
     let _ = items
         .iter()

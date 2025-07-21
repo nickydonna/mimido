@@ -30,12 +30,13 @@
   }));
 </script>
 
-<div class="fixed z-[90] bottom-8 w-dvw">
+<div class="fixed z-[90] bottom-8 w-dvw pointer-events-none">
   <nav class="container mx-auto flex justify-center items-center px-2 gap-2">
     <div
       class={[
         "navigation",
         "inline-flex rounded-full glassy-shadow",
+        "pointer-events-auto",
         "p-1 gap-2",
       ]}
       role="group"
@@ -58,6 +59,7 @@
       </NavigationButton>
     </div>
     <GlassIcon
+      class="pointer-events-auto"
       size="xl"
       onclick={() => {
         eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
@@ -65,10 +67,10 @@
     >
       <CalendarAddIcon />
     </GlassIcon>
-
-    <EventCreationModal {defaultCalendar} />
   </nav>
 </div>
+
+<EventCreationModal {defaultCalendar} />
 
 <style lang="postcss">
   @reference "../../../app";
