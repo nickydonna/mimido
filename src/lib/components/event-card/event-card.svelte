@@ -30,30 +30,32 @@
 	);
 </script>
 
-<div class:text-gray-400={isDone} class:text-white={!isDone} class={classes}>
-	<p>
-		<span class:line-through={isDone} class:text-gray-400={isDone}>
-			{event.summary}
-		</span>
-		{#if event.natural_recurrence}
-			<ArrowsRepeatOutline class="inline-block" />
+<div class="size-full p-2">
+	<div class:text-gray-400={isDone} class:text-white={!isDone} class={classes}>
+		<p>
+			<span class:line-through={isDone} class:text-gray-400={isDone}>
+				{event.summary}
+			</span>
+			{#if event.natural_recurrence}
+				<ArrowsRepeatOutline class="inline-block" />
+			{/if}
+			<!-- {#if event.alarms.length > 0} -->
+			<!-- 	<BellActiveAltOutline class="inline-block" /> -->
+			<!-- {/if} -->
+		</p>
+		{#if (isTask || isReminder) && !isDone}
+			{importanceToString(importance, "|")}
+			{urgencyToString(urgency, "|")}
+			{loadToString(load)}
 		{/if}
-		<!-- {#if event.alarms.length > 0} -->
-		<!-- 	<BellActiveAltOutline class="inline-block" /> -->
-		<!-- {/if} -->
-	</p>
-	{#if (isTask || isReminder) && !isDone}
-		{importanceToString(importance, "|")}
-		{urgencyToString(urgency, "|")}
-		{loadToString(load)}
-	{/if}
+	</div>
 </div>
 
 <style lang="postcss">
 	@reference "../../../app.css";
 
 	.event-card {
-		@apply m-2 p-1 rounded-lg glassy-shadow;
+		@apply p-1 rounded-lg glassy-shadow size-full box-border;
 		backdrop-filter: blur(10px);
 	}
 

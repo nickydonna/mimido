@@ -195,7 +195,7 @@
       >
         <div
           class="relative w-full"
-          style:top="calc({timeIndicator.offset}% - 20px)"
+          style:top="calc({timeIndicator.offset}% - 12px)"
           bind:this={currentTimeRef}
           {@attach inview({
             onEnter: () => {
@@ -220,7 +220,7 @@
         style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
       >
         <div
-          style:top="calc({timeIndicator.offset}% + 12px)"
+          style:top="calc({timeIndicator.offset}% + 16px)"
           class="relative w-full border-b-2 border border-violet-600"
         ></div>
       </div>
