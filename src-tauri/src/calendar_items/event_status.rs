@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone};
 use diesel::{
@@ -24,7 +26,6 @@ use super::{
     PartialEq,
     serde::Serialize,
     strum_macros::AsRefStr,
-    strum_macros::EnumString,
     strum_macros::Display,
     FromSqlRow,
     AsExpression,
@@ -43,7 +44,7 @@ pub enum EventStatus {
 impl FromSql<Text, Sqlite> for EventStatus {
     fn from_sql(bytes: SqliteValue) -> diesel::deserialize::Result<Self> {
         let t = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
-        Ok(t.as_str().try_into()?)
+        Ok(t.as_str().parse()?)
     }
 }
 
@@ -57,6 +58,20 @@ impl ToSql<Text, Sqlite> for EventStatus {
 impl From<EventStatus> for icalendar::Property {
     fn from(value: EventStatus) -> Self {
         Property::new(ComponentProps::Status.as_ref(), value.as_ref())
+    }
+}
+
+impl FromStr for EventStatus {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().as_str() {
+            "backlog" | "back" | "b" => Ok(EventStatus::Backlog),
+            "todo" | "t" => Ok(EventStatus::Todo),
+            "doing" | "inprogress" | "i" => Ok(EventStatus::InProgress),
+            "done" | "d" => Ok(EventStatus::Done),
+            _ => Err(anyhow!("Invalid event status: {value}")),
+        }
     }
 }
 
@@ -83,13 +98,8 @@ impl ExtractableFromInput for EventStatus {
             .map(|e| e.as_str())
             .expect("Already check if it's some");
 
-        let status = match captured.to_lowercase().as_str() {
-            "backlog" | "b" => EventStatus::Backlog,
-            "todo" | "t" => EventStatus::Todo,
-            "doing" | "inprogress" | "i" => EventStatus::InProgress,
-            "done" | "d" => EventStatus::Done,
-            _ => Err(anyhow!("Invalid event status: {captured}"))?,
-        };
+        let status: EventStatus = captured.parse()?;
+
         Ok((
             status,
             format!("{} {}", &input[0..general.start()], &input[general.end()..])

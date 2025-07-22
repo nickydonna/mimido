@@ -58,6 +58,7 @@ pub fn run() {
             commands::components::list_events_for_day,
             commands::components::parse_event,
             commands::components::save_event,
+            commands::components::set_vevent_status,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

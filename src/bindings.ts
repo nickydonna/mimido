@@ -92,6 +92,14 @@ async saveEvent(calendarId: number, dateOfInputStr: string, componentInput: stri
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async setVeventStatus(veventId: number, status: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_vevent_status", { veventId, status }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

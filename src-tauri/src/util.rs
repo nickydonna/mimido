@@ -2,10 +2,6 @@ use chrono::{DateTime, FixedOffset};
 use log::warn;
 use std::fmt::Display;
 
-pub fn stringify<T: ToString>(e: T) -> String {
-    format!("Error code: {}", e.to_string())
-}
-
 pub struct DateTimeStr(pub String);
 
 impl TryInto<DateTime<FixedOffset>> for DateTimeStr {

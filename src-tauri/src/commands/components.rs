@@ -1,7 +1,10 @@
+use std::str::FromStr;
+
 use crate::{
     caldav::{Caldav, Href},
     calendar_items::{
         event_creator::EventUpsertInfo,
+        event_status::EventStatus,
         input_traits::{ExtractableFromInput, ExtractedInput},
         DisplayUpsertInfo,
     },
@@ -162,8 +165,6 @@ pub async fn save_event(
     let caldav = Caldav::new(server).await?;
 
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
-    // let parsed_date = parsed_date.with_timezone(&Tz::UTC);
-    info!("{parsed_date}");
 
     let ExtractedInput(data, _) =
         EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
@@ -178,6 +179,21 @@ pub async fn save_event(
     caldav.create_cmp(&cal_href, uid, cal).await?;
     super_sync_calendar(calendar.id).await?;
 
+    Ok(())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), ComponentsCommandError> {
+    use crate::schema::vevents::dsl as vevents_dsl;
+
+    let status = EventStatus::from_str(status.as_ref())?;
+
+    let conn = &mut establish_connection();
+    diesel::update(vevents_dsl::vevents)
+        .filter(vevents_dsl::id.eq(vevent_id))
+        .set(vevents_dsl::status.eq(status))
+        .execute(conn)?;
     Ok(())
 }
 
