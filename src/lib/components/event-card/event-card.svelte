@@ -58,13 +58,13 @@
 	}
 
 	.event-card-event {
-		@apply bg-emerald-800/30;
+		@apply bg-teal-600/30;
 	}
 
 	.event-card-task {
-		@apply bg-lime-600/30;
+		@apply bg-task-600/30;
 	}
 	.event-card-reminder {
-		@apply bg-green-900/30;
+		@apply bg-reminder-800/50;
 	}
 </style>

@@ -186,7 +186,7 @@
           </GlassButton>
         </div>
       {/if}
-      <!-- Time indicato -->
+      <!-- Time indicator -->
       <div
         class="pointer-events-none"
         style:z-index={modalZIndex - 3}
@@ -195,7 +195,7 @@
       >
         <div
           class="relative w-full"
-          style:top="calc({timeIndicator.offset}% - 25px)"
+          style:top="calc({timeIndicator.offset}% - 20px)"
           bind:this={currentTimeRef}
           {@attach inview({
             onEnter: () => {
@@ -220,7 +220,7 @@
         style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
       >
         <div
-          style:top="{timeIndicator.offset}%"
+          style:top="calc({timeIndicator.offset}% + 12px)"
           class="relative w-full border-b-2 border border-violet-600"
         ></div>
       </div>
