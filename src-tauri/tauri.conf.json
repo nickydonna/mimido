@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "mimido",
   "version": "0.1.0",
-  "identifier": "com.mimido.app",
+  "identifier": "com.mimido",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
