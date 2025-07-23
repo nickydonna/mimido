@@ -15,8 +15,8 @@
 	import { invalidateAll } from "$app/navigation";
 
 	let { event }: { event: ParsedEvent } = $props();
-	let moreThan15Min = $derived(
-		differenceInMinutes(event.starts_at, event.ends_at) < 16,
+	let lessThan15Min = $derived(
+		differenceInMinutes(event.ends_at, event.starts_at) < 16,
 	);
 	let loading = $state(false);
 
@@ -34,7 +34,7 @@
 	let classes = $derived([
 		"event-card",
 		`event-card-${event.event_type.toLowerCase()}`,
-		moreThan15Min ? "text-xs" : "text-[0.6rem]",
+		lessThan15Min ? "text-xs" : "",
 	]);
 
 	let [importance, load, urgency] = $derived.by(() =>
@@ -55,7 +55,7 @@
 			<!-- 	<BellActiveAltOutline class="inline-block" /> -->
 			<!-- {/if} -->
 		</p>
-		{#if moreThan15Min && (isTask || isReminder) && !isDone}
+		{#if lessThan15Min && (isTask || isReminder) && !isDone}
 			{importanceToString(importance, "|")}
 			{urgencyToString(urgency, "|")}
 			{loadToString(load)}
@@ -65,14 +65,14 @@
 				disabled={loading}
 				class={[
 					`done-button glass-clickable opacity-0 group-hover:opacity-100`,
-					{ loading },
+					{ loading, lessThan15Min },
 				]}
 				onclick={toggleStatus}
 			>
 				{#if isDone}
-					<UnCheckTask size="xs"></UnCheckTask>
+					<UnCheckTask></UnCheckTask>
 				{:else}
-					<CheckTask size="xs"></CheckTask>
+					<CheckTask></CheckTask>
 				{/if}
 			</button>
 		</div>
@@ -99,9 +99,18 @@
 	}
 
 	.done-button {
-		@apply cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200;
+		@apply cursor-pointer transition-opacity duration-200;
 		@apply rounded-full p-1;
 	}
-	.done-hover {
+	.done-button :global(svg) {
+		@apply size-4;
+	}
+
+	.done-button.lessThan15Min {
+		@apply p-0.5;
+	}
+
+	.done-button.lessThan15Min :global(svg) {
+		@apply size-3.5;
 	}
 </style>

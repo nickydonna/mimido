@@ -42,6 +42,7 @@
     eventUpserter,
   } from "../../../stores/eventUpserter.svelte";
   import { invalidateAll } from "$app/navigation";
+  import type { EventHandler } from "svelte/elements";
 
   let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
 
@@ -106,7 +107,7 @@
       None: () => dialog.close(),
       Creating: ({ type, startDate }) => {
         dialog.open();
-        input = `@${type.toLowerCase()} ${dateToString(startDate)} `;
+        input = `.${type.toLowerCase()} ${dateToString(startDate)} `;
         // Set some delay to wait for things to render
         setTimeout(() => {
           ref?.focus();
@@ -117,7 +118,8 @@
   });
 
   let saving = $state(false);
-  async function save() {
+  const save: EventHandler = async (e: Event) => {
+    e.preventDefault();
     if (defaultCalendar == null) {
       alert("Please pick a default calendar");
       return;
@@ -127,7 +129,7 @@
     await invalidateAll();
     eventUpserter.state = EventUpsert.None;
     saving = false;
-  }
+  };
 
   $effect(() => {
     callParse(input);
@@ -152,7 +154,8 @@
   leaveTo="opacity-0"
 >
   <div class="fixed w-dvw h-dvh inset-0 z-[100] glass-modal-backdrop">
-    <div
+    <form
+      onsubmit={save}
       use:dialog.modal
       onclose={handleClose}
       class="relative -mt-32 top-1/2 max-w-sm md:max-w-md lg:max-w mx-auto text-white glass-modal"
@@ -225,10 +228,10 @@
             </span>
             to save ...
           </div>
-          <GlassButton loading={saving} onclick={save}>Save</GlassButton>
+          <GlassButton type="submit" loading={saving}>Save</GlassButton>
         </div>
       {/if}
-    </div>
+    </form>
   </div>
 </Transition>
 

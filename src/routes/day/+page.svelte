@@ -132,12 +132,9 @@
 </script>
 
 <div>
-  <div
-    class="flex sticky top-0 bg-primary-950 py-3 px-1"
-    style:z-index={modalZIndex - 2}
-  >
+  <div class="day-header" style:z-index={modalZIndex - 2}>
     <div class="flex-1">
-      <p class="text-lg md:text-4xl text-primary-200">
+      <p class="text-lg md:text-4xl text-white">
         {format("E do MMM yy ", date)}
       </p>
     </div>
@@ -159,8 +156,8 @@
     </GlassButtonGroup>
   </div>
   <div
-    class="flex sticky top-0 bg-primary-950 py-3 px-1"
-    style:z-index={modalZIndex - 2}
+    class="flex relative top-3 bg-primary-950 pl-3 pr-6 px-1"
+    style:z-index={modalZIndex - 3}
   >
     <div class="schedule flex-1">
       <span
@@ -302,6 +299,11 @@
 
 <style lang="postcss">
   @reference "../../app.css";
+
+  .day-header {
+    @apply bg-primary-600/80 shadow-md shadow-white/40 text-white;
+    @apply flex sticky top-0 py-6 px-4 rounded-b-4xl;
+  }
 
   .event-block {
     // opacity: 0;

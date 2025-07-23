@@ -11,8 +11,6 @@
 
 <svelte:head></svelte:head>
 <main class="container mx-auto h-full">
-  <div class="mt-6 mb-16">
-    {@render children()}
-  </div>
+  {@render children()}
 </main>
 <Navigation {activeUrl} defaultCalendar={data.defaultCalendar} />
