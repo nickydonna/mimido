@@ -13,8 +13,12 @@
 	import UnCheckTask from "~icons/solar/bill-cross-linear";
 	import { commands } from "../../../bindings";
 	import { invalidateAll } from "$app/navigation";
+	import {
+		EventUpsert,
+		eventUpserter,
+	} from "../../../stores/eventUpserter.svelte";
 
-	let { event }: { event: ParsedEvent } = $props();
+	let { event, tabindex }: { event: ParsedEvent; tabindex: number } = $props();
 	let lessThan15Min = $derived(
 		differenceInMinutes(event.ends_at, event.starts_at) < 16,
 	);
@@ -40,10 +44,26 @@
 	let [importance, load, urgency] = $derived.by(() =>
 		isTask || isReminder ? [event.importance, event.load, event.urgency] : [],
 	);
+
+	function openEvent() {
+		eventUpserter.state = EventUpsert.Updating(event);
+	}
 </script>
 
 <div class="size-full p-2 group">
-	<div class:text-gray-400={isDone} class:text-white={!isDone} class={classes}>
+	<div
+		role="button"
+		{tabindex}
+		class:text-gray-400={isDone}
+		class:text-white={!isDone}
+		class={classes}
+		onclick={openEvent}
+		onkeypress={(event) => {
+			if (event.key === "Enter") {
+				openEvent();
+			}
+		}}
+	>
 		<p>
 			<span class:line-through={isDone} class:text-gray-400={isDone}>
 				{event.summary}

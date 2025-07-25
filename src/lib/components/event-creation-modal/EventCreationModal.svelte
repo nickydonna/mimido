@@ -40,13 +40,14 @@
   import {
     EventUpsert,
     eventUpserter,
+    isUpdating,
   } from "../../../stores/eventUpserter.svelte";
   import { invalidateAll } from "$app/navigation";
   import type { EventHandler } from "svelte/elements";
 
   let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
 
-  const dialog = createDialog({ label: "Create Event" });
+  const dialog = createDialog({ label: "Upsert Event" });
   const date = timeState.time;
   let input = $state("");
   let result = $state<DisplayUpsertInfo | null>(null);
@@ -113,27 +114,58 @@
           ref?.focus();
         }, 10);
       },
-      [def]: () => dialog.open(),
+      Updating: ({ event }) => {
+        dialog.open();
+        input = event.natural_string;
+        // Set some delay to wait for things to render
+        setTimeout(() => {
+          ref?.focus();
+        }, 10);
+      },
     });
   });
 
-  let saving = $state(false);
+  let loading = $state(false);
   const save: EventHandler = async (e: Event) => {
     e.preventDefault();
+    if (!isUpdating(eventUpserter.state)) {
+      return;
+    }
+
     if (defaultCalendar == null) {
       alert("Please pick a default calendar");
       return;
     }
-    saving = true;
+    loading = true;
     await commands.saveEvent(defaultCalendar.id, formatISO(date), input);
     await invalidateAll();
     eventUpserter.state = EventUpsert.None;
-    saving = false;
+    loading = false;
+  };
+
+  const deleteEvent = async () => {
+    if (!isUpdating(eventUpserter.state)) {
+      return;
+    }
+    loading = true;
+    const [_, data] = eventUpserter.state;
+    await commands.deleteVevent(data.event.id);
+    await invalidateAll();
+    eventUpserter.state = EventUpsert.None;
+    loading = false;
   };
 
   $effect(() => {
     callParse(input);
   });
+
+  let actionStr = $derived(
+    match(eventUpserter.state, {
+      Updating: () => "Update",
+      Creating: () => "Create",
+      None: () => "",
+    }),
+  );
 
   function handleClose() {
     eventUpserter.state = EventUpsert.None;
@@ -162,7 +194,7 @@
     >
       <div class="flex items-center gap-3 w-full mb-2">
         <div class="flex-1">
-          Create {result?.event_type ?? "Event"}
+          {actionStr}
           {#if defaultCalendar != null}
             at
             <span class="text-lg text-primary-200 underline"
@@ -178,7 +210,7 @@
       {@render hr()}
       <GlassInput
         bind:ref
-        disabled={saving}
+        disabled={loading}
         class="w-full outline-none text-white"
         bind:value={input}
         placeholder="Type your event information ..."
@@ -218,17 +250,24 @@
           {/if}
         </div>
         {@render hr()}
-        <div class="flex items-center">
-          <div class="flex-1">
-            Press
-            <span
-              class="mx-1 p-1 rounded bg-emerald-700 shadow shadow-emerald-400"
-            >
-              ↵
-            </span>
-            to save ...
-          </div>
-          <GlassButton type="submit" loading={saving}>Save</GlassButton>
+        <div class="flex gap-2 items-center">
+          {#if isUpdating(eventUpserter.state)}
+            <div class="flex-1"></div>
+            <GlassButton size="xs" onclick={deleteEvent} disabled={loading}>
+              Delete
+            </GlassButton>
+          {:else}
+            <div class="flex-1">
+              Press
+              <span
+                class="mx-1 p-1 rounded bg-emerald-700 shadow shadow-emerald-400"
+              >
+                ↵
+              </span>
+              to {actionStr.toLowerCase()} ...
+            </div>
+          {/if}
+          <GlassButton type="submit" {loading}>{actionStr}</GlassButton>
         </div>
       {/if}
     </form>

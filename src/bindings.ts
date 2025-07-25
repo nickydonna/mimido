@@ -140,7 +140,7 @@ starts_at: string;
 /**
  * The end date of the event, if recurrent the value for the current query
  */
-ends_at: string; natural_recurrence: string | null }
+ends_at: string; natural_recurrence: string | null; natural_string: string }
 export type Server = { id: number; server_url: string; user: string; password: string; last_sync: string | null }
 export type VEvent = { id: number; calendar_id: number; uid: string; href: string; ical_data: string; summary: string; description: string | null; starts_at: string; ends_at: string; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string; etag: string }
 

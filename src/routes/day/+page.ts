@@ -19,6 +19,7 @@ export const load: PageLoad = async ({ url }) => {
     starts_at: parseISO(e.starts_at),
     ends_at: parseISO(e.ends_at),
     natural_recurrence: e.natural_recurrence ?? undefined,
+    natural_string: e.natural_string
   }));
   return { events, date };
 

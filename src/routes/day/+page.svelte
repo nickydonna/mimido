@@ -270,7 +270,6 @@
           {@const isBlockType = type === "Block"}
           {#each events.filter((e) => timeCheck(e, check)) as e, k}
             <div
-              tabindex={i * 10 + (k + 1)}
               role="button"
               class="group event-{type.toLowerCase()}"
               class:brightness-80={timeIndicator.nearestSlot > time}
@@ -287,7 +286,7 @@
                   </p>
                 </div>
               {:else}
-                <EventCard event={e} />
+                <EventCard tabindex={i * 10 + (k + 1)} event={e} />
               {/if}
             </div>
           {/each}

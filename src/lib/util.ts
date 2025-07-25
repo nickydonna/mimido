@@ -1,9 +1,10 @@
-import { type Event } from '../bindings';
+import { type VEvent } from '../bindings';
 
-export type ParsedEvent = Omit<Event, "starts_at" | "ends_at"> & {
+export type ParsedEvent = Omit<VEvent, "starts_at" | "ends_at"> & {
   starts_at: Date;
   ends_at: Date;
   natural_recurrence?: string;
+  natural_string: string;
 };
 
 const IMPORTANCE_STRINGS = ['Sub-Zero', 'Very Low', 'Low', undefined, 'Mid', 'High', 'Very High'];
