@@ -2,11 +2,13 @@ use crate::{
     caldav::Href,
     calendar_items::{
         component_props::GeneralComponentProps, event_status::EventStatus, event_type::EventType,
+        input_traits::ToInput,
     },
     impl_ical_parseable,
     schema::*,
 };
-use chrono::{DateTime, Utc};
+use anyhow::anyhow;
+use chrono::{DateTime, TimeZone};
 use diesel::{delete, insert_into, prelude::*, update};
 use libdav::FetchedResource;
 
@@ -32,6 +34,7 @@ pub struct VTodo {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+    pub etag: String,
 }
 
 impl VTodo {
@@ -94,6 +97,7 @@ pub struct NewVTodo {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+    pub etag: String,
 }
 
 impl_ical_parseable!(VTodo);
@@ -103,24 +107,11 @@ pub(crate) trait VTodoTrait: IcalParseableTrait {
     fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
     fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo>;
     fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
-
-    fn get_start(&self) -> Option<DateTime<Utc>>;
-    fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
-        format!(
-            "{} {} {}",
-            self.get_type(),
-            self.get_status(),
-            self.get_summary()
-        )
-    }
 }
 
 macro_rules! impl_todo_trait {
     ($t: ty) => {
         impl VTodoTrait for $t {
-            fn get_start(&self) -> Option<DateTime<Utc>> {
-                None
-            }
             fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo> {
                 use crate::schema::vtodos::dsl as todo_dsl;
                 let val = insert_into(todo_dsl::vtodos)
@@ -147,6 +138,17 @@ macro_rules! impl_todo_trait {
                 }
             }
         }
+
+        impl ToInput for $t {
+            fn to_input<Tz: TimeZone>(&self, reference_date: &DateTime<Tz>) -> String {
+                format!(
+                    "{} {} {}",
+                    self.event_type.to_input(reference_date),
+                    self.status.to_input(reference_date),
+                    self.summary
+                )
+            }
+        }
     };
 }
 
@@ -157,21 +159,24 @@ impl NewVTodo {
     pub fn from_resource(
         calendar_id: i32,
         fetched_resource: &FetchedResource,
-    ) -> Result<Option<NewVTodo>, String> {
+    ) -> anyhow::Result<Option<NewVTodo>> {
         let href = &fetched_resource.href;
         let content = fetched_resource
             .content
             .as_ref()
-            .map_err(|e| e.to_string())?;
-        NewVTodo::from_ical_data(calendar_id, href, &content.data)
+            .map_err(|e| anyhow!("Resource returned {e}"))?;
+        NewVTodo::from_ical_data(calendar_id, href, &content.data, &content.etag)
     }
 
     pub fn from_ical_data(
         calendar_id: i32,
         href: &str,
         ical_data: &str,
-    ) -> Result<Option<Self>, String> {
-        let calendar_item: icalendar::Calendar = ical_data.parse()?;
+        etag: &str,
+    ) -> anyhow::Result<Option<Self>> {
+        let calendar_item: icalendar::Calendar = ical_data
+            .parse()
+            .map_err(|s| anyhow!("Error parsing calendar data {s}"))?;
         let first_todo = calendar_item
             .components
             .into_iter()
@@ -215,25 +220,34 @@ impl NewVTodo {
             load,
             urgency,
             postponed,
+            etag: etag.to_string(),
         }))
     }
 }
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
     use std::{fs, path::PathBuf};
 
-    use super::*;
     #[test]
     fn test_should_parsed_todo() {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/todo.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let todo = NewVTodo::from_ical_data(1, "test", ics.as_str());
+        let todo = NewVTodo::from_ical_data(1, "test", ics.as_str(), "");
 
         assert!(todo.is_ok());
         let todo = todo.unwrap();
         assert!(todo.is_some());
         let todo = todo.unwrap();
         assert_eq!(todo.summary, "Yerba");
+
+        let reference_date = Utc
+            .with_ymd_and_hms(2024, 3, 15, 12, 0, 0)
+            .unwrap()
+            .with_timezone(&chrono_tz::Tz::UTC);
+
+        assert_eq!(todo.to_input(&reference_date), ".task %todo Yerba");
     }
 }

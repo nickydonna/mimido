@@ -105,7 +105,7 @@ impl From<EventType> for String {
 }
 
 impl ToInput for EventType {
-    fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
-        format!("@{self}")
+    fn to_input<Tz: TimeZone>(&self, _: &DateTime<Tz>) -> String {
+        format!(".{self}")
     }
 }

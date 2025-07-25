@@ -1,0 +1,4 @@
+-- Your SQL goes here
+
+ALTER TABLE `vtodos` ADD COLUMN `etag` TEXT NOT NULL DEFAULT "";
+ALTER TABLE `vevents` ADD COLUMN `etag` TEXT NOT NULL DEFAULT "";

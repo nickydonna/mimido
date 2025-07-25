@@ -5,7 +5,7 @@ use crate::{
     calendar_items::{
         event_creator::EventUpsertInfo,
         event_status::EventStatus,
-        input_traits::{ExtractableFromInput, ExtractedInput},
+        input_traits::{ExtractableFromInput, ExtractedInput, ToInput},
         DisplayUpsertInfo,
     },
     commands::calendar::{super_sync_calendar, CalendarCommandError},
@@ -16,7 +16,8 @@ use crate::{
     },
     util::DateTimeStr,
 };
-use chrono::{DateTime, FixedOffset, Utc};
+use anyhow::anyhow;
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use diesel::prelude::*;
 use icalendar::Component;
 use libdav::sd::BootstrapError;
@@ -71,10 +72,11 @@ pub struct ExtendedEvent {
     /// The end date of the event, if recurrent the value for the current query
     pub ends_at: DateTime<Utc>,
     pub natural_recurrence: Option<String>,
+    pub natural_string: String,
 }
 
 impl ExtendedEvent {
-    pub fn on_day(event: &VEvent, query_date: DateTime<Utc>) -> Option<Self> {
+    pub fn on_day<Tz: TimeZone>(event: &VEvent, query_date: &DateTime<Tz>) -> Option<Self> {
         if !event.has_rrule && event.starts_at.date_naive() != query_date.date_naive() {
             log::warn!(
                 "Event {} does not have a recurrence rule and is not on the requested date",
@@ -83,14 +85,15 @@ impl ExtendedEvent {
             return None;
         }
         let base = query_date.beginning_of_day();
-        let (starts_at, ends_at) = event.get_start_end_for_date(base);
+        let (starts_at, ends_at) = event.get_start_end_for_date(&base);
         if starts_at > base && starts_at < query_date.end_of_day() {
             Some(Self {
-                query_date,
+                query_date: query_date.to_utc(),
                 event: event.clone(),
-                starts_at,
-                ends_at,
+                starts_at: starts_at.to_utc(),
+                ends_at: ends_at.to_utc(),
                 natural_recurrence: None,
+                natural_string: event.to_input(query_date),
             })
         } else {
             None
@@ -123,7 +126,7 @@ pub async fn list_events_for_day(
 
     let events = events
         .iter()
-        .filter_map(|event| ExtendedEvent::on_day(event, parsed))
+        .filter_map(|event| ExtendedEvent::on_day(event, &parsed))
         .collect::<Vec<ExtendedEvent>>();
 
     Ok(events)
@@ -194,6 +197,23 @@ pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), Component
         .filter(vevents_dsl::id.eq(vevent_id))
         .set(vevents_dsl::status.eq(status))
         .execute(conn)?;
+    Ok(())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn delete_vevent(vevent_id: i32) -> Result<(), ComponentsCommandError> {
+    let conn = &mut establish_connection();
+    let vevent = VEvent::by_id(conn, vevent_id)?;
+    let vevent = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
+    let (server, _) = Calendar::by_id_with_server(conn, vevent.calendar_id)?;
+
+    let caldav = Caldav::new(server).await?;
+    caldav
+        .delete_resource(&vevent.href.into(), &vevent.etag.into())
+        .await?;
+    VEvent::delete_by_id(conn, vevent_id)?;
+
     Ok(())
 }
 

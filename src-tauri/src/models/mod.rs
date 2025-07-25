@@ -6,6 +6,7 @@ use crate::{
     },
     schema::*,
 };
+use anyhow::anyhow;
 use diesel::{dsl::update, prelude::*};
 use libdav::FetchedResource;
 
@@ -31,7 +32,7 @@ impl NewVCmp {
     pub fn from_resource(
         calendar_id: i32,
         fetched_resource: &FetchedResource,
-    ) -> Result<NewVCmp, String> {
+    ) -> anyhow::Result<NewVCmp> {
         let todo = NewVTodo::from_resource(calendar_id, fetched_resource)?;
         if let Some(todo) = todo {
             return Ok(NewVCmp::Todo(todo));
@@ -41,7 +42,7 @@ impl NewVCmp {
         if let Some(event) = event {
             return Ok(NewVCmp::Event(event));
         }
-        Err("No Component found".to_string())
+        Err(anyhow!("No Supported Component found"))
     }
 
     pub fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VCmp> {

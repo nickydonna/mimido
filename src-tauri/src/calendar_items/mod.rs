@@ -21,7 +21,7 @@ impl From<EventUpsertInfo> for CalendarComponent {
                 let mut event = icalendar::Event::new()
                     .summary(&value.summary)
                     .starts(date_info.start)
-                    .ends(date_info.end)
+                    .ends(date_info.get_end_or_default(value.event_type))
                     .add_property(ComponentProps::Type, value.event_type)
                     .add_property(ComponentProps::Status, value.status)
                     .add_property(ComponentProps::Load, value.load.to_string())
@@ -63,7 +63,13 @@ impl From<EventUpsertInfo> for DisplayUpsertInfo {
         let (starts_at, ends_at, recurrence) = value
             .date_info
             .0
-            .map(|info| (Some(info.start), Some(info.end), info.recurrence))
+            .map(|info| {
+                (
+                    Some(info.start),
+                    Some(info.get_end_or_default(value.event_type)),
+                    info.recurrence,
+                )
+            })
             .unwrap_or((None, None, EventRecurrence(None)));
 
         Self {

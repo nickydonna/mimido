@@ -336,7 +336,7 @@
   .time-slot {
     grid-column: times;
     @apply text-center text-xs cursor-pointer select-none;
-    @apply p-3 mr-0.5 border-r border-slate-100/50;
+    @apply px-3 py-1 mr-0.5 border-r border-slate-100/50;
   }
 
   .schedule {

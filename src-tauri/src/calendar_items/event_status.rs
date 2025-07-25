@@ -116,7 +116,7 @@ impl From<EventStatus> for String {
 }
 
 impl ToInput for EventStatus {
-    fn to_input(&self, _: DateTime<chrono_tz::Tz>) -> String {
+    fn to_input<Tz: TimeZone>(&self, _: &DateTime<Tz>) -> String {
         format!("%{self}")
     }
 }

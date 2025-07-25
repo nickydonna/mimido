@@ -1,7 +1,7 @@
 use chrono::{DateTime, TimeZone};
 
 pub trait ToInput {
-    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String;
+    fn to_input<Tz: TimeZone>(&self, referece_date: &DateTime<Tz>) -> String;
 }
 
 /// Tuple with the result, and the input string

@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use std::str::FromStr;
 
 use chrono::Utc;
@@ -84,11 +85,11 @@ pub struct GeneralComponentProps {
 }
 
 impl TryFrom<&icalendar::Event> for GeneralComponentProps {
-    type Error = String;
-    fn try_from(first_todo: &icalendar::Event) -> Result<Self, String> {
+    type Error = anyhow::Error;
+    fn try_from(first_todo: &icalendar::Event) -> Result<Self, Self::Error> {
         let uid = first_todo
             .get_uid()
-            .ok_or("Missing UID".to_string())?
+            .ok_or_else(|| anyhow!("Missing UID"))?
             .to_string();
         let summary = first_todo
             .get_summary()
@@ -127,11 +128,11 @@ impl TryFrom<&icalendar::Event> for GeneralComponentProps {
 }
 
 impl TryFrom<&icalendar::Todo> for GeneralComponentProps {
-    type Error = String;
-    fn try_from(first_todo: &icalendar::Todo) -> Result<Self, String> {
+    type Error = anyhow::Error;
+    fn try_from(first_todo: &icalendar::Todo) -> Result<Self, Self::Error> {
         let uid = first_todo
             .get_uid()
-            .ok_or("Missing UID".to_string())?
+            .ok_or(anyhow!("Missing UID"))?
             .to_string();
         let summary = first_todo
             .get_summary()

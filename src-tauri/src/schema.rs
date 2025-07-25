@@ -44,6 +44,7 @@ diesel::table! {
         postponed -> Integer,
         has_rrule -> Bool,
         rrule_str -> Nullable<Text>,
+        etag -> Text,
     }
 }
 
@@ -66,6 +67,7 @@ diesel::table! {
         load -> Integer,
         urgency -> Integer,
         postponed -> Integer,
+        etag -> Text,
     }
 }
 

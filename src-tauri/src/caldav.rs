@@ -189,6 +189,11 @@ impl Caldav {
         Ok(v.pop())
     }
 
+    pub async fn delete_resource(&self, href: &Href, etag: &Etag) -> anyhow::Result<()> {
+        self.caldav_client.delete(&href.0, &etag.0).await?;
+        Ok(())
+    }
+
     pub async fn get_sync_report(
         &self,
         calendar_href: &Href,

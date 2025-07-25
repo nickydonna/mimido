@@ -1,7 +1,7 @@
-use chrono::{DateTime, Duration, TimeZone, Utc};
+use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 
 use super::{
-    date_parser::EventDate, event_status::EventStatus, event_type::EventType,
+    date_parser::extract_start_end, event_status::EventStatus, event_type::EventType,
     rrule_parser::EventRecurrence,
 };
 
@@ -11,8 +11,24 @@ use crate::calendar_items::input_traits::ExtractedInput;
 #[derive(Clone)]
 pub struct EventDateInfo {
     pub start: DateTime<Utc>,
-    pub end: DateTime<Utc>,
+    pub end: Option<DateTime<Utc>>,
     pub recurrence: EventRecurrence,
+}
+
+impl EventDateInfo {
+    pub fn get_end_or_default(&self, event_type: EventType) -> DateTime<Utc> {
+        if let Some(end) = self.end {
+            end
+        } else {
+            let duration = match event_type {
+                EventType::Event => TimeDelta::hours(1),
+                EventType::Block => TimeDelta::hours(1),
+                EventType::Reminder => TimeDelta::minutes(15),
+                EventType::Task => TimeDelta::minutes(30),
+            };
+            self.start + duration
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -31,7 +47,7 @@ impl ExtractableFromInput for EventDateOption {
         date_of_input: DateTime<Tz>,
         input: &str,
     ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
-        let dates = EventDate::from_natural(input, date_of_input);
+        let dates = extract_start_end(input, date_of_input);
         let Some((start, end, stripped)) = dates else {
             return Ok((EventDateOption(None), input.to_string()));
         };
@@ -41,7 +57,7 @@ impl ExtractableFromInput for EventDateOption {
             Some((rrule, recur_stripped)) => Ok((
                 EventDateOption(Some(EventDateInfo {
                     start: start.to_utc(),
-                    end: end.unwrap_or(start + Duration::minutes(30)).to_utc(),
+                    end: end.map(|e| e.to_utc()),
                     recurrence: EventRecurrence::some(rrule),
                 })),
                 recur_stripped,
@@ -49,7 +65,7 @@ impl ExtractableFromInput for EventDateOption {
             None => Ok((
                 EventDateOption(Some(EventDateInfo {
                     start: start.to_utc(),
-                    end: end.unwrap_or(start + Duration::minutes(30)).to_utc(),
+                    end: end.map(|e| e.to_utc()),
                     recurrence: EventRecurrence::none(),
                 })),
                 stripped,
@@ -126,7 +142,7 @@ mod tests {
         assert_eq!(info.status, EventStatus::Done);
         assert_eq!(info.event_type, EventType::Block);
         assert_eq!(start, expected_date);
-        assert_eq!(end, expected_date + Duration::minutes(30));
+        assert_eq!(end, None);
         assert_eq!(recurrence, EventRecurrence(None));
     }
 
@@ -154,7 +170,7 @@ mod tests {
         assert_eq!(info.status, EventStatus::Done);
         assert_eq!(info.event_type, EventType::Block);
         assert_eq!(start, expected_date);
-        assert_eq!(end, expected_date + Duration::minutes(30));
+        assert_eq!(end, None);
         assert!(recurrence.0.is_some());
     }
 
@@ -186,7 +202,7 @@ mod tests {
         assert_eq!(info.status, EventStatus::Todo);
         assert_eq!(info.event_type, EventType::Task);
         assert_eq!(start, expected_date);
-        assert_eq!(end, expected_end);
+        assert_eq!(end, Some(expected_end));
         assert_eq!(recurrence, EventRecurrence::none());
     }
 }

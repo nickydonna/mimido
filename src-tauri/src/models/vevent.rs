@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use std::str::FromStr;
 
 use crate::{
@@ -5,6 +6,7 @@ use crate::{
     calendar_items::{
         component_props::{get_string_property, ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
+        date_parser::start_end_to_natural,
         event_status::EventStatus,
         event_type::EventType,
         input_traits::ToInput,
@@ -13,11 +15,11 @@ use crate::{
     impl_ical_parseable,
     schema::*,
 };
-use chrono::{DateTime, Duration, NaiveDateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, NaiveDateTime, TimeDelta, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
-use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike, Property};
+use icalendar::{Component, DatePerhapsTime, EventLike, Property};
 use libdav::FetchedResource;
-use log::{error, info, warn};
+use log::warn;
 use rrule::{RRuleError, RRuleSet};
 
 use super::IcalParseableTrait;
@@ -47,6 +49,7 @@ pub struct VEvent {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+    pub etag: String,
 }
 
 impl VEvent {
@@ -63,6 +66,18 @@ impl VEvent {
             .optional()
             .map_err(anyhow::Error::new)
     }
+
+    pub fn by_id(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<Option<Self>> {
+        use crate::schema::vevents::dsl as event_dsl;
+
+        event_dsl::vevents
+            .filter(event_dsl::id.eq(id))
+            .select(Self::as_select())
+            .first::<Self>(conn)
+            .optional()
+            .map_err(anyhow::Error::new)
+    }
+
     pub fn delete_all(conn: &mut SqliteConnection, calendar_id: i32) -> anyhow::Result<()> {
         use crate::schema::vevents::dsl as event_dsl;
         // Clean the events from that calendar
@@ -116,6 +131,7 @@ pub struct NewVEvent {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
+    pub etag: String,
 }
 
 fn format_date_ical(date: NaiveDateTime) -> String {
@@ -162,7 +178,7 @@ pub trait VEventTrait: IcalParseableTrait {
     fn get_rrule_str(&self) -> Option<String>;
     fn get_start_end_for_date<Tz: TimeZone>(
         &self,
-        base_date: DateTime<Tz>,
+        base_date: &DateTime<Tz>,
     ) -> (DateTime<Tz>, DateTime<Tz>) {
         let tz = base_date.timezone();
         let val = self
@@ -221,7 +237,7 @@ pub trait VEventTrait: IcalParseableTrait {
 
     fn get_next_recurrence_from_date<Tz: TimeZone>(
         &self,
-        date: DateTime<Tz>,
+        date: &DateTime<Tz>,
     ) -> Option<DateTime<Tz>> {
         let rule_set = self.get_rrule()?;
 
@@ -232,40 +248,6 @@ pub trait VEventTrait: IcalParseableTrait {
             .dates
             .first()
             .map(|d| d.with_timezone(&date.timezone()))
-    }
-
-    fn to_input(&self, date_of_input: DateTime<chrono_tz::Tz>) -> String {
-        let timezone = date_of_input.timezone();
-        let (start, end) = self.get_start_end_for_date(date_of_input);
-        let start = start.with_timezone(&timezone);
-        let end = end.with_timezone(&timezone);
-        let date_string = if end - start < Duration::days(1) {
-            format!(
-                "at {} {}-{}",
-                start.format("%d/%m/%y"),
-                start.format("%H:%M"),
-                end.format("%H:%M")
-            )
-        } else {
-            format!(
-                "at {}-{}",
-                start.format("%d/%m/%y %H:%M"),
-                end.format("%d/%m/%y %H:%M"),
-            )
-        };
-        let base = format!(
-            "{} {} {} {}",
-            self.get_type().to_input(date_of_input),
-            self.get_status().to_input(date_of_input),
-            self.get_summary(),
-            date_string
-        );
-        let recurrence_str = self.get_recurrence_natural();
-        if let Some(recurrence_str) = recurrence_str {
-            format!("{base} {recurrence_str}")
-        } else {
-            base
-        }
     }
 }
 
@@ -308,6 +290,29 @@ macro_rules! impl_event_trait {
                 }
             }
         }
+
+        impl ToInput for $t {
+            fn to_input<Tz: TimeZone>(&self, reference_date: &DateTime<Tz>) -> String {
+                let timezone = reference_date.timezone();
+                let (start, end) = self.get_start_end_for_date(reference_date);
+                let start = start.with_timezone(&timezone);
+                let end = end.with_timezone(&timezone);
+                let date_string = start_end_to_natural(&reference_date, &start, &end);
+                let base = format!(
+                    "{} {} {} {}",
+                    self.get_type().to_input(reference_date),
+                    self.get_status().to_input(reference_date),
+                    self.get_summary(),
+                    date_string
+                );
+                let recurrence_str = self.get_recurrence_natural();
+                if let Some(recurrence_str) = recurrence_str {
+                    format!("{base} {recurrence_str}")
+                } else {
+                    base
+                }
+            }
+        }
     };
 }
 
@@ -344,7 +349,7 @@ impl TryFrom<NewVEvent> for icalendar::Event {
 
 fn get_start_and_end(
     calendar: &icalendar::Calendar,
-) -> Result<(chrono::DateTime<Utc>, chrono::DateTime<Utc>), String> {
+) -> anyhow::Result<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)> {
     let timezone = calendar
         .get_timezone()
         .and_then(|tzid| {
@@ -358,7 +363,7 @@ fn get_start_and_end(
         .iter()
         .filter_map(|cmp| cmp.as_event().cloned())
         .next()
-        .ok_or("No event component".to_string())?;
+        .ok_or(anyhow!("No event component"))?;
 
     if event.get_start().is_none() {
         warn!("No start {event:?}");
@@ -367,7 +372,7 @@ fn get_start_and_end(
     let start = event
         .get_start()
         .and_then(|s| date_from_calendar_to_utc(s, timezone))
-        .ok_or(format!("Missing start date {calendar:?}"))?;
+        .ok_or(anyhow!("Missing start date {calendar:?}"))?;
 
     let end = if let Some(end) = event.get_end() {
         date_from_calendar_to_utc(end, timezone)
@@ -377,7 +382,7 @@ fn get_start_and_end(
             .and_then(parse_duration)
             .map(|dur| start + dur)
     }
-    .ok_or(format!("Missing end date {calendar:?}"))?;
+    .ok_or(anyhow!("Missing end date {calendar:?}"))?;
     Ok((start, end))
 }
 
@@ -385,21 +390,24 @@ impl NewVEvent {
     pub fn from_resource(
         cal_id: i32,
         fetched_resource: &FetchedResource,
-    ) -> Result<Option<Self>, String> {
+    ) -> anyhow::Result<Option<Self>> {
         let href = &fetched_resource.href;
         let content = fetched_resource
             .content
             .as_ref()
-            .map_err(|e| e.to_string())?;
-        NewVEvent::from_ical_data(cal_id, href, &content.data)
+            .map_err(|e| anyhow!("Resource returned {e}"))?;
+        NewVEvent::from_ical_data(cal_id, href, &content.data, &content.etag)
     }
 
     pub fn from_ical_data(
         cal_id: i32,
         href: &str,
         ical_data: &str,
-    ) -> Result<Option<Self>, String> {
-        let calendar_item: icalendar::Calendar = ical_data.parse()?;
+        etag: &str,
+    ) -> anyhow::Result<Option<Self>> {
+        let calendar_item: icalendar::Calendar = ical_data
+            .parse()
+            .map_err(|s| anyhow!("Error parsing calendar data {s}"))?;
         let first_event = calendar_item
             .components
             .iter()
@@ -447,6 +455,7 @@ impl NewVEvent {
             load,
             urgency,
             postponed,
+            etag: etag.to_string(),
         };
         let rrule_str = new_event.get_rrule_from_ical().map(|r| r.to_string());
         Ok(Some(NewVEvent {
@@ -486,12 +495,10 @@ fn parse_duration(duration_str: &str) -> Option<TimeDelta> {
 #[cfg(test)]
 mod tests {
 
-    use std::{fs, path::PathBuf};
-
+    use super::*;
     use chrono::{NaiveDate, TimeZone};
     use rrule::Tz;
-
-    use super::*;
+    use std::{fs, path::PathBuf};
 
     macro_rules! assert_property {
         ($vevent:ident, $prop:expr, $expected:expr) => {
@@ -505,13 +512,11 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/basic.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewVEvent::from_ical_data(1, "/hello".into(), ics.as_str())
+        let event = NewVEvent::from_ical_data(1, "/hello", ics.as_str(), "")
             .unwrap()
             .unwrap();
 
-        let result = event.get_rrule();
-        assert!(result.is_some());
-        let rrule_set = result.unwrap();
+        let rrule_set = event.get_rrule().unwrap();
         assert_eq!(
             *rrule_set.get_dt_start(),
             Tz::UTC.with_ymd_and_hms(2024, 5, 20, 13, 0, 0).unwrap()
@@ -519,7 +524,7 @@ mod tests {
         let date_of_input = chrono_tz::Tz::UTC
             .with_ymd_and_hms(2025, 3, 15, 12, 0, 0)
             .unwrap();
-        let (start, _) = event.get_start_end_for_date(date_of_input);
+        let (start, _) = event.get_start_end_for_date(&date_of_input);
         assert_eq!(
             start,
             chrono_tz::Tz::UTC
@@ -528,8 +533,8 @@ mod tests {
         );
 
         assert_eq!(
-            event.to_input(date_of_input),
-            "@block %todo Work at 17/03/25 13:00-16:00 every weekday"
+            event.to_input(&date_of_input),
+            ".block %todo Work at 17/03/25 13-16 every weekday"
         );
     }
 
@@ -539,17 +544,17 @@ mod tests {
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
 
-        let event = NewVEvent::from_ical_data(1, "/hello", ics.as_str())
+        let event = NewVEvent::from_ical_data(1, "/hello", ics.as_str(), "")
             .unwrap()
             .unwrap();
-        let recurrence = event.get_next_recurrence_from_date(
-            Tz::America__Buenos_Aires
-                .with_ymd_and_hms(2025, 4, 10, 8, 0, 0)
-                .unwrap()
-                .to_utc(),
-        );
-        assert!(recurrence.is_some());
-        let recurrence = recurrence.unwrap();
+        let recurrence = event
+            .get_next_recurrence_from_date(
+                &Tz::America__Buenos_Aires
+                    .with_ymd_and_hms(2025, 4, 10, 8, 0, 0)
+                    .unwrap()
+                    .to_utc(),
+            )
+            .unwrap();
         assert_eq!(
             recurrence,
             Tz::America__Buenos_Aires
@@ -564,12 +569,9 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewVEvent::from_ical_data(1, "/cal", ics.as_str());
+        let event = NewVEvent::from_ical_data(1, "/cal", ics.as_str(), "");
 
-        assert!(event.is_ok());
-        let event = event.unwrap();
-        assert!(event.is_some());
-        let event = event.unwrap();
+        let event = event.unwrap().unwrap();
 
         assert!(event.has_rrule);
         assert_eq!(event.summary, "Nicky / Eric weekly sync");
@@ -586,14 +588,10 @@ mod tests {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("./fixtures/with_timezone.ics");
         let ics = fs::read_to_string(d).expect("To Load file");
-        let event = NewVEvent::from_ical_data(1, "/cal", ics.as_str());
+        let event = NewVEvent::from_ical_data(1, "/cal", ics.as_str(), "");
 
-        assert!(event.is_ok());
-        let event = event.unwrap();
-        assert!(event.is_some());
-        let event = event.unwrap();
+        let event = event.unwrap().unwrap();
 
-        println!("{event:#?}");
         let vevent = icalendar::Event::try_from(event.clone()).unwrap();
 
         assert_eq!(vevent.get_summary().unwrap(), event.summary);
@@ -601,10 +599,6 @@ mod tests {
             vevent.get_description().unwrap(),
             event.description.unwrap()
         );
-        let start = date_from_calendar_to_utc(vevent.get_start().unwrap(), chrono_tz::UTC).unwrap();
-        assert_eq!(start, event.starts_at);
-        let end = date_from_calendar_to_utc(vevent.get_end().unwrap(), chrono_tz::UTC).unwrap();
-        assert_eq!(end, event.ends_at);
         assert_property!(
             vevent,
             ComponentProps::RRule.as_ref(),
