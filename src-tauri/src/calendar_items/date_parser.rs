@@ -265,11 +265,14 @@ pub fn extract_start_end<Tz: TimeZone>(
     Some((start, end, stripped_string))
 }
 
-pub fn start_end_to_natural<Tz: TimeZone>(
-    _: &DateTime<Tz>,
+pub fn start_end_to_natural<RefTz: TimeZone, Tz: TimeZone>(
+    reference_date: &DateTime<RefTz>,
     start_date: &DateTime<Tz>,
     end_date: &DateTime<Tz>,
 ) -> String {
+    let tz = reference_date.timezone();
+    let start_date = start_date.with_timezone(&tz);
+    let end_date = end_date.with_timezone(&tz);
     if start_date.day() == end_date.day() {
         format!(
             "at {} {}-{}",
@@ -289,11 +292,7 @@ pub fn start_end_to_natural<Tz: TimeZone>(
 }
 
 pub fn time_to_natural(time: NaiveTime) -> String {
-    if time.minute() == 0 {
-        time.format("%H").to_string()
-    } else {
-        time.format("%H:%M").to_string()
-    }
+    time.format("%H:%M").to_string()
 }
 
 #[cfg(test)]
@@ -637,7 +636,7 @@ mod tests {
         let end_date = start_date + TimeDelta::hours(1);
         assert_eq!(
             start_end_to_natural(&start_date, &start_date, &end_date),
-            "at 15/03/24 12-13"
+            "at 15/03/24 12:00-13:00"
         )
     }
 
@@ -647,7 +646,7 @@ mod tests {
         let end_date = start_date + TimeDelta::hours(1) + TimeDelta::minutes(30);
         assert_eq!(
             start_end_to_natural(&start_date, &start_date, &end_date),
-            "at 15/03/24 12-13:30"
+            "at 15/03/24 12:00-13:30"
         )
     }
 
@@ -657,7 +656,7 @@ mod tests {
         let end_date = start_date + TimeDelta::hours(30);
         assert_eq!(
             start_end_to_natural(&start_date, &start_date, &end_date),
-            "at 15/03/24 12-16/03/24 18"
+            "at 15/03/24 12:00-16/03/24 18:00"
         )
     }
 }

@@ -111,7 +111,7 @@ pub async fn list_events_for_day(
     let conn = &mut establish_connection();
 
     let parsed: DateTime<FixedOffset> = DateTimeStr(datetime).try_into()?;
-    let parsed = parsed.to_utc();
+    // let parsed = parsed.to_utc();
     let start = parsed.beginning_of_day();
     let end = parsed.end_of_day();
 
@@ -154,17 +154,9 @@ pub async fn save_event(
     date_of_input_str: String,
     component_input: String,
 ) -> Result<(), ComponentsCommandError> {
-    use crate::schema::calendars::dsl as calendars_dsl;
-    use crate::schema::servers::dsl as server_dsl;
-
     let conn = &mut establish_connection();
 
-    let (server, calendar) = server_dsl::servers
-        .inner_join(calendars_dsl::calendars)
-        .filter(calendars_dsl::id.eq(calendar_id))
-        .select((Server::as_select(), Calendar::as_select()))
-        .first::<(Server, Calendar)>(conn)?;
-
+    let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id)?;
     let caldav = Caldav::new(server).await?;
 
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
@@ -213,6 +205,38 @@ pub async fn delete_vevent(vevent_id: i32) -> Result<(), ComponentsCommandError>
         .delete_resource(&vevent.href.into(), &vevent.etag.into())
         .await?;
     VEvent::delete_by_id(conn, vevent_id)?;
+
+    Ok(())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn update_vevent(
+    vevent_id: i32,
+    date_of_input_str: String,
+    component_input: String,
+) -> Result<(), ComponentsCommandError> {
+    let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
+
+    let ExtractedInput(data, _) =
+        EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
+
+    let conn = &mut establish_connection();
+    let vevent = VEvent::by_id(conn, vevent_id)?;
+    let vevent = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
+    let updated = vevent.update_from_upsert(&component_input, data)?;
+    let (server, calendar) = Calendar::by_id_with_server(conn, vevent.calendar_id)?;
+
+    let caldav = Caldav::new(server).await?;
+    let updated_calendar_cmp: icalendar::CalendarComponent = updated.into();
+
+    let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
+
+    caldav
+        .update_cmp(&vevent.href.into(), &vevent.etag.into(), cal)
+        .await?;
+
+    super_sync_calendar(calendar.id).await?;
 
     Ok(())
 }

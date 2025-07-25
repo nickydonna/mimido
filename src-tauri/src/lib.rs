@@ -60,6 +60,7 @@ pub fn run() {
             commands::components::save_event,
             commands::components::set_vevent_status,
             commands::components::delete_vevent,
+            commands::components::update_vevent,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

@@ -177,6 +177,24 @@ impl Caldav {
         Ok(href_str.into())
     }
 
+    pub async fn update_cmp(
+        &self,
+        cmp_href: &Href,
+        etag: &Etag,
+        calendar: icalendar::Calendar,
+    ) -> anyhow::Result<Option<Etag>> {
+        let etag = self
+            .caldav_client
+            .update_resource(
+                &cmp_href.0,
+                calendar.to_string().as_bytes().to_vec(),
+                &etag.0,
+                mime_types::CALENDAR,
+            )
+            .await?;
+        Ok(etag.map(Etag))
+    }
+
     pub async fn fetch_resource(
         &self,
         calendar_href: &Href,

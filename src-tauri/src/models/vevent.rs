@@ -7,6 +7,7 @@ use crate::{
         component_props::{get_string_property, ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
         date_parser::start_end_to_natural,
+        event_creator::EventUpsertInfo,
         event_status::EventStatus,
         event_type::EventType,
         input_traits::ToInput,
@@ -17,7 +18,7 @@ use crate::{
 };
 use chrono::{DateTime, NaiveDateTime, TimeDelta, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
-use icalendar::{Component, DatePerhapsTime, EventLike, Property};
+use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike, Property};
 use libdav::FetchedResource;
 use log::warn;
 use rrule::{RRuleError, RRuleSet};
@@ -106,6 +107,51 @@ impl VEvent {
             Some(vevent) => Self::delete_by_id(conn, vevent.id),
             None => Ok(false),
         }
+    }
+
+    pub fn update_from_upsert(
+        &self,
+        input: &str,
+        extracted: EventUpsertInfo,
+    ) -> anyhow::Result<Self> {
+        let mut event = self.clone();
+        let date_info = extracted.date_info.0.ok_or(anyhow!("Event need dates"))?;
+        event.starts_at = date_info.start.to_utc();
+        event.ends_at = date_info.get_end_or_default(extracted.event_type).to_utc();
+        event.event_type = extracted.event_type;
+        event.status = extracted.status;
+        event.postponed = extracted.postponed;
+        event.urgency = extracted.urgency;
+        event.load = extracted.load;
+        event.importance = extracted.importance;
+        event.summary = extracted.summary;
+        event.original_text = Some(input.to_string());
+        Ok(event)
+    }
+}
+
+impl From<VEvent> for CalendarComponent {
+    fn from(value: VEvent) -> Self {
+        let mut event = icalendar::Event::new()
+            .summary(&value.summary)
+            .starts(value.starts_at)
+            .ends(value.ends_at)
+            .uid(&value.uid)
+            .add_property(ComponentProps::Type, value.event_type)
+            .add_property(ComponentProps::Status, value.status)
+            .add_property(ComponentProps::Load, value.load.to_string())
+            .add_property(ComponentProps::Urgency, value.urgency.to_string())
+            .add_property(ComponentProps::Importance, value.importance.to_string())
+            .done();
+
+        if let Some(rule) = value
+            .get_rrule()
+            .and_then(|r| r.get_rrule().first().map(|f| f.to_string()))
+        {
+            event.add_property(ComponentProps::RRule, rule);
+        }
+
+        event.into()
     }
 }
 
@@ -534,7 +580,7 @@ mod tests {
 
         assert_eq!(
             event.to_input(&date_of_input),
-            ".block %todo Work at 17/03/25 13-16 every weekday"
+            ".block %todo Work at 17/03/25 13:00-16:00 every weekday"
         );
     }
 

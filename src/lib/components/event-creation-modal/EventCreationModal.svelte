@@ -105,7 +105,6 @@
 
   $effect(() => {
     match(eventUpserter.state, {
-      None: () => dialog.close(),
       Creating: ({ type, startDate }) => {
         dialog.open();
         input = `.${type.toLowerCase()} ${dateToString(startDate)} `;
@@ -122,22 +121,29 @@
           ref?.focus();
         }, 10);
       },
+      None: () => dialog.close(),
     });
   });
 
   let loading = $state(false);
   const save: EventHandler = async (e: Event) => {
     e.preventDefault();
-    if (!isUpdating(eventUpserter.state)) {
-      return;
-    }
 
     if (defaultCalendar == null) {
       alert("Please pick a default calendar");
       return;
     }
     loading = true;
-    await commands.saveEvent(defaultCalendar.id, formatISO(date), input);
+    if (isUpdating(eventUpserter.state)) {
+      await commands.updateVevent(
+        eventUpserter.state[1].event.id,
+        formatISO(date),
+        input,
+      );
+    } else {
+      await commands.saveEvent(defaultCalendar.id, formatISO(date), input);
+    }
+
     await invalidateAll();
     eventUpserter.state = EventUpsert.None;
     loading = false;

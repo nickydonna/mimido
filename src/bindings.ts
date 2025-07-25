@@ -108,6 +108,14 @@ async deleteVevent(veventId: number) : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async updateVevent(veventId: number, dateOfInputStr: string, componentInput: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_vevent", { veventId, dateOfInputStr, componentInput }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
