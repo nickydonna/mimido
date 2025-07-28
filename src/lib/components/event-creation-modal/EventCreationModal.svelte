@@ -285,7 +285,7 @@
 
   .glass-modal-backdrop {
     @apply bg-black/20;
-    backdrop-filter: blur(0.5px);
+    backdrop-filter: blur(1px);
   }
 
   .glass-modal {

@@ -148,7 +148,7 @@
         >
           {#if relativeDay != null}
             {relativeDay}
-            <span class="text-gray-500 text-base">
+            <span class="text-white/30 text-base">
               {formattedDate}
             </span>
           {:else}
