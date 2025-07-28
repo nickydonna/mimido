@@ -12,7 +12,7 @@ use crate::{
     establish_connection,
     models::{
         vevent::{VEvent, VEventTrait},
-        Calendar, Server,
+        Calendar,
     },
     util::DateTimeStr,
 };

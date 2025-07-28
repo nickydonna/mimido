@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use chrono::{
-    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike,
-};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 use regex::{Match, Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 
