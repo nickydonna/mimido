@@ -9,8 +9,6 @@ type Options = {
 
 export function inview({ onEnter, onExit, rootMargin = '0px', threshold = 0 }: Options): Attachment {
   return (element) => {
-    console.log('start');
-
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(singleEntry => {
         if (singleEntry.isIntersecting) {

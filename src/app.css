@@ -65,26 +65,14 @@
   }
 }
 
-@utility bg-polka-* {
-  background-image: radial-gradient(--value(--color- *) 1px, transparent 1px);
-  /* background-color: --value(--color- *); */
-  background-color: color-mix(in hsl, --value(--color- *) 60%, white);
-  background-size: 16px 16px;
-}
-
-@utility glass {
-  /* From https://css.glass */
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
-}
-
 @utility glassy-shadow {
   box-shadow:
     inset 10px 10px 20px rgba(153, 192, 255, 0.1),
     inset 2px 2px 5px rgba(195, 218, 255, 0.2),
     inset -10px -10px 20px rgba(229, 253, 190, 0.1),
     inset -2px -2px 30px rgba(247, 255, 226, 0.2);
+  backdrop-filter: blur(5px);
+  filter: brightness(120%);
 }
 
 @keyframes color-animation {

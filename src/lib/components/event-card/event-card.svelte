@@ -38,7 +38,7 @@
 	let classes = $derived([
 		"event-card",
 		`event-card-${event.event_type.toLowerCase()}`,
-		lessThan15Min ? "text-xs" : "",
+		lessThan15Min ? "text-xs" : "text-sm",
 	]);
 
 	let [importance, load, urgency] = $derived.by(() =>
@@ -103,7 +103,7 @@
 	@reference "../../../app.css";
 
 	.event-card {
-		@apply p-1 pr-5 rounded-lg glassy-shadow size-full box-border relative text-white;
+		@apply p-1 pr-5 rounded-2xl glassy-shadow size-full box-border relative text-white;
 		backdrop-filter: blur(10px);
 	}
 
@@ -115,7 +115,7 @@
 		@apply bg-task-600/30;
 	}
 	.event-card-reminder {
-		@apply bg-reminder-800/50;
+		@apply bg-reminder-500/50;
 	}
 
 	.done-button {

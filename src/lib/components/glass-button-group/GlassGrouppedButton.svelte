@@ -36,9 +36,6 @@
     return !("href" in props);
   }
 
-  $effect(() => {
-    console.log(size);
-  });
   let classes = $derived([
     "glass-groupped-button",
     "rounded-3xl cursor-pointer",
@@ -62,7 +59,6 @@
   @reference "../../../app";
   .glass-groupped-button {
     @pply relative;
-    backdrop-filter: blur(0px);
   }
 
   .glass-groupped-button.active {

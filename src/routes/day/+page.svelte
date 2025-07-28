@@ -4,7 +4,6 @@
     formatISO,
     getMinutes,
     isSameMinute,
-    isSameYear,
     isThisYear,
     roundToNearestMinutes,
     startOfDay,
@@ -300,7 +299,7 @@
             >
               {#if e.event_type === "Block"}
                 <div class="flex h-full flex-col items-center justify-center">
-                  <p class="inline-block text-2xl font-medium text-white">
+                  <p class="inline-block text-2xl font-medium text-white/30">
                     {e.summary.toUpperCase()}
                   </p>
                 </div>
@@ -323,9 +322,9 @@
   }
 
   .event-block {
-    // opacity: 0;
     @apply p-0 m-px glassy-shadow rounded-xl justify-center pointer-events-none;
     backdrop-filter: blur(0.5px);
+    filter: none;
     grid-column: event / reminder;
     z-index: 0;
   }
