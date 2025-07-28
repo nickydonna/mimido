@@ -4,6 +4,8 @@
     formatISO,
     getMinutes,
     isSameMinute,
+    isSameYear,
+    isThisYear,
     roundToNearestMinutes,
     startOfDay,
   } from "date-fns";
@@ -17,7 +19,7 @@
     addDays,
     subSeconds,
   } from "date-fns/fp";
-  import { type ParsedEvent } from "../../lib/util";
+  import { formatRelativeDay, type ParsedEvent } from "../../lib/util";
   import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
   import { type VEvent, type EventType } from "../../bindings";
   import { timeState } from "../../stores/times.svelte";
@@ -129,16 +131,32 @@
   function handleClickSlot(type: EventType, time: Date) {
     eventUpserter.state = EventUpsert.Creating(type, time);
   }
+  let relativeDay = $derived(formatRelativeDay(date));
+  let formattedDate = $derived.by(() => {
+    return isThisYear(date)
+      ? format("E do MMM", date)
+      : format("E do MMM yy", date);
+  });
 </script>
 
 <div>
   <div class="day-header" style:z-index={modalZIndex - 2}>
-    <div class="flex-1">
-      <p class="text-lg md:text-4xl text-white">
-        {format("E do MMM yy ", date)}
+    <div>
+      <p
+        class="py-1.5 px-5 rounded-3xl text-lg md:text-2xl text-white glassy-shadow"
+      >
+        {#if relativeDay != null}
+          {relativeDay}
+          <span class="text-gray-500 text-base">
+            {formattedDate}
+          </span>
+        {:else}
+          {formattedDate}
+        {/if}
       </p>
     </div>
-    <GlassButtonGroup size="md">
+    <div class="flex-1"></div>
+    <GlassButtonGroup size="md" class="text-white">
       <GlassGrouppedButton
         href="/day?date={formatISO(subDays(1, startOfDay(date)))}"
       >
@@ -229,6 +247,7 @@
         <h2
           ondblclick={() => !dragging && handleTimeDoubleClick(time)}
           class="time-slot text-center text-xs cursor-pointer select-none"
+          class:opacity-40={minutes !== 0 && minutes !== 30}
           class:brightness-50={timeIndicator.nearestSlot >= time}
           style:grid-row="time-{format('HHmm', time)}"
         >
@@ -300,8 +319,7 @@
   @reference "../../app.css";
 
   .day-header {
-    @apply bg-primary-600/80 shadow-md shadow-white/40 text-white;
-    @apply flex sticky top-0 py-6 px-4 rounded-b-4xl;
+    @apply flex sticky top-0 py-6 px-4;
   }
 
   .event-block {

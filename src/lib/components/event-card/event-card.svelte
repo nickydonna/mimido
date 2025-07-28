@@ -50,7 +50,7 @@
 	}
 </script>
 
-<div class="size-full p-2 group">
+<div class="size-full p-1 group">
 	<div
 		role="button"
 		{tabindex}
