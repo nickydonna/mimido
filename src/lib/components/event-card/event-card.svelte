@@ -50,7 +50,7 @@
 	}
 </script>
 
-<div class="size-full p-1 group">
+<div class="size-full p-0.5 group">
 	<div
 		role="button"
 		{tabindex}
@@ -103,7 +103,7 @@
 	@reference "../../../app.css";
 
 	.event-card {
-		@apply p-1 pr-5 rounded-2xl glassy-shadow size-full box-border relative text-white;
+		@apply px-2 py-1 rounded-2xl glassy-shadow size-full box-border relative text-white;
 		backdrop-filter: blur(10px);
 	}
 
@@ -115,7 +115,11 @@
 		@apply bg-task-600/30;
 	}
 	.event-card-reminder {
-		@apply bg-reminder-500/50;
+		@apply bg-reminder-700/50;
+	}
+
+	.event-card.done-button.lessThan15Min {
+		@apply text-nowrap overflow-ellipsis;
 	}
 
 	.done-button {
