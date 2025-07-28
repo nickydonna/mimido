@@ -57,7 +57,7 @@ impl ToSql<Text, Sqlite> for EventStatus {
 
 impl From<EventStatus> for icalendar::Property {
     fn from(value: EventStatus) -> Self {
-        Property::new(ComponentProps::Status.as_ref(), value.as_ref())
+        Property::new(ComponentProps::XStatus.as_ref(), value.as_ref())
     }
 }
 

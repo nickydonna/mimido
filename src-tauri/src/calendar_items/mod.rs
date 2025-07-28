@@ -23,7 +23,7 @@ impl From<EventUpsertInfo> for CalendarComponent {
                     .starts(date_info.start)
                     .ends(date_info.get_end_or_default(value.event_type))
                     .add_property(ComponentProps::Type, value.event_type)
-                    .add_property(ComponentProps::Status, value.status)
+                    .add_property(ComponentProps::XStatus, value.status)
                     .add_property(ComponentProps::Load, value.load.to_string())
                     .add_property(ComponentProps::Urgency, value.urgency.to_string())
                     .add_property(ComponentProps::Importance, value.importance.to_string())

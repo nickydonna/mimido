@@ -138,7 +138,7 @@ impl From<VEvent> for CalendarComponent {
             .ends(value.ends_at)
             .uid(&value.uid)
             .add_property(ComponentProps::Type, value.event_type)
-            .add_property(ComponentProps::Status, value.status)
+            .add_property(ComponentProps::XStatus, value.status)
             .add_property(ComponentProps::Load, value.load.to_string())
             .add_property(ComponentProps::Urgency, value.urgency.to_string())
             .add_property(ComponentProps::Importance, value.importance.to_string())
@@ -652,7 +652,7 @@ mod tests {
         );
         assert_property!(
             vevent,
-            ComponentProps::Status.as_ref(),
+            ComponentProps::XStatus.as_ref(),
             event.status.as_ref()
         );
         assert_property!(

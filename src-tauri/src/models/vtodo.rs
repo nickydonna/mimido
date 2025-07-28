@@ -1,7 +1,9 @@
 use crate::{
     caldav::Href,
     calendar_items::{
-        component_props::GeneralComponentProps, event_status::EventStatus, event_type::EventType,
+        component_props::{ComponentProps, GeneralComponentProps},
+        event_status::EventStatus,
+        event_type::EventType,
         input_traits::ToInput,
     },
     impl_ical_parseable,
@@ -10,11 +12,12 @@ use crate::{
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone};
 use diesel::{delete, insert_into, prelude::*, update};
+use icalendar::{CalendarComponent, Component, TodoStatus};
 use libdav::FetchedResource;
 
 use super::IcalParseableTrait;
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize)]
+#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type)]
 #[diesel(table_name = vtodos)]
 pub struct VTodo {
     pub id: i32,
@@ -48,6 +51,18 @@ impl VTodo {
             .optional()
             .map_err(anyhow::Error::new)
     }
+
+    pub fn by_id(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<Option<Self>> {
+        use crate::schema::vtodos::dsl as todo_dsl;
+
+        todo_dsl::vtodos
+            .filter(todo_dsl::id.eq(id))
+            .select(Self::as_select())
+            .first::<Self>(conn)
+            .optional()
+            .map_err(anyhow::Error::new)
+    }
+
     pub fn delete_all(conn: &mut SqliteConnection, calendar_id: i32) -> anyhow::Result<()> {
         use crate::schema::vtodos::dsl as todo_dsl;
         delete(todo_dsl::vtodos)
@@ -75,6 +90,33 @@ impl VTodo {
             Some(vevent) => Self::delete_by_id(conn, vevent.id),
             None => Ok(false),
         }
+    }
+}
+
+impl From<VTodo> for CalendarComponent {
+    fn from(value: VTodo) -> Self {
+        let todo = icalendar::Todo::new()
+            .summary(&value.summary)
+            .uid(&value.uid)
+            .add_property(ComponentProps::Type, value.event_type)
+            .add_property(ComponentProps::XStatus, value.status)
+            .add_property(ComponentProps::Load, value.load.to_string())
+            .add_property(ComponentProps::Urgency, value.urgency.to_string())
+            .add_property(ComponentProps::Importance, value.importance.to_string())
+            .status(match value.status {
+                EventStatus::Done => TodoStatus::Completed,
+                EventStatus::InProgress => TodoStatus::InProcess,
+                _ => TodoStatus::NeedsAction,
+            })
+            .percent_complete(match value.status {
+                EventStatus::Backlog => 0,
+                EventStatus::Todo => 0,
+                EventStatus::InProgress => 1,
+                EventStatus::Done => 100,
+            })
+            .done();
+
+        todo.into()
     }
 }
 
@@ -209,8 +251,7 @@ impl NewVTodo {
             ical_data: ical_data.to_string(),
             last_modified,
             summary: summary.to_string(),
-            // TODO: Use real completed and sycn with status
-            completed: false,
+            completed: matches!(status, EventStatus::Done),
             description,
             status,
             original_text,

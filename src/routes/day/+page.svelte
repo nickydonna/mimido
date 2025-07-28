@@ -31,9 +31,10 @@
     EventUpsert,
     eventUpserter,
   } from "../../stores/eventUpserter.svelte";
+  import TaskList from "$lib/components/task-list/TaskList.svelte";
 
   let { data }: PageProps = $props();
-  let { date, events } = $derived(data);
+  let { date, events, todos } = $derived(data);
 
   let dragging = $state<VEvent | undefined>(undefined);
   let currentTimeInView = $state(false);
@@ -138,178 +139,185 @@
   });
 </script>
 
-<div>
-  <div class="day-header" style:z-index={modalZIndex - 2}>
-    <div>
-      <p
-        class="py-1.5 px-5 rounded-3xl text-lg md:text-2xl text-white glassy-shadow"
-      >
-        {#if relativeDay != null}
-          {relativeDay}
-          <span class="text-gray-500 text-base">
+<div class="flex">
+  <div class="flex-3">
+    <div class="day-header" style:z-index={modalZIndex - 2}>
+      <div>
+        <p
+          class="py-1.5 px-5 rounded-3xl text-lg md:text-2xl text-white glassy-shadow"
+        >
+          {#if relativeDay != null}
+            {relativeDay}
+            <span class="text-gray-500 text-base">
+              {formattedDate}
+            </span>
+          {:else}
             {formattedDate}
-          </span>
-        {:else}
-          {formattedDate}
-        {/if}
-      </p>
+          {/if}
+        </p>
+      </div>
+      <div class="flex-1"></div>
+      <GlassButtonGroup size="md" class="text-white">
+        <GlassGrouppedButton
+          href="/day?date={formatISO(subDays(1, startOfDay(date)))}"
+        >
+          <AngleLeftOutline />
+        </GlassGrouppedButton>
+        <GlassGrouppedButton
+          href="/day?date={formatISO(startOfDay(timeState.time))}"
+          >Now</GlassGrouppedButton
+        >
+        <GlassGrouppedButton
+          href="/day?date={formatISO(addDays(1, startOfDay(date)))}"
+        >
+          <AngleRightOutline />
+        </GlassGrouppedButton>
+      </GlassButtonGroup>
     </div>
-    <div class="flex-1"></div>
-    <GlassButtonGroup size="md" class="text-white">
-      <GlassGrouppedButton
-        href="/day?date={formatISO(subDays(1, startOfDay(date)))}"
-      >
-        <AngleLeftOutline />
-      </GlassGrouppedButton>
-      <GlassGrouppedButton
-        href="/day?date={formatISO(startOfDay(timeState.time))}"
-        >Now</GlassGrouppedButton
-      >
-      <GlassGrouppedButton
-        href="/day?date={formatISO(addDays(1, startOfDay(date)))}"
-      >
-        <AngleRightOutline />
-      </GlassGrouppedButton>
-    </GlassButtonGroup>
-  </div>
-  <div
-    class="flex relative top-3 bg-primary-950 pl-3 pr-6 px-1"
-    style:z-index={modalZIndex - 3}
-  >
-    <div class="schedule flex-1">
-      <span
-        class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
-        aria-hidden="true"
-        style="grid-column: event; grid-row: tracks;">Events</span
-      >
-      <span
-        class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
-        aria-hidden="true"
-        style="grid-column: task; grid-row: tracks;">Tasks</span
-      >
-      <span
-        class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
-        aria-hidden="true"
-        style="grid-column: reminder; grid-row: tracks;">Reminder</span
-      >
-
-      {#if !currentTimeInView && !dragging}
-        <div class="fixed bottom-12 end-12 z-[100]">
-          <GlassButton onclick={scrollCurrentIntoView}>
-            Current Time
-          </GlassButton>
-        </div>
-      {/if}
-      <!-- Time indicator -->
-      <div
-        class="pointer-events-none"
-        style:z-index={modalZIndex - 3}
-        style:grid-column="times / reminder"
-        style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
-      >
-        <div
-          class="relative w-full"
-          style:top="calc({timeIndicator.offset}% - 12px)"
-          bind:this={currentTimeRef}
-          {@attach inview({
-            onEnter: () => {
-              currentTimeInView = true;
-            },
-            onExit: () => {
-              currentTimeInView = false;
-            },
-          })}
-        >
-          <span class="relative px-2 text-violet-600 font-bold">
-            {format("HH:mm", timeState.time)}
-          </span>
-        </div>
-      </div>
-      <!-- Dotted line for current time -->
-      <div
-        id="current-time"
-        class="pointer-events-none"
-        style:z-index={modalZIndex - 3}
-        style:grid-column="times / reminder"
-        style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
-      >
-        <div
-          style:top="calc({timeIndicator.offset}% + 16px)"
-          class="relative w-full border-b-2 border border-violet-600"
-        ></div>
-      </div>
-
-      {#each timeBlocks as { time, check } (time)}
-        {@const formatedTime = format("HH:mm", time)}
-        {@const minutes = getMinutes(time)}
-
-        <h2
-          ondblclick={() => !dragging && handleTimeDoubleClick(time)}
-          class="time-slot text-center text-xs cursor-pointer select-none"
-          class:opacity-40={minutes !== 0 && minutes !== 30}
-          class:brightness-50={timeIndicator.nearestSlot >= time}
-          style:grid-row="time-{format('HHmm', time)}"
-        >
-          {formatedTime}
-        </h2>
-        <div
+    <div
+      class="flex relative top-3 bg-primary-950 pl-3 pr-6 px-1"
+      style:z-index={modalZIndex - 3}
+    >
+      <div class="schedule flex-1">
+        <span
+          class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
           aria-hidden="true"
-          class={`border-t border-dotted ${dragging != null ? "z-50 pointer-events-auto" : "z-[-1] pointer-events-none"}`}
-          class:border-gray-600={minutes === 0}
-          class:border-gray-300={minutes === 30}
-          class:border-gray-800={minutes !== 0 && minutes !== 30}
-          style:grid-column="event /reminder"
-          style:grid-row="time-{format('HHmm', time)}"
-          ondragenter={() => {
-            hoverTime = time;
-          }}
-          ondrop={(e) => {
-            // handleDropOnTime(e, time);
-          }}
-          ondragover={() => false}
-        ></div>
-        {#each ["Event", "Task", "Reminder"] as type}
+          style="grid-column: event; grid-row: tracks;">Events</span
+        >
+        <span
+          class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
+          aria-hidden="true"
+          style="grid-column: task; grid-row: tracks;">Tasks</span
+        >
+        <span
+          class="block p-1 pt-2 text-center antialiased bg-primary-950 text-primary-300"
+          aria-hidden="true"
+          style="grid-column: reminder; grid-row: tracks;">Reminder</span
+        >
+
+        {#if !currentTimeInView && !dragging}
+          <div class="fixed bottom-12 end-12 z-[100]">
+            <GlassButton onclick={scrollCurrentIntoView}>
+              Current Time
+            </GlassButton>
+          </div>
+        {/if}
+        <!-- Time indicator -->
+        <div
+          class="pointer-events-none"
+          style:z-index={modalZIndex - 3}
+          style:grid-column="times / reminder"
+          style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+        >
           <div
-            class="opacity-0 hover:opacity-100 rounded-4xl hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1"
-            style:grid-column={type.toLowerCase()}
+            class="relative w-full"
+            style:top="calc({timeIndicator.offset}% - 12px)"
+            bind:this={currentTimeRef}
+            {@attach inview({
+              onEnter: () => {
+                currentTimeInView = true;
+              },
+              onExit: () => {
+                currentTimeInView = false;
+              },
+            })}
+          >
+            <span class="relative px-2 text-violet-600 font-bold">
+              {format("HH:mm", timeState.time)}
+            </span>
+          </div>
+        </div>
+        <!-- Dotted line for current time -->
+        <div
+          id="current-time"
+          class="pointer-events-none"
+          style:z-index={modalZIndex - 3}
+          style:grid-column="times / reminder"
+          style:grid-row="time-{format('HHmm', timeIndicator.nearestSlot)}"
+        >
+          <div
+            style:top="calc({timeIndicator.offset}% + 16px)"
+            class="relative w-full border-b-2 border border-violet-600"
+          ></div>
+        </div>
+
+        {#each timeBlocks as { time, check } (time)}
+          {@const formatedTime = format("HH:mm", time)}
+          {@const minutes = getMinutes(time)}
+
+          <h2
+            ondblclick={() => !dragging && handleTimeDoubleClick(time)}
+            class="time-slot text-center text-xs cursor-pointer select-none"
+            class:opacity-40={minutes !== 0 && minutes !== 30}
+            class:brightness-50={timeIndicator.nearestSlot >= time}
             style:grid-row="time-{format('HHmm', time)}"
           >
-            <div class="text-center flex-1">
-              {formatedTime}
-            </div>
-            <GlassButton
-              size="xs"
-              onclick={() => handleClickSlot(type as EventType, time)}
-              >+</GlassButton
-            >
-          </div>
-        {/each}
-        {#each sortedEvents as [type, events], i}
-          {@const isBlockType = type === "Block"}
-          {#each events.filter((e) => timeCheck(e, check)) as e, k}
+            {formatedTime}
+          </h2>
+          <div
+            aria-hidden="true"
+            class={`border-t border-dotted ${dragging != null ? "z-50 pointer-events-auto" : "z-[-1] pointer-events-none"}`}
+            class:border-gray-600={minutes === 0}
+            class:border-gray-300={minutes === 30}
+            class:border-gray-800={minutes !== 0 && minutes !== 30}
+            style:grid-column="event /reminder"
+            style:grid-row="time-{format('HHmm', time)}"
+            ondragenter={() => {
+              hoverTime = time;
+            }}
+            ondrop={() => {
+              // handleDropOnTime(e, time);
+            }}
+            ondragover={() => false}
+          ></div>
+          {#each ["Event", "Task", "Reminder"] as type}
             <div
-              role="button"
-              class="group event-{type.toLowerCase()}"
-              class:brightness-80={timeIndicator.nearestSlot > time}
-              style:grid-column={isBlockType
-                ? "event /reminder"
-                : e.event_type.toLowerCase()}
-              style:grid-row={getScheduleSlot(e)}
-              style:z-index={isBlockType ? 0 : k + 1}
+              class="opacity-0 hover:opacity-100 rounded-4xl hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1"
+              style:grid-column={type.toLowerCase()}
+              style:grid-row="time-{format('HHmm', time)}"
             >
-              {#if e.event_type === "Block"}
-                <div class="flex h-full flex-col items-center justify-center">
-                  <p class="inline-block text-2xl font-medium text-white/30">
-                    {e.summary.toUpperCase()}
-                  </p>
-                </div>
-              {:else}
-                <EventCard tabindex={i * 10 + (k + 1)} event={e} />
-              {/if}
+              <div class="text-center flex-1">
+                {formatedTime}
+              </div>
+              <GlassButton
+                size="xs"
+                onclick={() => handleClickSlot(type as EventType, time)}
+                >+</GlassButton
+              >
             </div>
           {/each}
+          {#each sortedEvents as [type, events], i}
+            {@const isBlockType = type === "Block"}
+            {#each events.filter((e) => timeCheck(e, check)) as e, k}
+              <div
+                role="button"
+                class="group event-{type.toLowerCase()}"
+                class:brightness-80={timeIndicator.nearestSlot > time}
+                style:grid-column={isBlockType
+                  ? "event /reminder"
+                  : e.event_type.toLowerCase()}
+                style:grid-row={getScheduleSlot(e)}
+                style:z-index={isBlockType ? 0 : k + 1}
+              >
+                {#if e.event_type === "Block"}
+                  <div class="flex h-full flex-col items-center justify-center">
+                    <p class="inline-block text-2xl font-medium text-white/30">
+                      {e.summary.toUpperCase()}
+                    </p>
+                  </div>
+                {:else}
+                  <EventCard tabindex={i * 10 + (k + 1)} event={e} />
+                {/if}
+              </div>
+            {/each}
+          {/each}
         {/each}
-      {/each}
+      </div>
+    </div>
+  </div>
+  <div class="flex-1 pt-32 px-4 relative border-l border-l-primary-900">
+    <div class="sticky top-24">
+      <TaskList tasks={todos ?? []} />
     </div>
   </div>
 </div>

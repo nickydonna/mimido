@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use std::str::FromStr;
 
 use chrono::Utc;
-use icalendar::Component;
+use icalendar::{Component, TodoStatus};
 
 use super::{event_status::EventStatus, event_type::EventType};
 
@@ -15,7 +15,7 @@ pub enum ComponentProps {
     #[strum(serialize = "X-URGENCY")]
     Urgency,
     #[strum(serialize = "X-STATUS")]
-    Status,
+    XStatus,
     #[strum(serialize = "X-ORIGINAL-TEXT")]
     OriginalText,
     #[strum(serialize = "X-IMPORTANCE")]
@@ -38,6 +38,15 @@ impl From<ComponentProps> for String {
     fn from(value: ComponentProps) -> Self {
         value.as_ref().to_string()
     }
+}
+
+pub fn get_property<Cmp: icalendar::Component, T: FromStr>(
+    event: &Cmp,
+    property: ComponentProps,
+) -> Option<T> {
+    event
+        .property_value(property.as_ref())
+        .and_then(|s| T::from_str(s).ok())
 }
 
 pub fn get_property_or_default<Cmp: icalendar::Component, T: FromStr>(
@@ -103,7 +112,8 @@ impl TryFrom<&icalendar::Event> for GeneralComponentProps {
         let event_type =
             get_property_or_default(first_todo, ComponentProps::Type, EventType::Event);
         let tag = get_string_property(first_todo, ComponentProps::Tag);
-        let status = get_property_or_default(first_todo, ComponentProps::Status, EventStatus::Todo);
+        let status =
+            get_property_or_default(first_todo, ComponentProps::XStatus, EventStatus::Todo);
         let original_text = get_string_property(first_todo, ComponentProps::OriginalText);
         let importance = get_int_property(first_todo, ComponentProps::Importance);
         let urgency = get_int_property(first_todo, ComponentProps::Urgency);
@@ -145,7 +155,19 @@ impl TryFrom<&icalendar::Todo> for GeneralComponentProps {
             .unwrap_or(Utc::now().timestamp());
         let event_type = get_property_or_default(first_todo, ComponentProps::Type, EventType::Task);
         let tag = get_string_property(first_todo, ComponentProps::Tag);
-        let status = get_property_or_default(first_todo, ComponentProps::Status, EventStatus::Todo);
+        let todo_status_completed = first_todo
+            .get_status()
+            .map(|s| matches!(s, TodoStatus::Completed))
+            .unwrap_or(false);
+        // If XStatus is not set try to use the status from the todo
+        let status = get_property(first_todo, ComponentProps::XStatus).unwrap_or({
+            if todo_status_completed {
+                EventStatus::Done
+            } else {
+                EventStatus::Todo
+            }
+        });
+
         let original_text = get_string_property(first_todo, ComponentProps::OriginalText);
         let importance = get_int_property(first_todo, ComponentProps::Importance);
         let urgency = get_int_property(first_todo, ComponentProps::Urgency);

@@ -61,6 +61,8 @@ pub fn run() {
             commands::components::set_vevent_status,
             commands::components::delete_vevent,
             commands::components::update_vevent,
+            commands::components::list_todos,
+            commands::components::set_vtodo_status,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

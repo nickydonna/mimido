@@ -116,6 +116,22 @@ async updateVevent(veventId: number, dateOfInputStr: string, componentInput: str
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async listTodos(includeDone: boolean) : Promise<Result<VTodo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_todos", { includeDone }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setVtodoStatus(vtodoId: number, status: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_vtodo_status", { vtodoId, status }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -151,6 +167,7 @@ starts_at: string;
 ends_at: string; natural_recurrence: string | null; natural_string: string }
 export type Server = { id: number; server_url: string; user: string; password: string; last_sync: string | null }
 export type VEvent = { id: number; calendar_id: number; uid: string; href: string; ical_data: string; summary: string; description: string | null; starts_at: string; ends_at: string; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string; etag: string }
+export type VTodo = { id: number; calendar_id: number; uid: string; href: string; ical_data: string; summary: string; description: string | null; completed: boolean; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string; etag: string }
 
 /** tauri-specta globals **/
 

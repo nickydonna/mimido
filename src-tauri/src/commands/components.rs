@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    caldav::{Caldav, Href},
+    caldav::{Caldav, Etag, Href},
     calendar_items::{
         event_creator::EventUpsertInfo,
         event_status::EventStatus,
@@ -12,6 +12,7 @@ use crate::{
     establish_connection,
     models::{
         vevent::{VEvent, VEventTrait},
+        vtodo::VTodo,
         Calendar,
     },
     util::DateTimeStr,
@@ -99,6 +100,57 @@ impl ExtendedEvent {
             None
         }
     }
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn list_todos(include_done: bool) -> Result<Vec<VTodo>, ComponentsCommandError> {
+    use crate::schema::vtodos::dsl as todo_dsl;
+
+    let conn = &mut establish_connection();
+
+    let todos = if include_done {
+        todo_dsl::vtodos.select(VTodo::as_select()).load(conn)?
+    } else {
+        todo_dsl::vtodos
+            .filter(todo_dsl::status.is_not(EventStatus::Done))
+            .select(VTodo::as_select())
+            .load(conn)?
+    };
+
+    Ok(todos)
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn set_vtodo_status(vtodo_id: i32, status: String) -> Result<(), ComponentsCommandError> {
+    use crate::schema::vtodos::dsl as vtodos_dsl;
+
+    let status = EventStatus::from_str(status.as_ref())?;
+
+    let conn = &mut establish_connection();
+    diesel::update(vtodos_dsl::vtodos)
+        .filter(vtodos_dsl::id.eq(vtodo_id))
+        .set(vtodos_dsl::status.eq(status))
+        .execute(conn)?;
+
+    let conn = &mut establish_connection();
+    let vtodo = VTodo::by_id(conn, vtodo_id)?;
+    let vtodo = vtodo.ok_or(anyhow!("No todo with id {vtodo_id}"))?;
+    let etag: Etag = vtodo.etag.clone().into();
+    let href: Href = vtodo.href.clone().into();
+    let (server, calendar) = Calendar::by_id_with_server(conn, vtodo.calendar_id)?;
+
+    let caldav = Caldav::new(server).await?;
+    let updated_calendar_cmp: icalendar::CalendarComponent = vtodo.into();
+
+    let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
+
+    caldav.update_cmp(&href, &etag, cal).await?;
+
+    super_sync_calendar(calendar.id).await?;
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
