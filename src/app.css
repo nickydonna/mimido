@@ -65,18 +65,21 @@
   }
 }
 
-@utility glassy-shadow {
-  background: rgba(255, 255, 255, 0.1);
+@utility glassy-shadow-* {
+  background: --alpha(--value(--color- *) / 10%);
   box-shadow:
     inset 10px 10px 20px rgba(153, 192, 255, 0.1),
     inset 2px 2px 5px rgba(195, 218, 255, 0.2),
     inset -10px -10px 20px rgba(229, 253, 190, 0.1),
     inset -2px -2px 30px rgba(247, 255, 226, 0.2);
   backdrop-filter: blur(5px);
-  filter: brightness(120%);
   backdrop-filter: blur(7.1px);
   -webkit-backdrop-filter: blur(7.1px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid --alpha(value(--color- *) / 20%);
+}
+
+.glassy-shadow {
+  @apply glassy-shadow-white;
 }
 
 @keyframes color-animation {
@@ -90,7 +93,7 @@
 }
 
 .glass-clickable {
-  @apply glassy-shadow relative text-white;
+  @apply glassy-shadow-white relative text-white;
 }
 
 .glass-clickable:not(.loading)::after {

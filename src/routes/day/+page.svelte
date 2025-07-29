@@ -19,7 +19,12 @@
     subSeconds,
   } from "date-fns/fp";
   import { formatRelativeDay, type ParsedEvent } from "../../lib/util";
-  import { AngleLeftOutline, AngleRightOutline } from "flowbite-svelte-icons";
+  import {
+    AngleLeftOutline,
+    AngleRightOutline,
+    ListOutline,
+    CloseOutline,
+  } from "flowbite-svelte-icons";
   import { type VEvent, type EventType } from "../../bindings";
   import { timeState } from "../../stores/times.svelte";
   import EventCard from "$lib/components/event-card";
@@ -32,6 +37,7 @@
     eventUpserter,
   } from "../../stores/eventUpserter.svelte";
   import TaskList from "$lib/components/task-list/TaskList.svelte";
+  import GlassIcon from "$lib/components/glass-icon/GlassIcon.svelte";
 
   let { data }: PageProps = $props();
   let { date, events, todos } = $derived(data);
@@ -137,9 +143,11 @@
       ? format("E do MMM", date)
       : format("E do MMM yy", date);
   });
+
+  let taskDrawerOpen = $state(true);
 </script>
 
-<div class="flex">
+<div class="flex" class:-mr-20={taskDrawerOpen}>
   <div class="flex-3">
     <div class="day-header" style:z-index={modalZIndex - 2}>
       <div>
@@ -173,6 +181,19 @@
           <AngleRightOutline />
         </GlassGrouppedButton>
       </GlassButtonGroup>
+      <GlassIcon
+        class="px-3"
+        size="sm"
+        onclick={() => {
+          taskDrawerOpen = !taskDrawerOpen;
+        }}
+      >
+        {#if taskDrawerOpen}
+          <CloseOutline />
+        {:else}
+          <ListOutline />
+        {/if}
+      </GlassIcon>
     </div>
     <div
       class="flex relative top-3 bg-primary-950 pl-3 pr-6 px-1"
@@ -315,22 +336,24 @@
       </div>
     </div>
   </div>
-  <div class="flex-1 pt-32 px-4 relative border-l border-l-primary-900">
-    <div class="sticky top-24">
-      <TaskList tasks={todos ?? []} />
+  {#if taskDrawerOpen}
+    <div class={`flex-1 pt-32 px-4 relative border-l border-l-primary-900`}>
+      <div class="sticky top-24">
+        <TaskList tasks={todos ?? []} />
+      </div>
     </div>
-  </div>
+  {/if}
 </div>
 
 <style lang="postcss">
   @reference "../../app.css";
 
   .day-header {
-    @apply flex sticky top-0 py-6 px-4;
+    @apply flex sticky top-0 py-6 px-4 gap-2;
   }
 
   .event-block {
-    @apply p-0 m-px glassy-shadow rounded-xl justify-center pointer-events-none;
+    @apply p-0 m-px glassy-shadow-primary-800 rounded-xl justify-center pointer-events-none;
     backdrop-filter: blur(0.5px);
     filter: none;
     grid-column: event / reminder;

@@ -289,7 +289,7 @@
   }
 
   .glass-modal {
-    @apply glassy-shadow rounded-4xl p-6 bg-primary-800/30;
+    @apply glassy-shadow-white rounded-4xl p-6 bg-primary-800/30;
     backdrop-filter: blur(4px);
   }
 

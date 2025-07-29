@@ -103,19 +103,19 @@
 	@reference "../../../app.css";
 
 	.event-card {
-		@apply px-2 py-1 rounded-2xl glassy-shadow size-full box-border relative text-white;
+		@apply px-2 py-1 rounded-2xl size-full box-border relative text-white;
 		backdrop-filter: blur(10px);
 	}
 
 	.event-card-event {
-		@apply bg-teal-600/30;
+		@apply glassy-shadow-teal-600;
 	}
 
 	.event-card-task {
-		@apply bg-task-600/30;
+		@apply glassy-shadow-task-600;
 	}
 	.event-card-reminder {
-		@apply bg-reminder-700/50;
+		@apply glassy-shadow-reminder-400;
 	}
 
 	.event-card.done-button.lessThan15Min {

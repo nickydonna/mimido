@@ -6,7 +6,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 use std::error::Error;
 use std::fs::create_dir_all;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{tray::TrayIconBuilder, Manager};
 use tauri_specta::{collect_commands, Builder};
 pub mod caldav;
 pub mod calendar_items;
@@ -78,6 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
+            let _ = TrayIconBuilder::new().build(app)?;
             let app_path = app.path().app_config_dir().expect("No App path was found!");
             let db_file_name = "mimido.db";
             let conn_url = format!("sqlite://{}/{}", app_path.display(), db_file_name);

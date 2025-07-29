@@ -26,7 +26,7 @@
   }
 
   .glass-input {
-    @apply glassy-shadow relative;
+    @apply glassy-shadow-white relative;
     transition: box-shadow 1s ease-in-out;
   }
 
