@@ -28,7 +28,8 @@
 	let isTask = event.event_type === "Task";
 	let isReminder = event.event_type === "Reminder";
 
-	async function toggleStatus() {
+	async function toggleStatus(e: Event) {
+		e.stopPropagation();
 		loading = true;
 		await commands.setVeventStatus(event.id, isDone ? "inprogress" : "done");
 		invalidateAll();
@@ -90,9 +91,9 @@
 				onclick={toggleStatus}
 			>
 				{#if isDone}
-					<UnCheckTask></UnCheckTask>
+					<UnCheckTask />
 				{:else}
-					<CheckTask></CheckTask>
+					<CheckTask />
 				{/if}
 			</button>
 		</div>
