@@ -16,6 +16,7 @@
     eventUpserter,
   } from "../../../stores/eventUpserter.svelte";
   import { timeState } from "../../../stores/times.svelte";
+  import { shortcut } from "$lib/attachments/shortcut.svelte";
 
   type Props = {
     activeUrl: string;
@@ -30,7 +31,15 @@
   }));
 </script>
 
-<div class="fixed z-[90] bottom-8 w-dvw pointer-events-none">
+<div
+  class="fixed z-[90] bottom-8 w-dvw pointer-events-none"
+  {@attach shortcut({
+    key: "a",
+    handler() {
+      eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
+    },
+  })}
+>
   <nav class="container mx-auto flex justify-center items-center px-2 gap-2">
     <div
       class={[

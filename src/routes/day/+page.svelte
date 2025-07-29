@@ -147,7 +147,12 @@
   let taskDrawerOpen = $state(true);
 </script>
 
-<div class="flex" class:-mr-20={taskDrawerOpen}>
+<div
+  class="flex"
+  class:-mr-3={taskDrawerOpen}
+  class:md-mr-20={taskDrawerOpen}
+  class:lg:-mr-8={taskDrawerOpen}
+>
   <div class="flex-3">
     <div class="day-header" style:z-index={modalZIndex - 2}>
       <div>
