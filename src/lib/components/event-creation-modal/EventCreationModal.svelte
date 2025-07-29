@@ -44,6 +44,7 @@
   } from "../../../stores/eventUpserter.svelte";
   import { invalidateAll } from "$app/navigation";
   import type { EventHandler } from "svelte/elements";
+  import { TagOutline } from "flowbite-svelte-icons";
 
   let { defaultCalendar }: { defaultCalendar: Calendar | undefined } = $props();
 
@@ -251,6 +252,12 @@
               <div class="flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm">
                 <HoverableIcon iconCmp={HistoryBoldIcon} text="Recurrence:" />
                 {result.recurrence}
+              </div>
+            {/if}
+            {#if result.tag}
+              <div class="flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm">
+                <HoverableIcon iconCmp={TagOutline} text="Tags:" />
+                {result.tag.split(",").join(", ")}
               </div>
             {/if}
           {/if}

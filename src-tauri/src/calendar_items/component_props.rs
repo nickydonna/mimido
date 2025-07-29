@@ -78,6 +78,7 @@ pub fn get_int_property<Cmp: icalendar::Component>(event: &Cmp, property: Compon
         .unwrap_or(0)
 }
 
+/// General properties from a Calendar Component
 pub struct GeneralComponentProps {
     pub uid: String,
     pub summary: String,

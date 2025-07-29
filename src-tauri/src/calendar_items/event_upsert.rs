@@ -1,92 +1,27 @@
-use chrono::{DateTime, TimeDelta, TimeZone, Utc};
-
-use super::{
-    date_parser::extract_start_end, event_status::EventStatus, event_type::EventType,
-    rrule_parser::EventRecurrence,
-};
+use chrono::{DateTime, TimeZone};
 
 use super::input_traits::ExtractableFromInput;
+use crate::calendar_items::event_date::EventDateOption;
+use crate::calendar_items::event_status::EventStatus;
+use crate::calendar_items::event_tags::EventTags;
+use crate::calendar_items::event_type::EventType;
 use crate::calendar_items::input_traits::ExtractedInput;
 
-#[derive(Clone)]
-pub struct EventDateInfo {
-    pub start: DateTime<Utc>,
-    pub end: Option<DateTime<Utc>>,
-    pub recurrence: EventRecurrence,
-}
-
-impl EventDateInfo {
-    pub fn get_end_or_default(&self, event_type: EventType) -> DateTime<Utc> {
-        if let Some(end) = self.end {
-            end
-        } else {
-            let duration = match event_type {
-                EventType::Event => TimeDelta::hours(1),
-                EventType::Block => TimeDelta::hours(1),
-                EventType::Reminder => TimeDelta::minutes(15),
-                EventType::Task => TimeDelta::minutes(30),
-            };
-            self.start + duration
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct EventDateOption(pub Option<EventDateInfo>);
-
-impl EventDateInfo {
-    pub fn get_recurrence_as_cal_property(self) -> Option<String> {
-        let rule_set = self.recurrence.0?;
-        let rule = rule_set.get_rrule().first()?;
-        Some(rule.to_string())
-    }
-}
-
-impl ExtractableFromInput for EventDateOption {
-    fn extract_from_input<Tz: TimeZone>(
-        date_of_input: DateTime<Tz>,
-        input: &str,
-    ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
-        let dates = extract_start_end(input, date_of_input);
-        let Some((start, end, stripped)) = dates else {
-            return Ok((EventDateOption(None), input.to_string()));
-        };
-
-        let rrule = EventRecurrence::from_natural(&stripped, &start);
-        match rrule {
-            Some((rrule, recur_stripped)) => Ok((
-                EventDateOption(Some(EventDateInfo {
-                    start: start.to_utc(),
-                    end: end.map(|e| e.to_utc()),
-                    recurrence: EventRecurrence::some(rrule),
-                })),
-                recur_stripped,
-            )),
-            None => Ok((
-                EventDateOption(Some(EventDateInfo {
-                    start: start.to_utc(),
-                    end: end.map(|e| e.to_utc()),
-                    recurrence: EventRecurrence::none(),
-                })),
-                stripped,
-            )),
-        }
-    }
-}
-
-pub struct EventUpsertInfo {
+/// Struct that holds information for updating or upserting an event
+pub struct EventUpsertInfo<Tz: TimeZone> {
     pub summary: String,
-    pub date_info: EventDateOption,
+    pub date_info: EventDateOption<Tz>,
     pub status: EventStatus,
     pub event_type: EventType,
     pub postponed: i32,
     pub urgency: i32,
     pub load: i32,
     pub importance: i32,
+    pub tag: EventTags,
 }
 
-impl ExtractableFromInput for EventUpsertInfo {
-    fn extract_from_input<Tz: TimeZone>(
+impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventUpsertInfo<Tz> {
+    fn extract_from_input(
         date_of_input: DateTime<Tz>,
         input: &str,
     ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
@@ -96,6 +31,8 @@ impl ExtractableFromInput for EventUpsertInfo {
             EventStatus::extract_from_input(date_of_input.clone(), &input)?.into();
         let ExtractedInput(event_type, input) =
             EventType::extract_from_input(date_of_input.clone(), &input)?.into();
+        let ExtractedInput(tag, input) =
+            EventTags::extract_from_input(date_of_input.clone(), &input)?.into();
 
         Ok((
             EventUpsertInfo {
@@ -107,6 +44,7 @@ impl ExtractableFromInput for EventUpsertInfo {
                 urgency: 0,
                 load: 0,
                 importance: 0,
+                tag,
             },
             input,
         ))
@@ -115,6 +53,8 @@ impl ExtractableFromInput for EventUpsertInfo {
 
 #[cfg(test)]
 mod tests {
+    use crate::calendar_items::event_date::{EventDateInfo, EventRecurrence};
+
     use super::*;
     use chrono::TimeZone;
 
@@ -189,8 +129,7 @@ mod tests {
             .to_utc();
         let expected_end = chrono_tz::America::Buenos_Aires
             .with_ymd_and_hms(2025, 3, 8, 11, 30, 0)
-            .unwrap()
-            .to_utc();
+            .unwrap();
 
         let EventDateInfo {
             start,
@@ -204,5 +143,68 @@ mod tests {
         assert_eq!(start, expected_date);
         assert_eq!(end, Some(expected_end));
         assert_eq!(recurrence, EventRecurrence::none());
+    }
+
+    #[test]
+    fn should_parse_string_with_tags() {
+        let date_of_input = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 6, 10, 30, 0)
+            .unwrap();
+        let input = "@task print in 2 days at 10-11:30 #hello";
+        let ExtractedInput(info, _) = EventUpsertInfo::extract_from_input(date_of_input, input)
+            .expect("To parse string")
+            .into();
+        let expected_date = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 8, 10, 0, 0)
+            .unwrap();
+        let expected_end = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 8, 11, 30, 0)
+            .unwrap();
+
+        let EventDateInfo {
+            start,
+            end,
+            recurrence,
+        } = info.date_info.0.unwrap();
+
+        assert_eq!(info.summary, "print");
+        assert_eq!(info.status, EventStatus::Todo);
+        assert_eq!(info.event_type, EventType::Task);
+        assert_eq!(start, expected_date);
+        assert_eq!(end, Some(expected_end));
+        assert_eq!(recurrence, EventRecurrence::none());
+        assert_eq!(info.tag, EventTags(Some("hello".to_string())))
+    }
+
+    #[test]
+    fn should_parse_full_example() {
+        let date_of_input = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 6, 10, 30, 0)
+            .unwrap();
+        let input = ".reminder %todo Dientes at 30/07/25 09:00-09:15 every weekday #health";
+        let ExtractedInput(info, _) = EventUpsertInfo::extract_from_input(date_of_input, input)
+            .expect("To parse string")
+            .into();
+        let expected_date = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 7, 30, 9, 0, 0)
+            .unwrap()
+            .to_utc();
+        let expected_end = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 7, 30, 9, 15, 0)
+            .unwrap();
+
+        let EventDateInfo {
+            start,
+            end,
+            recurrence,
+        } = info.date_info.0.unwrap();
+
+        assert_eq!(info.summary, "Dientes");
+        assert_eq!(info.status, EventStatus::Todo);
+        assert_eq!(info.event_type, EventType::Reminder);
+        assert_eq!(start, expected_date);
+        assert_eq!(end, Some(expected_end));
+        assert!(recurrence.0.is_some());
+        assert_eq!(info.tag, EventTags(Some("health".to_string())))
     }
 }

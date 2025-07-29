@@ -1,7 +1,7 @@
 use chrono::{DateTime, TimeZone};
 
-pub trait ToInput {
-    fn to_input<Tz: TimeZone>(&self, referece_date: &DateTime<Tz>) -> String;
+pub trait ToInput<Tz: TimeZone> {
+    fn to_input(&self, referece_date: &DateTime<Tz>) -> String;
 }
 
 /// Tuple with the result, and the input string
@@ -13,8 +13,8 @@ impl<T> From<(T, String)> for ExtractedInput<T> {
     }
 }
 
-pub trait ExtractableFromInput {
-    fn extract_from_input<Tz: TimeZone>(
+pub trait ExtractableFromInput<Tz: TimeZone> {
+    fn extract_from_input(
         date_of_input: DateTime<Tz>,
         input: &str,
     ) -> anyhow::Result<impl Into<ExtractedInput<Self>>>

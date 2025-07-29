@@ -3,108 +3,28 @@ use std::str::FromStr;
 use crate::{
     caldav::{Caldav, Etag, Href},
     calendar_items::{
-        event_creator::EventUpsertInfo,
         event_status::EventStatus,
-        input_traits::{ExtractableFromInput, ExtractedInput, ToInput},
+        event_upsert::EventUpsertInfo,
+        input_traits::{ExtractableFromInput, ExtractedInput},
         DisplayUpsertInfo,
     },
-    commands::calendar::{super_sync_calendar, CalendarCommandError},
-    establish_connection,
-    models::{
-        vevent::{VEvent, VEventTrait},
-        vtodo::VTodo,
-        Calendar,
+    commands::{
+        calendar::super_sync_calendar, errors::CommandError, extended_event::ExtendedEvent,
     },
+    establish_connection,
+    models::{vevent::VEvent, vtodo::VTodo, Calendar},
     util::DateTimeStr,
 };
 use anyhow::anyhow;
-use chrono::{DateTime, FixedOffset, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset};
 use diesel::prelude::*;
 use icalendar::Component;
-use libdav::sd::BootstrapError;
-use log::info;
 use now::DateTimeNow;
-use specta::Type;
 use uuid::Uuid;
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum ComponentsCommandError {
-    #[error("Diesel error {0:?}")]
-    Diesel(#[from] diesel::result::Error),
-    #[error("Could not connect to caldav")]
-    CaldavBootstrap(#[from] BootstrapError),
-    #[error("Error: {0}")]
-    Anyhow(#[from] anyhow::Error),
-    #[error(transparent)]
-    Calendar(#[from] CalendarCommandError),
-}
-
-impl From<ComponentsCommandError> for String {
-    fn from(value: ComponentsCommandError) -> Self {
-        value.to_string()
-    }
-}
-
-impl Type for ComponentsCommandError {
-    fn inline(
-        type_map: &mut specta::TypeCollection,
-        generics: specta::Generics,
-    ) -> specta::datatype::DataType {
-        String::inline(type_map, generics)
-    }
-}
-
-impl serde::Serialize for ComponentsCommandError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_ref())
-    }
-}
-
-#[derive(Clone, Debug, serde::Serialize, specta::Type)]
-pub struct ExtendedEvent {
-    /// Date when the extended event was calculated
-    pub query_date: DateTime<Utc>,
-    pub event: VEvent,
-    /// The start date of the event, if recurrent the value for the current query
-    pub starts_at: DateTime<Utc>,
-    /// The end date of the event, if recurrent the value for the current query
-    pub ends_at: DateTime<Utc>,
-    pub natural_recurrence: Option<String>,
-    pub natural_string: String,
-}
-
-impl ExtendedEvent {
-    pub fn on_day<Tz: TimeZone>(event: &VEvent, query_date: &DateTime<Tz>) -> Option<Self> {
-        if !event.has_rrule && event.starts_at.date_naive() != query_date.date_naive() {
-            log::warn!(
-                "Event {} does not have a recurrence rule and is not on the requested date",
-                event.uid
-            );
-            return None;
-        }
-        let base = query_date.beginning_of_day();
-        let (starts_at, ends_at) = event.get_start_end_for_date(&base);
-        if starts_at > base && starts_at < query_date.end_of_day() {
-            Some(Self {
-                query_date: query_date.to_utc(),
-                event: event.clone(),
-                starts_at: starts_at.to_utc(),
-                ends_at: ends_at.to_utc(),
-                natural_recurrence: None,
-                natural_string: event.to_input(query_date),
-            })
-        } else {
-            None
-        }
-    }
-}
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn list_todos(include_done: bool) -> Result<Vec<VTodo>, ComponentsCommandError> {
+pub async fn list_todos(include_done: bool) -> Result<Vec<VTodo>, CommandError> {
     use crate::schema::vtodos::dsl as todo_dsl;
 
     let conn = &mut establish_connection();
@@ -123,7 +43,7 @@ pub async fn list_todos(include_done: bool) -> Result<Vec<VTodo>, ComponentsComm
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn set_vtodo_status(vtodo_id: i32, status: String) -> Result<(), ComponentsCommandError> {
+pub async fn set_vtodo_status(vtodo_id: i32, status: String) -> Result<(), CommandError> {
     use crate::schema::vtodos::dsl as vtodos_dsl;
 
     let status = EventStatus::from_str(status.as_ref())?;
@@ -155,9 +75,7 @@ pub async fn set_vtodo_status(vtodo_id: i32, status: String) -> Result<(), Compo
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub async fn list_events_for_day(
-    datetime: String,
-) -> Result<Vec<ExtendedEvent>, ComponentsCommandError> {
+pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>, CommandError> {
     use crate::schema::vevents::dsl as event_dsl;
 
     let conn = &mut establish_connection();
@@ -189,10 +107,8 @@ pub async fn list_events_for_day(
 pub async fn parse_event(
     date_of_input_str: String,
     component_input: String,
-) -> Result<DisplayUpsertInfo, ComponentsCommandError> {
+) -> Result<DisplayUpsertInfo, CommandError> {
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
-    // let parsed_date = parsed_date.with_timezone(&Tz::UTC);
-    info!("{parsed_date}");
 
     let ExtractedInput(data, _) =
         EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
@@ -205,7 +121,7 @@ pub async fn save_event(
     calendar_id: i32,
     date_of_input_str: String,
     component_input: String,
-) -> Result<(), ComponentsCommandError> {
+) -> Result<(), CommandError> {
     let conn = &mut establish_connection();
 
     let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id)?;
@@ -231,7 +147,7 @@ pub async fn save_event(
 
 #[tauri::command()]
 #[specta::specta]
-pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), ComponentsCommandError> {
+pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), CommandError> {
     use crate::schema::vevents::dsl as vevents_dsl;
 
     let status = EventStatus::from_str(status.as_ref())?;
@@ -246,7 +162,7 @@ pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), Component
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn delete_vevent(vevent_id: i32) -> Result<(), ComponentsCommandError> {
+pub async fn delete_vevent(vevent_id: i32) -> Result<(), CommandError> {
     let conn = &mut establish_connection();
     let vevent = VEvent::by_id(conn, vevent_id)?;
     let vevent = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
@@ -267,7 +183,7 @@ pub async fn update_vevent(
     vevent_id: i32,
     date_of_input_str: String,
     component_input: String,
-) -> Result<(), ComponentsCommandError> {
+) -> Result<(), CommandError> {
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
 
     let ExtractedInput(data, _) =

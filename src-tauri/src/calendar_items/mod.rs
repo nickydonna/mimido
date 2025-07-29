@@ -2,26 +2,26 @@ use chrono::{DateTime, NaiveTime, TimeZone, Utc};
 use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike};
 
 use crate::calendar_items::{
-    component_props::ComponentProps, event_creator::EventUpsertInfo, event_status::EventStatus,
-    event_type::EventType, rrule_parser::EventRecurrence,
+    component_props::ComponentProps, event_date::EventRecurrence, event_status::EventStatus,
+    event_type::EventType, event_upsert::EventUpsertInfo,
 };
 
 pub(crate) mod component_props;
-pub(crate) mod date_parser;
-pub(crate) mod event_creator;
+pub(crate) mod event_date;
 pub(crate) mod event_status;
+pub(crate) mod event_tags;
 pub(crate) mod event_type;
+pub(crate) mod event_upsert;
 pub(crate) mod input_traits;
-pub(crate) mod rrule_parser;
 
-impl From<EventUpsertInfo> for CalendarComponent {
-    fn from(value: EventUpsertInfo) -> Self {
+impl<Tz: TimeZone> From<EventUpsertInfo<Tz>> for CalendarComponent {
+    fn from(value: EventUpsertInfo<Tz>) -> Self {
         match value.date_info.0 {
             Some(date_info) => {
                 let mut event = icalendar::Event::new()
                     .summary(&value.summary)
-                    .starts(date_info.start)
-                    .ends(date_info.get_end_or_default(value.event_type))
+                    .starts(date_info.start.to_utc())
+                    .ends(date_info.get_end_or_default(value.event_type).to_utc())
                     .add_property(ComponentProps::Type, value.event_type)
                     .add_property(ComponentProps::XStatus, value.status)
                     .add_property(ComponentProps::Load, value.load.to_string())
@@ -56,17 +56,18 @@ pub struct DisplayUpsertInfo {
     pub urgency: i32,
     pub load: i32,
     pub importance: i32,
+    pub tag: Option<String>,
 }
 
-impl From<EventUpsertInfo> for DisplayUpsertInfo {
-    fn from(value: EventUpsertInfo) -> Self {
+impl<Tz: TimeZone> From<EventUpsertInfo<Tz>> for DisplayUpsertInfo {
+    fn from(value: EventUpsertInfo<Tz>) -> Self {
         let (starts_at, ends_at, recurrence) = value
             .date_info
             .0
             .map(|info| {
                 (
-                    Some(info.start),
-                    Some(info.get_end_or_default(value.event_type)),
+                    Some(info.start.clone().to_utc()),
+                    Some(info.get_end_or_default(value.event_type).clone().to_utc()),
                     info.recurrence,
                 )
             })
@@ -83,6 +84,7 @@ impl From<EventUpsertInfo> for DisplayUpsertInfo {
             urgency: value.urgency,
             load: value.load,
             importance: value.importance,
+            tag: value.tag.0,
         }
     }
 }

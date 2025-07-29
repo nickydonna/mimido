@@ -6,12 +6,11 @@ use crate::{
     calendar_items::{
         component_props::{get_string_property, ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
-        date_parser::start_end_to_natural,
-        event_creator::EventUpsertInfo,
+        event_date::{EventDateInfo, EventRecurrence},
         event_status::EventStatus,
         event_type::EventType,
+        event_upsert::EventUpsertInfo,
         input_traits::ToInput,
-        rrule_parser::EventRecurrence,
     },
     impl_ical_parseable,
     schema::*,
@@ -109,10 +108,10 @@ impl VEvent {
         }
     }
 
-    pub fn update_from_upsert(
+    pub fn update_from_upsert<Tz: TimeZone>(
         &self,
         input: &str,
-        extracted: EventUpsertInfo,
+        extracted: EventUpsertInfo<Tz>,
     ) -> anyhow::Result<Self> {
         let mut event = self.clone();
         let date_info = extracted.date_info.0.ok_or(anyhow!("Event need dates"))?;
@@ -149,6 +148,10 @@ impl From<VEvent> for CalendarComponent {
             .and_then(|r| r.get_rrule().first().map(|f| f.to_string()))
         {
             event.add_property(ComponentProps::RRule, rule);
+        }
+
+        if let Some(tag) = value.tag {
+            event.add_property(ComponentProps::Tag, tag);
         }
 
         event.into()
@@ -337,13 +340,13 @@ macro_rules! impl_event_trait {
             }
         }
 
-        impl ToInput for $t {
-            fn to_input<Tz: TimeZone>(&self, reference_date: &DateTime<Tz>) -> String {
+        impl<Tz: TimeZone> ToInput<Tz> for $t {
+            fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
                 let timezone = reference_date.timezone();
                 let (start, end) = self.get_start_end_for_date(reference_date);
                 let start = start.with_timezone(&timezone);
                 let end = end.with_timezone(&timezone);
-                let date_string = start_end_to_natural(&reference_date, &start, &end);
+                let date_string = EventDateInfo::once(start, end).to_input(reference_date);
                 let base = format!(
                     "{} {} {} {}",
                     self.get_type().to_input(reference_date),
@@ -389,6 +392,10 @@ impl TryFrom<NewVEvent> for icalendar::Event {
         }
         vevent.append_property(icalendar::Property::from(new_event.status));
         vevent.append_property(icalendar::Property::from(new_event.event_type));
+        if let Some(tag) = new_event.tag {
+            vevent.append_property(icalendar::Property::new(ComponentProps::Tag, tag));
+        }
+
         Ok(vevent)
     }
 }

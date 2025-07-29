@@ -61,8 +61,8 @@ impl From<EventType> for icalendar::Property {
 
 const EVENT_TYPE_RE: &str = r"(@|.)(?P<event_type>event|block|reminder|task|e|b|r|t)";
 
-impl ExtractableFromInput for EventType {
-    fn extract_from_input<Tz: TimeZone>(
+impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventType {
+    fn extract_from_input(
         _: DateTime<Tz>,
         input: &str,
     ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
@@ -104,8 +104,8 @@ impl From<EventType> for String {
     }
 }
 
-impl ToInput for EventType {
-    fn to_input<Tz: TimeZone>(&self, _: &DateTime<Tz>) -> String {
+impl<Tz: TimeZone> ToInput<Tz> for EventType {
+    fn to_input(&self, _: &DateTime<Tz>) -> String {
         format!(".{self}")
     }
 }

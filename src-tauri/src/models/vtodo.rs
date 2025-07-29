@@ -95,7 +95,7 @@ impl VTodo {
 
 impl From<VTodo> for CalendarComponent {
     fn from(value: VTodo) -> Self {
-        let todo = icalendar::Todo::new()
+        let mut todo = icalendar::Todo::new()
             .summary(&value.summary)
             .uid(&value.uid)
             .add_property(ComponentProps::Type, value.event_type)
@@ -115,6 +115,10 @@ impl From<VTodo> for CalendarComponent {
                 EventStatus::Done => 100,
             })
             .done();
+
+        if let Some(tag) = value.tag {
+            todo.add_property(ComponentProps::Tag, tag);
+        }
 
         todo.into()
     }
@@ -181,8 +185,8 @@ macro_rules! impl_todo_trait {
             }
         }
 
-        impl ToInput for $t {
-            fn to_input<Tz: TimeZone>(&self, reference_date: &DateTime<Tz>) -> String {
+        impl<Tz: TimeZone> ToInput<Tz> for $t {
+            fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
                 format!(
                     "{} {} {}",
                     self.event_type.to_input(reference_date),
@@ -289,6 +293,7 @@ mod tests {
             .unwrap()
             .with_timezone(&chrono_tz::Tz::UTC);
 
-        assert_eq!(todo.to_input(&reference_date), ".task %todo Yerba");
+        // Is done because the ICS is completed
+        assert_eq!(todo.to_input(&reference_date), ".task %done Yerba");
     }
 }

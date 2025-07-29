@@ -92,17 +92,13 @@
     });
   };
 
-  let timeIndicator: { nearestSlot: Date; offset: number } = $state({
-    nearestSlot: new Date(),
-    offset: 0,
-  });
-  $effect(() => {
+  const timeIndicator = $derived.by(() => {
     const nearestSlot = roundToNearestMinutes(timeState.time, {
       nearestTo: 15,
       roundingMethod: "floor",
     });
     const minutes = getMinutes(timeState.time) - getMinutes(nearestSlot);
-    timeIndicator = {
+    return {
       nearestSlot: nearestSlot,
       offset: (minutes * 100) / 15,
     };

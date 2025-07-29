@@ -1,52 +1,17 @@
 use crate::{
     caldav::{Caldav, CmpSyncResult, Href},
+    commands::errors::CommandError,
     establish_connection,
     models::{vevent::VEvent, vtodo::VTodo, Calendar, NewVCmp, Server, VCmp},
     util::filter_err_and_map,
 };
 use diesel::{prelude::*, update};
 use futures::future::join_all;
-use libdav::sd::BootstrapError;
 use log::{info, warn};
-use specta::Type;
-
-#[derive(Debug, thiserror::Error)]
-pub enum CalendarCommandError {
-    #[error("Diesel error {0:?}")]
-    Diesel(#[from] diesel::result::Error),
-    #[error("Could not connect to caldav")]
-    CaldavBootstrap(#[from] BootstrapError),
-    #[error("Error: {0}")]
-    Anyhow(#[from] anyhow::Error),
-}
-
-impl From<CalendarCommandError> for String {
-    fn from(value: CalendarCommandError) -> Self {
-        value.to_string()
-    }
-}
-
-impl Type for CalendarCommandError {
-    fn inline(
-        type_map: &mut specta::TypeCollection,
-        generics: specta::Generics,
-    ) -> specta::datatype::DataType {
-        String::inline(type_map, generics)
-    }
-}
-
-impl serde::Serialize for CalendarCommandError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_ref())
-    }
-}
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub async fn sync_all_calendars() -> Result<(), CalendarCommandError> {
+pub async fn sync_all_calendars() -> Result<(), CommandError> {
     use crate::schema::servers::dsl as server_dsl;
 
     // Get all servers and fetch their calendars
@@ -55,7 +20,7 @@ pub async fn sync_all_calendars() -> Result<(), CalendarCommandError> {
     join_all(syncs)
         .await
         .into_iter()
-        .collect::<Result<Vec<Vec<Calendar>>, CalendarCommandError>>()?;
+        .collect::<Result<Vec<Vec<Calendar>>, CommandError>>()?;
 
     let calendars = list_calendars()?;
     let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
@@ -64,7 +29,7 @@ pub async fn sync_all_calendars() -> Result<(), CalendarCommandError> {
     join_all(syncs)
         .await
         .into_iter()
-        .collect::<Result<Vec<()>, CalendarCommandError>>()?;
+        .collect::<Result<Vec<()>, CommandError>>()?;
 
     let now = chrono::Utc::now().timestamp();
     update(server_dsl::servers)
@@ -77,7 +42,7 @@ pub async fn sync_all_calendars() -> Result<(), CalendarCommandError> {
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub fn list_calendars() -> Result<Vec<Calendar>, CalendarCommandError> {
+pub fn list_calendars() -> Result<Vec<Calendar>, CommandError> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::servers::dsl as server_dsl;
 
@@ -110,7 +75,7 @@ pub fn set_default_calendar(calendar_id: i32) -> Result<(), String> {
     .map_err(|_| "Could not update default".to_string())
 }
 
-fn list_servers() -> Result<Vec<Server>, CalendarCommandError> {
+fn list_servers() -> Result<Vec<Server>, CommandError> {
     use crate::schema::servers::dsl::*;
 
     let conn = &mut establish_connection();
@@ -120,7 +85,7 @@ fn list_servers() -> Result<Vec<Server>, CalendarCommandError> {
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn sync_calendar(calendar_id: i32) -> Result<(), CalendarCommandError> {
+pub async fn sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
     let conn = &mut establish_connection();
 
     let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id)?;
@@ -151,7 +116,7 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), CalendarCommandError>
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CalendarCommandError> {
+pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
     let conn = &mut establish_connection();
 
     let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id)?;
@@ -209,7 +174,7 @@ pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CalendarCommand
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, CalendarCommandError> {
+pub async fn fetch_calendars(server_id: i32) -> Result<Vec<Calendar>, CommandError> {
     use crate::schema::calendars::dsl as calendars_dsl;
     use crate::schema::servers::dsl as server_dsl;
 

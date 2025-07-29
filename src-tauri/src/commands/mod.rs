@@ -1,46 +1,16 @@
 use crate::{
     caldav::Caldav,
+    commands::errors::CommandError,
     establish_connection,
     models::{Calendar, NewServer, Server},
 };
 use diesel::prelude::*;
 use futures::TryFutureExt;
-use specta::Type;
 
 pub(crate) mod calendar;
 pub(crate) mod components;
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum GeneralCommandError {
-    #[error("Diesel error {0:?}")]
-    Diesel(#[from] diesel::result::Error),
-    #[error("Error: {0}")]
-    Anyhow(#[from] anyhow::Error),
-}
-
-impl From<GeneralCommandError> for String {
-    fn from(value: GeneralCommandError) -> Self {
-        value.to_string()
-    }
-}
-
-impl Type for GeneralCommandError {
-    fn inline(
-        type_map: &mut specta::TypeCollection,
-        generics: specta::Generics,
-    ) -> specta::datatype::DataType {
-        String::inline(type_map, generics)
-    }
-}
-
-impl serde::Serialize for GeneralCommandError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_ref())
-    }
-}
+mod errors;
+mod extended_event;
 
 #[tauri::command()]
 #[specta::specta]
@@ -48,7 +18,7 @@ pub async fn create_server(
     server_url: String,
     user: String,
     password: String,
-) -> Result<Server, GeneralCommandError> {
+) -> Result<Server, CommandError> {
     use crate::schema::servers;
 
     let conn = &mut establish_connection();
@@ -74,7 +44,7 @@ pub async fn create_server(
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub fn list_servers() -> Result<Vec<(Server, Vec<Calendar>)>, GeneralCommandError> {
+pub fn list_servers() -> Result<Vec<(Server, Vec<Calendar>)>, CommandError> {
     use crate::schema::servers::dsl as server_dsl;
 
     let conn = &mut establish_connection();

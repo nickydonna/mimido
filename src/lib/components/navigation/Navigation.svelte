@@ -14,6 +14,7 @@
   import {
     EventUpsert,
     eventUpserter,
+    isNone,
   } from "../../../stores/eventUpserter.svelte";
   import { timeState } from "../../../stores/times.svelte";
   import { shortcut } from "$lib/attachments/shortcut.svelte";
@@ -36,7 +37,9 @@
   {@attach shortcut({
     key: "a",
     handler() {
-      eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
+      if (isNone(eventUpserter.state)) {
+        eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
+      }
     },
   })}
 >

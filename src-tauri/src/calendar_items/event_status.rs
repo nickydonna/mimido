@@ -77,8 +77,8 @@ impl FromStr for EventStatus {
 
 const EVENT_STATUS_RE: &str = r"%(?P<event_status>backlog|todo|inprogress|doing|done|b|t|i|d)";
 
-impl ExtractableFromInput for EventStatus {
-    fn extract_from_input<Tz: TimeZone>(
+impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventStatus {
+    fn extract_from_input(
         _: DateTime<Tz>,
         input: &str,
     ) -> anyhow::Result<impl Into<ExtractedInput<Self>>> {
@@ -115,8 +115,8 @@ impl From<EventStatus> for String {
     }
 }
 
-impl ToInput for EventStatus {
-    fn to_input<Tz: TimeZone>(&self, _: &DateTime<Tz>) -> String {
+impl<Tz: TimeZone> ToInput<Tz> for EventStatus {
+    fn to_input(&self, _: &DateTime<Tz>) -> String {
         format!("%{self}")
     }
 }
