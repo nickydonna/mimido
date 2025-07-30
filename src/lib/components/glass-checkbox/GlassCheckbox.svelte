@@ -18,24 +18,24 @@
 </script>
 
 <button
-  class={["glass-checkbox", { disabled, loading }]}
+  id={`${uid}-glass-checkbox`}
+  aria-label={label}
+  class={["glass-checkbox", { disabled, loading, checked }]}
   {disabled}
   onclick={() => onChange(!checked)}
 >
   <input
-    type="checkbox"
+    {checked}
+    aria-label={label}
+    name={`${uid}-checkbox`}
     {disabled}
     class="sr-only"
-    id={`${uid}-glass-checkbox`}
-    name={label}
-    {checked}
   />
-  <label for="glass-checkbox">{label}</label>
 </button>
 
 <style lang="postcss">
   @reference "../../../app";
-  .glass-checkbox input[type="checkbox"] + label {
+  .glass-checkbox {
     display: block;
     position: relative;
     padding-left: 35px;
@@ -43,16 +43,16 @@
     user-select: none;
   }
 
-  .glass-checkbox:hover input[type="checkbox"] + label:before {
+  .glass-checkbox:hover:before {
     @apply border border-primary-900;
     box-shadow: 3px 1px 0 var(--color-primary-400);
   }
 
-  .glass-checkbox.loading input[type="checkbox"] + label:before {
+  .glass-checkbox.loading:before {
     animation: spin 2s linear infinite;
   }
 
-  .glass-checkbox input[type="checkbox"] + label:before {
+  .glass-checkbox:before {
     @apply border border-primary-900;
     content: "";
     display: block;
@@ -68,7 +68,7 @@
     background: var(--color-white);
     box-shadow: -3px -1px 0 var(--color-primary-400);
   }
-  .glass-checkbox input[type="checkbox"]:checked + label:before {
+  .glass-checkbox.checked:before {
     @apply rounded-full border-2 border-primary-100 bg-primary-800;
     width: 1.3em;
     height: 1.3em;

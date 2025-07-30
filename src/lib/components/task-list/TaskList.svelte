@@ -19,14 +19,18 @@
 
 <div>
   {#each tasks as task}
-    <div class="flex p-1">
-      <div class="flex-1">
+    <div class="flex p-2 m-1 border-b border-primary-500 last:border-none">
+      <div class="mt-1">
         <GlassCheckbox
           loading={loading[task.id]}
-          label={task.summary}
+          label={""}
           checked={task.status === "Done"}
           onChange={() => toggleDone(task)}
         ></GlassCheckbox>
+      </div>
+
+      <div class="flex-1">
+        {task.summary}
       </div>
     </div>
   {/each}
