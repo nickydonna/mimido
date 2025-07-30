@@ -1,17 +1,18 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import { commands, type VTodo } from "../../../bindings";
-  import GlassButton from "../glass-button/GlassButton.svelte";
+  import GlassCheckbox from "../glass-checkbox/GlassCheckbox.svelte";
 
   let { tasks }: { tasks: VTodo[] } = $props();
-  let loading = $state(false);
+  let loading = $state({} as Record<number, boolean>);
+
   async function toggleDone(task: VTodo) {
-    loading = true;
+    loading[task.id] = true;
     await commands.setVtodoStatus(
       task.id,
       task.status === "Done" ? "InProgress" : "Done",
     );
-    loading = false;
+    loading[task.id] = false;
     await invalidateAll();
   }
 </script>
@@ -20,12 +21,12 @@
   {#each tasks as task}
     <div class="flex p-1">
       <div class="flex-1">
-        {task.summary}
-      </div>
-      <div>
-        <GlassButton {loading} size="xs" onclick={() => toggleDone(task)}
-          >D</GlassButton
-        >
+        <GlassCheckbox
+          loading={loading[task.id]}
+          label={task.summary}
+          checked={task.status === "Done"}
+          onChange={() => toggleDone(task)}
+        ></GlassCheckbox>
       </div>
     </div>
   {/each}
