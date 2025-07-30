@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset};
 use log::warn;
+use regex::Regex;
 use std::fmt::Display;
 
 pub struct DateTimeStr(pub String);
@@ -22,4 +23,9 @@ pub fn filter_err_and_map<O, E: Display>(res: Result<O, E>) -> Option<O> {
             None
         }
     }
+}
+
+pub fn remove_multiple_spaces(s: &str) -> String {
+    let re = Regex::new(r" +").unwrap();
+    re.replace_all(s, " ").to_string()
 }

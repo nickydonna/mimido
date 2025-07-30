@@ -250,6 +250,12 @@ impl EventRecurrence {
     }
 }
 
+impl From<Option<RRuleSet>> for EventRecurrence {
+    fn from(value: Option<RRuleSet>) -> Self {
+        Self(value)
+    }
+}
+
 // Unit Tests
 #[cfg(test)]
 mod tests {

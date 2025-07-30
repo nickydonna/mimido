@@ -21,11 +21,15 @@ pub struct EventDateInfo<Tz: TimeZone> {
 }
 
 impl<Tz: TimeZone> EventDateInfo<Tz> {
-    pub fn new(start: DateTime<Tz>, end: DateTime<Tz>, recurrence: EventRecurrence) -> Self {
+    pub fn new(
+        start: DateTime<Tz>,
+        end: DateTime<Tz>,
+        recurrence: impl Into<EventRecurrence>,
+    ) -> Self {
         Self {
             start,
             end: Some(end),
-            recurrence,
+            recurrence: recurrence.into(),
         }
     }
 

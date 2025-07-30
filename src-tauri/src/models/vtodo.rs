@@ -3,11 +3,13 @@ use crate::{
     calendar_items::{
         component_props::{ComponentProps, GeneralComponentProps},
         event_status::EventStatus,
+        event_tags::EventTags,
         event_type::EventType,
         input_traits::ToInput,
     },
     impl_ical_parseable,
     schema::*,
+    util::remove_multiple_spaces,
 };
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone};
@@ -187,12 +189,15 @@ macro_rules! impl_todo_trait {
 
         impl<Tz: TimeZone> ToInput<Tz> for $t {
             fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
-                format!(
-                    "{} {} {}",
+                let value = format!(
+                    "{} {} {} {}",
                     self.event_type.to_input(reference_date),
                     self.status.to_input(reference_date),
+                    EventTags(self.tag.clone()).to_input(reference_date),
                     self.summary
-                )
+                );
+
+                remove_multiple_spaces(&value)
             }
         }
     };

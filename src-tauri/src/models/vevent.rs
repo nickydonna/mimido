@@ -6,14 +6,16 @@ use crate::{
     calendar_items::{
         component_props::{get_string_property, ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
-        event_date::{EventDateInfo, EventRecurrence},
+        event_date::EventDateInfo,
         event_status::EventStatus,
+        event_tags::EventTags,
         event_type::EventType,
         event_upsert::EventUpsertInfo,
         input_traits::ToInput,
     },
     impl_ical_parseable,
     schema::*,
+    util::remove_multiple_spaces,
 };
 use chrono::{DateTime, NaiveDateTime, TimeDelta, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
@@ -124,6 +126,7 @@ impl VEvent {
         event.load = extracted.load;
         event.importance = extracted.importance;
         event.summary = extracted.summary;
+        event.tag = extracted.tag.0;
         event.original_text = Some(input.to_string());
         Ok(event)
     }
@@ -280,10 +283,6 @@ pub trait VEventTrait: IcalParseableTrait {
         rrule.ok()
     }
 
-    fn get_recurrence_natural(&self) -> Option<String> {
-        EventRecurrence(self.get_rrule()).to_natural_language().ok()
-    }
-
     fn get_next_recurrence_from_date<Tz: TimeZone>(
         &self,
         date: &DateTime<Tz>,
@@ -343,23 +342,19 @@ macro_rules! impl_event_trait {
         impl<Tz: TimeZone> ToInput<Tz> for $t {
             fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
                 let timezone = reference_date.timezone();
-                let (start, end) = self.get_start_end_for_date(reference_date);
-                let start = start.with_timezone(&timezone);
-                let end = end.with_timezone(&timezone);
-                let date_string = EventDateInfo::once(start, end).to_input(reference_date);
-                let base = format!(
-                    "{} {} {} {}",
+                let start = self.starts_at.with_timezone(&timezone);
+                let end = self.ends_at.with_timezone(&timezone);
+                let date_string =
+                    EventDateInfo::new(start, end, self.get_rrule()).to_input(reference_date);
+                let value = format!(
+                    "{} {} {} {} {}",
                     self.get_type().to_input(reference_date),
                     self.get_status().to_input(reference_date),
                     self.get_summary(),
-                    date_string
+                    date_string,
+                    EventTags(self.tag.clone()).to_input(reference_date),
                 );
-                let recurrence_str = self.get_recurrence_natural();
-                if let Some(recurrence_str) = recurrence_str {
-                    format!("{base} {recurrence_str}")
-                } else {
-                    base
-                }
+                remove_multiple_spaces(&value)
             }
         }
     };
@@ -587,7 +582,7 @@ mod tests {
 
         assert_eq!(
             event.to_input(&date_of_input),
-            ".block %todo Work at 17/03/25 13:00-16:00 every weekday"
+            ".block %todo Work at 20/05/24 13:00-16:00 every weekday #health"
         );
     }
 
