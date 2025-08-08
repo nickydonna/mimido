@@ -5,7 +5,7 @@ use crate::{
         event_status::EventStatus,
         event_tags::EventTags,
         event_type::EventType,
-        input_traits::ToInput,
+        input_traits::ToUserInput,
     },
     impl_ical_parseable,
     schema::*,
@@ -187,7 +187,7 @@ macro_rules! impl_todo_trait {
             }
         }
 
-        impl<Tz: TimeZone> ToInput<Tz> for $t {
+        impl<Tz: TimeZone> ToUserInput<Tz> for $t {
             fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
                 let value = format!(
                     "{} {} {} {}",

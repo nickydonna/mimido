@@ -2,7 +2,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use now::DateTimeNow;
 
 use crate::{
-    calendar_items::input_traits::ToInput,
+    calendar_items::input_traits::ToUserInput,
     models::vevent::{VEvent, VEventTrait},
 };
 

@@ -1,6 +1,8 @@
 use chrono::{DateTime, TimeZone};
 
-pub trait ToInput<Tz: TimeZone> {
+pub trait ToUserInput<Tz: TimeZone> {
+    /// Transform a value to an string
+    /// Used to transform [`VTodo`] and [`VEvent`] to [`String`]
     fn to_input(&self, referece_date: &DateTime<Tz>) -> String;
 }
 
@@ -13,7 +15,8 @@ impl<T> From<(T, String)> for ExtractedInput<T> {
     }
 }
 
-pub trait ExtractableFromInput<Tz: TimeZone> {
+pub trait FromUserInput<Tz: TimeZone> {
+    /// Get [`ExtractedInput`] from a user inputted [`String`] at a particulat [`DateTime`]
     fn extract_from_input(
         date_of_input: DateTime<Tz>,
         input: &str,

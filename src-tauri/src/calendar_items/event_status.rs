@@ -16,7 +16,7 @@ use crate::calendar_items::input_traits::ExtractedInput;
 
 use super::{
     component_props::ComponentProps,
-    input_traits::{ExtractableFromInput, ToInput},
+    input_traits::{FromUserInput, ToUserInput},
 };
 
 #[derive(
@@ -77,7 +77,7 @@ impl FromStr for EventStatus {
 
 const EVENT_STATUS_RE: &str = r"%(?P<event_status>backlog|todo|inprogress|doing|done|b|t|i|d)";
 
-impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventStatus {
+impl<Tz: TimeZone> FromUserInput<Tz> for EventStatus {
     fn extract_from_input(
         _: DateTime<Tz>,
         input: &str,
@@ -115,8 +115,14 @@ impl From<EventStatus> for String {
     }
 }
 
-impl<Tz: TimeZone> ToInput<Tz> for EventStatus {
+impl<Tz: TimeZone> ToUserInput<Tz> for EventStatus {
     fn to_input(&self, _: &DateTime<Tz>) -> String {
-        format!("%{self}")
+        match self {
+            EventStatus::Backlog => "%b",
+            EventStatus::Todo => "%t",
+            EventStatus::InProgress => "%i",
+            EventStatus::Done => "%d",
+        }
+        .to_string()
     }
 }

@@ -7,7 +7,7 @@ use self::date_parser::extract_start_end;
 use crate::calendar_items::{
     event_date::date_parser::start_end_to_natural,
     event_type::EventType,
-    input_traits::{ExtractableFromInput, ExtractedInput, ToInput},
+    input_traits::{ExtractedInput, FromUserInput, ToUserInput},
 };
 
 // Re-export
@@ -63,7 +63,7 @@ impl<Tz: TimeZone> EventDateInfo<Tz> {
     }
 }
 
-impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventDateOption<Tz> {
+impl<Tz: TimeZone> FromUserInput<Tz> for EventDateOption<Tz> {
     fn extract_from_input(
         date_of_input: DateTime<Tz>,
         input: &str,
@@ -95,7 +95,7 @@ impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventDateOption<Tz> {
     }
 }
 
-impl<Tz: TimeZone> ToInput<Tz> for EventDateInfo<Tz> {
+impl<Tz: TimeZone> ToUserInput<Tz> for EventDateInfo<Tz> {
     fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
         let base = start_end_to_natural(
             reference_date,

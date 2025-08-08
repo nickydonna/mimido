@@ -1,6 +1,6 @@
 use chrono::{DateTime, TimeZone};
 
-use super::input_traits::ExtractableFromInput;
+use super::input_traits::FromUserInput;
 use crate::calendar_items::event_date::EventDateOption;
 use crate::calendar_items::event_status::EventStatus;
 use crate::calendar_items::event_tags::EventTags;
@@ -20,7 +20,7 @@ pub struct EventUpsertInfo<Tz: TimeZone> {
     pub tag: EventTags,
 }
 
-impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventUpsertInfo<Tz> {
+impl<Tz: TimeZone> FromUserInput<Tz> for EventUpsertInfo<Tz> {
     fn extract_from_input(
         date_of_input: DateTime<Tz>,
         input: &str,

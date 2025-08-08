@@ -14,7 +14,7 @@ use crate::calendar_items::input_traits::ExtractedInput;
 
 use super::{
     component_props::ComponentProps,
-    input_traits::{ExtractableFromInput, ToInput},
+    input_traits::{FromUserInput, ToUserInput},
 };
 
 #[derive(
@@ -61,7 +61,7 @@ impl From<EventType> for icalendar::Property {
 
 const EVENT_TYPE_RE: &str = r"(@|.)(?P<event_type>event|block|reminder|task|e|b|r|t)";
 
-impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventType {
+impl<Tz: TimeZone> FromUserInput<Tz> for EventType {
     fn extract_from_input(
         _: DateTime<Tz>,
         input: &str,
@@ -104,8 +104,14 @@ impl From<EventType> for String {
     }
 }
 
-impl<Tz: TimeZone> ToInput<Tz> for EventType {
+impl<Tz: TimeZone> ToUserInput<Tz> for EventType {
     fn to_input(&self, _: &DateTime<Tz>) -> String {
-        format!(".{self}")
+        match self {
+            EventType::Event => ".e",
+            EventType::Block => ".b",
+            EventType::Reminder => ".r",
+            EventType::Task => ".t",
+        }
+        .to_string()
     }
 }

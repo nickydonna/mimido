@@ -4,7 +4,7 @@ use regex::RegexBuilder;
 
 use crate::calendar_items::input_traits::ExtractedInput;
 
-use super::input_traits::{ExtractableFromInput, ToInput};
+use super::input_traits::{FromUserInput, ToUserInput};
 
 /// We can't use this as a Sql type because String doesn't work properly
 #[derive(Debug, Clone, serde::Deserialize, PartialEq, Eq)]
@@ -12,7 +12,7 @@ pub struct EventTags(pub Option<String>);
 
 const EVENT_TYPE_RE: &str = r"#(?P<event_tag>\w+)";
 
-impl<Tz: TimeZone> ExtractableFromInput<Tz> for EventTags {
+impl<Tz: TimeZone> FromUserInput<Tz> for EventTags {
     fn extract_from_input(
         _: DateTime<Tz>,
         input: &str,
@@ -54,7 +54,7 @@ impl From<EventTags> for String {
     }
 }
 
-impl<Tz: TimeZone> ToInput<Tz> for EventTags {
+impl<Tz: TimeZone> ToUserInput<Tz> for EventTags {
     fn to_input(&self, _: &DateTime<Tz>) -> String {
         match &self.0 {
             Some(s) => s.split(",").map(|t| format!("#{t}")).join(" "),

@@ -11,7 +11,7 @@ use crate::{
         event_tags::EventTags,
         event_type::EventType,
         event_upsert::EventUpsertInfo,
-        input_traits::ToInput,
+        input_traits::ToUserInput,
     },
     impl_ical_parseable,
     schema::*,
@@ -339,7 +339,7 @@ macro_rules! impl_event_trait {
             }
         }
 
-        impl<Tz: TimeZone> ToInput<Tz> for $t {
+        impl<Tz: TimeZone> ToUserInput<Tz> for $t {
             fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
                 let timezone = reference_date.timezone();
                 let start = self.starts_at.with_timezone(&timezone);

@@ -5,7 +5,7 @@ use crate::{
     calendar_items::{
         event_status::EventStatus,
         event_upsert::EventUpsertInfo,
-        input_traits::{ExtractableFromInput, ExtractedInput},
+        input_traits::{ExtractedInput, FromUserInput},
         DisplayUpsertInfo,
     },
     commands::{
