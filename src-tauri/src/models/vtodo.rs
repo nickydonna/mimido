@@ -2,17 +2,20 @@ use crate::{
     caldav::Href,
     calendar_items::{
         component_props::{ComponentProps, GeneralComponentProps},
+        date_from_calendar_to_utc,
+        event_date::EventDateInfo,
         event_status::EventStatus,
         event_tags::EventTags,
         event_type::EventType,
         input_traits::ToUserInput,
+        parse_duration,
     },
     impl_ical_parseable,
     schema::*,
     util::remove_multiple_spaces,
 };
 use anyhow::anyhow;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
 use icalendar::{CalendarComponent, Component, TodoStatus};
 use libdav::FetchedResource;
@@ -163,6 +166,27 @@ pub(crate) trait VTodoTrait: IcalParseableTrait<icalendar::Todo> {
     fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
     fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo>;
     fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
+    /// Get [`Event::starts_at`]
+    fn get_start(&self) -> Option<&DateTime<Utc>>;
+    /// Get [`Event::ends_at`]
+    fn get_end(&self) -> Option<&DateTime<Utc>>;
+    fn get_start_end_for_date<Tz: TimeZone>(
+        &self,
+        base_date: &DateTime<Tz>,
+    ) -> Option<(DateTime<Tz>, DateTime<Tz>)> {
+        let start = self.get_start()?;
+        let end = self.get_end()?;
+        let tz = base_date.timezone();
+        let val = self
+            .get_next_recurrence_from_date(base_date)
+            .map(|d| d.with_timezone(&tz));
+        let duration = *end - *start;
+        let start = match val {
+            Some(date) => date,
+            None => start.with_timezone(&tz),
+        };
+        Some((start.clone(), start + duration))
+    }
 }
 
 macro_rules! impl_todo_trait {
@@ -193,19 +217,46 @@ macro_rules! impl_todo_trait {
                     None => self.save(conn),
                 }
             }
+
+            fn get_start(&self) -> Option<&DateTime<Utc>> {
+                self.starts_at.as_ref()
+            }
+
+            fn get_end(&self) -> Option<&DateTime<Utc>> {
+                self.ends_at.as_ref()
+            }
         }
 
         impl<Tz: TimeZone> ToUserInput<Tz> for $t {
             fn to_input(&self, reference_date: &DateTime<Tz>) -> String {
-                let value = format!(
-                    "{} {} {} {}",
-                    self.event_type.to_input(reference_date),
-                    self.status.to_input(reference_date),
-                    EventTags(self.tag.clone()).to_input(reference_date),
-                    self.summary
-                );
+                let timezone = reference_date.timezone();
+                let Some(start) = self.starts_at else {
+                    let value = format!(
+                        "{} {} {} {}",
+                        self.event_type.to_input(reference_date),
+                        self.status.to_input(reference_date),
+                        EventTags(self.tag.clone()).to_input(reference_date),
+                        self.summary
+                    );
 
-                remove_multiple_spaces(&value)
+                    return remove_multiple_spaces(&value);
+                };
+                let end = self
+                    .ends_at
+                    .unwrap_or(start + TimeDelta::minutes(15))
+                    .with_timezone(&timezone);
+                let start = start.with_timezone(&timezone);
+                let date_string =
+                    EventDateInfo::new(start, end, self.get_rrule()).to_input(reference_date);
+                let value = format!(
+                    "{} {} {} {} {}",
+                    self.get_type().to_input(reference_date),
+                    self.get_status().to_input(reference_date),
+                    self.get_summary(),
+                    date_string,
+                    EventTags(self.tag.clone()).to_input(reference_date),
+                );
+                remove_multiple_spaces(&value).trim().to_string()
             }
         }
     };
@@ -238,9 +289,9 @@ impl NewVTodo {
             .map_err(|s| anyhow!("Error parsing calendar data {s}"))?;
         let first_todo = calendar_item
             .components
-            .into_iter()
-            .filter_map(|cmp| cmp.as_todo().cloned())
-            .collect::<Vec<icalendar::Todo>>();
+            .iter()
+            .filter_map(|cmp| cmp.as_todo())
+            .collect::<Vec<&icalendar::Todo>>();
 
         let Some(first_todo) = first_todo.first() else {
             return Ok(None);
@@ -259,9 +310,14 @@ impl NewVTodo {
             load,
             postponed,
             last_modified,
-        } = GeneralComponentProps::try_from(first_todo)?;
+        } = GeneralComponentProps::try_from(*first_todo)?;
 
-        Ok(Some(NewVTodo {
+        let (starts_at, ends_at) = match parse_todo_start_and_end(&calendar_item)? {
+            Some((start, end)) => (Some(start), Some(end)),
+            None => (None, None),
+        };
+
+        let new_todo = NewVTodo {
             calendar_id,
             uid: uid.to_string(),
             href: href.to_string(),
@@ -281,29 +337,79 @@ impl NewVTodo {
             etag: etag.to_string(),
             has_rrule: false,
             rrule_str: None,
-            starts_at: None,
-            ends_at: None,
+            starts_at,
+            ends_at,
+        };
+
+        let rrule_str = new_todo.get_rrule_from_ical().map(|r| r.to_string());
+        Ok(Some(NewVTodo {
+            has_rrule: rrule_str.is_some(),
+            rrule_str,
+            ..new_todo
         }))
     }
 }
+
+fn parse_todo_start_and_end(
+    calendar: &icalendar::Calendar,
+) -> anyhow::Result<Option<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)>> {
+    let timezone = calendar
+        .get_timezone()
+        .and_then(|tzid| {
+            let tz: Option<chrono_tz::Tz> = tzid.parse().ok();
+            tz
+        })
+        .unwrap_or(chrono_tz::UTC);
+
+    let todo = calendar
+        .components
+        .iter()
+        .filter_map(|cmp| cmp.as_todo().cloned())
+        .next()
+        .ok_or(anyhow!("No todo component"))?;
+
+    let start = todo
+        .get_start()
+        .and_then(|s| date_from_calendar_to_utc(s, timezone));
+
+    let Some(start) = start else {
+        return Ok(None);
+    };
+
+    let end = todo.get_end().or(todo.get_due());
+    let end = if let Some(end) = end {
+        date_from_calendar_to_utc(end, timezone)
+    } else {
+        todo.property_value(ComponentProps::Duration.as_ref())
+            .and_then(parse_duration)
+            .map(|dur| start + dur)
+    }
+    .unwrap_or_else(|| start + TimeDelta::minutes(15));
+    Ok(Some((start, end)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
     use std::{fs, path::PathBuf};
 
+    fn load_file(path: &str) -> String {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push(path);
+        fs::read_to_string(d).expect("To Load file")
+    }
+
     #[test]
     fn test_should_parsed_todo() {
-        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("./fixtures/todo.ics");
-        let ics = fs::read_to_string(d).expect("To Load file");
+        let ics = load_file("./fixtures/todo.ics");
         let todo = NewVTodo::from_ical_data(1, "test", ics.as_str(), "");
 
-        assert!(todo.is_ok());
         let todo = todo.unwrap();
-        assert!(todo.is_some());
         let todo = todo.unwrap();
         assert_eq!(todo.summary, "Yerba");
+        assert_eq!(todo.starts_at, None);
+        assert_eq!(todo.ends_at, None);
 
         let reference_date = Utc
             .with_ymd_and_hms(2024, 3, 15, 12, 0, 0)
@@ -312,5 +418,39 @@ mod tests {
 
         // Is done because the ICS is completed
         assert_eq!(todo.to_input(&reference_date), ".t %d Yerba");
+    }
+
+    #[test]
+    fn test_should_parsed_todo_with_date() {
+        let ics = load_file("./fixtures/todo_date.ics");
+        let todo = NewVTodo::from_ical_data(1, "test", ics.as_str(), "");
+
+        let todo = todo.unwrap();
+        let todo = todo.unwrap();
+        let reference_date = Utc
+            .with_ymd_and_hms(2024, 3, 15, 12, 0, 0)
+            .unwrap()
+            .with_timezone(&chrono_tz::Tz::UTC);
+
+        let (start, end) = todo.get_start_end_for_date(&reference_date).unwrap();
+        assert_eq!(todo.summary, "Yerba");
+        assert_eq!(
+            start,
+            chrono_tz::Tz::UTC
+                .with_ymd_and_hms(2024, 5, 20, 13, 0, 0)
+                .unwrap()
+        );
+        assert_eq!(
+            end,
+            chrono_tz::Tz::UTC
+                .with_ymd_and_hms(2024, 5, 20, 16, 0, 0)
+                .unwrap()
+        );
+
+        // Is done because the ICS is completed
+        assert_eq!(
+            todo.to_input(&reference_date),
+            ".t %d Yerba at 20/05/24 13:00-16:00"
+        );
     }
 }

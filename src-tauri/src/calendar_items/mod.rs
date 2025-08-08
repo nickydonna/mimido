@@ -1,5 +1,6 @@
-use chrono::{DateTime, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveTime, TimeDelta, TimeZone, Utc};
 use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike};
+use log::warn;
 
 use crate::calendar_items::{
     component_props::ComponentProps, event_date::EventRecurrence, event_status::EventStatus,
@@ -113,4 +114,30 @@ pub fn date_from_calendar_to_utc(
             .earliest()
             .map(|d| d.to_utc()),
     }
+}
+
+pub fn parse_duration(duration_str: &str) -> Option<TimeDelta> {
+    let dur = duration_str.parse::<iso8601::Duration>().ok()?;
+    let chrono_d = match dur {
+        iso8601::Duration::YMDHMS {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            millisecond,
+        } => {
+            if year > 0 || month > 0 {
+                warn!("Duration had month ({month}) and year ({year})");
+            }
+            TimeDelta::milliseconds(millisecond as i64)
+                + TimeDelta::seconds(second as i64)
+                + TimeDelta::minutes(minute as i64)
+                + TimeDelta::hours(hour as i64)
+                + TimeDelta::days(day as i64)
+        }
+        iso8601::Duration::Weeks(w) => TimeDelta::weeks(w as i64),
+    };
+    Some(chrono_d)
 }

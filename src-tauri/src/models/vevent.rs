@@ -12,12 +12,13 @@ use crate::{
         event_type::EventType,
         event_upsert::EventUpsertInfo,
         input_traits::ToUserInput,
+        parse_duration,
     },
     impl_ical_parseable,
     schema::*,
     util::remove_multiple_spaces,
 };
-use chrono::{DateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
 use icalendar::{CalendarComponent, Component, EventLike, Property};
 use libdav::FetchedResource;
@@ -193,18 +194,21 @@ pub trait VEventTrait: IcalParseableTrait<icalendar::Event> {
     fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VEvent>;
     fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
     /// Get [`Event::starts_at`]
-    fn get_start(&self) -> DateTime<Utc>;
+    fn get_start(&self) -> &DateTime<Utc>;
     /// Get [`Event::ends_at`]
-    fn get_end(&self) -> DateTime<Utc>;
+    fn get_end(&self) -> &DateTime<Utc>;
     fn get_start_end_for_date<Tz: TimeZone>(
         &self,
         base_date: &DateTime<Tz>,
     ) -> (DateTime<Tz>, DateTime<Tz>) {
+        let start = self.get_start();
+        let end = self.get_end();
+
         let tz = base_date.timezone();
         let val = self
             .get_next_recurrence_from_date(base_date)
             .map(|d| d.with_timezone(&tz));
-        let duration = self.get_end() - self.get_start();
+        let duration = *end - *start;
         let start = match val {
             Some(date) => date,
             None => self.get_start().with_timezone(&tz),
@@ -216,12 +220,12 @@ pub trait VEventTrait: IcalParseableTrait<icalendar::Event> {
 macro_rules! impl_event_trait {
     ($t: ty) => {
         impl VEventTrait for $t {
-            fn get_start(&self) -> DateTime<Utc> {
-                self.starts_at
+            fn get_start(&self) -> &DateTime<Utc> {
+                &self.starts_at
             }
 
-            fn get_end(&self) -> DateTime<Utc> {
-                self.ends_at
+            fn get_end(&self) -> &DateTime<Utc> {
+                &self.ends_at
             }
 
             fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
@@ -306,7 +310,7 @@ impl TryFrom<NewVEvent> for icalendar::Event {
     }
 }
 
-fn get_start_and_end(
+fn parse_event_start_and_end(
     calendar: &icalendar::Calendar,
 ) -> anyhow::Result<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)> {
     let timezone = calendar
@@ -370,8 +374,8 @@ impl NewVEvent {
         let first_event = calendar_item
             .components
             .iter()
-            .filter_map(|cmp| cmp.as_event().cloned())
-            .collect::<Vec<icalendar::Event>>();
+            .filter_map(|cmp| cmp.as_event())
+            .collect::<Vec<&icalendar::Event>>();
 
         let Some(first_event) = first_event.first() else {
             return Ok(None);
@@ -390,9 +394,9 @@ impl NewVEvent {
             load,
             postponed,
             last_modified,
-        } = GeneralComponentProps::try_from(first_event)?;
+        } = GeneralComponentProps::try_from(*first_event)?;
 
-        let (starts_at, ends_at) = get_start_and_end(&calendar_item)?;
+        let (starts_at, ends_at) = parse_event_start_and_end(&calendar_item)?;
 
         let new_event = NewVEvent {
             calendar_id: cal_id,
@@ -423,32 +427,6 @@ impl NewVEvent {
             ..new_event
         }))
     }
-}
-
-fn parse_duration(duration_str: &str) -> Option<TimeDelta> {
-    let dur = duration_str.parse::<iso8601::Duration>().ok()?;
-    let chrono_d = match dur {
-        iso8601::Duration::YMDHMS {
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            millisecond,
-        } => {
-            if year > 0 || month > 0 {
-                warn!("Duration had month ({month}) and year ({year})");
-            }
-            TimeDelta::milliseconds(millisecond as i64)
-                + TimeDelta::seconds(second as i64)
-                + TimeDelta::minutes(minute as i64)
-                + TimeDelta::hours(hour as i64)
-                + TimeDelta::days(day as i64)
-        }
-        iso8601::Duration::Weeks(w) => TimeDelta::weeks(w as i64),
-    };
-    Some(chrono_d)
 }
 
 #[cfg(test)]
