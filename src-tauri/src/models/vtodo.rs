@@ -40,6 +40,8 @@ pub struct VTodo {
     pub postponed: i32,
     pub last_modified: i64,
     pub etag: String,
+    pub has_rrule: bool,
+    pub rrule_str: Option<String>,
 }
 
 impl VTodo {
@@ -146,12 +148,14 @@ pub struct NewVTodo {
     pub postponed: i32,
     pub last_modified: i64,
     pub etag: String,
+    pub has_rrule: bool,
+    pub rrule_str: Option<String>,
 }
 
-impl_ical_parseable!(VTodo);
-impl_ical_parseable!(NewVTodo);
+impl_ical_parseable!(VTodo, icalendar::Todo, |f| f.as_todo());
+impl_ical_parseable!(NewVTodo, icalendar::Todo, |f| f.as_todo());
 
-pub(crate) trait VTodoTrait: IcalParseableTrait {
+pub(crate) trait VTodoTrait: IcalParseableTrait<icalendar::Todo> {
     fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
     fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo>;
     fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
@@ -271,6 +275,8 @@ impl NewVTodo {
             urgency,
             postponed,
             etag: etag.to_string(),
+            has_rrule: false,
+            rrule_str: None,
         }))
     }
 }
@@ -299,6 +305,6 @@ mod tests {
             .with_timezone(&chrono_tz::Tz::UTC);
 
         // Is done because the ICS is completed
-        assert_eq!(todo.to_input(&reference_date), ".task %done Yerba");
+        assert_eq!(todo.to_input(&reference_date), ".t %d Yerba");
     }
 }

@@ -7,6 +7,7 @@ diesel::table! {
         url -> Text,
         etag -> Nullable<Text>,
         server_id -> Integer,
+        default_value -> Bool,
         is_default -> Bool,
         sync_token -> Nullable<Text>,
     }
@@ -68,6 +69,8 @@ diesel::table! {
         urgency -> Integer,
         postponed -> Integer,
         etag -> Text,
+        has_rrule -> Bool,
+        rrule_str -> Nullable<Text>,
     }
 }
 

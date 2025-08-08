@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::{
     caldav::Href,
     calendar_items::{
-        component_props::{get_string_property, ComponentProps, GeneralComponentProps},
+        component_props::{ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
         event_date::EventDateInfo,
         event_status::EventStatus,
@@ -17,12 +17,11 @@ use crate::{
     schema::*,
     util::remove_multiple_spaces,
 };
-use chrono::{DateTime, NaiveDateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
-use icalendar::{CalendarComponent, Component, DatePerhapsTime, EventLike, Property};
+use icalendar::{CalendarComponent, Component, EventLike, Property};
 use libdav::FetchedResource;
 use log::warn;
-use rrule::{RRuleError, RRuleSet};
 
 use super::IcalParseableTrait;
 
@@ -186,40 +185,10 @@ pub struct NewVEvent {
     pub etag: String,
 }
 
-fn format_date_ical(date: NaiveDateTime) -> String {
-    date.format("%Y%m%dT%H%M%S").to_string()
-}
+impl_ical_parseable!(VEvent, icalendar::Event, |f| f.as_event());
+impl_ical_parseable!(NewVEvent, icalendar::Event, |f| f.as_event());
 
-fn get_start_string(event: &icalendar::Event) -> Option<String> {
-    let dt_start = event.get_start()?;
-
-    match dt_start {
-        DatePerhapsTime::DateTime(calendar_date_time) => match calendar_date_time {
-            icalendar::CalendarDateTime::Floating(_) => None,
-            icalendar::CalendarDateTime::Utc(date_time) =>
-            // Add `Z` to the end of the date string since RRule assumes local otherwise
-            {
-                Some(format!(
-                    "DTSTART:{}Z\n",
-                    format_date_ical(date_time.naive_utc())
-                ))
-            }
-            icalendar::CalendarDateTime::WithTimezone { date_time, tzid } => {
-                let date = format_date_ical(date_time);
-                Some(format!("DTSTART;TZID={tzid}:{date}\n"))
-            }
-        },
-        DatePerhapsTime::Date(naive_date) => Some(format!(
-            "DTSTART:{}\n",
-            format_date_ical(naive_date.and_hms_opt(0, 0, 0).unwrap())
-        )),
-    }
-}
-
-impl_ical_parseable!(VEvent);
-impl_ical_parseable!(NewVEvent);
-
-pub trait VEventTrait: IcalParseableTrait {
+pub trait VEventTrait: IcalParseableTrait<icalendar::Event> {
     fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
     fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VEvent>;
     fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
@@ -227,7 +196,6 @@ pub trait VEventTrait: IcalParseableTrait {
     fn get_start(&self) -> DateTime<Utc>;
     /// Get [`Event::ends_at`]
     fn get_end(&self) -> DateTime<Utc>;
-    fn get_rrule_str(&self) -> Option<String>;
     fn get_start_end_for_date<Tz: TimeZone>(
         &self,
         base_date: &DateTime<Tz>,
@@ -243,60 +211,6 @@ pub trait VEventTrait: IcalParseableTrait {
         };
         (start.clone(), start + duration)
     }
-
-    /// Parsed the recurrence of the event using the [`Event::ical_data`]
-    fn get_rrule_from_ical(&self) -> Option<RRuleSet> {
-        let event = self.parse_ical_data().ok()?;
-        let rrule = get_string_property(&event, ComponentProps::RRule)?;
-        let start_str = get_start_string(&event)?;
-
-        let r_date = get_string_property(&event, ComponentProps::RDate);
-        let ex_date = get_string_property(&event, ComponentProps::Exdate);
-        let mut rule_set_string = format!(
-            "{start_str}\
-        RRULE:{rrule}"
-        );
-
-        if let Some(r_date) = r_date {
-            rule_set_string = format!(
-                "
-        {rule_set_string}\n\
-        RDATE:{r_date}"
-            );
-        }
-
-        if let Some(ex_date) = ex_date {
-            rule_set_string = format!(
-                "
-        {rule_set_string}\n\
-        EXDATE:{ex_date}"
-            );
-        }
-        let rrule: Result<RRuleSet, RRuleError> = rule_set_string.parse();
-        rrule.ok()
-    }
-
-    /// Parsed the recurrence of the event using the [`Event::ical_data`]
-    fn get_rrule(&self) -> Option<RRuleSet> {
-        let rrule_str = self.get_rrule_str()?;
-        let rrule: Result<RRuleSet, RRuleError> = rrule_str.parse();
-        rrule.ok()
-    }
-
-    fn get_next_recurrence_from_date<Tz: TimeZone>(
-        &self,
-        date: &DateTime<Tz>,
-    ) -> Option<DateTime<Tz>> {
-        let rule_set = self.get_rrule()?;
-
-        let r_rule = rule_set.after(date.with_timezone(&rrule::Tz::UTC));
-        r_rule
-            .clone()
-            .all(1)
-            .dates
-            .first()
-            .map(|d| d.with_timezone(&date.timezone()))
-    }
 }
 
 macro_rules! impl_event_trait {
@@ -308,9 +222,6 @@ macro_rules! impl_event_trait {
 
             fn get_end(&self) -> DateTime<Utc> {
                 self.ends_at
-            }
-            fn get_rrule_str(&self) -> Option<String> {
-                self.rrule_str.clone()
             }
 
             fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
@@ -582,7 +493,7 @@ mod tests {
 
         assert_eq!(
             event.to_input(&date_of_input),
-            ".block %todo Work at 20/05/24 13:00-16:00 every weekday #health"
+            ".b %t Work at 20/05/24 13:00-16:00 every weekday #health"
         );
     }
 

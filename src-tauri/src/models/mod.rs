@@ -1,5 +1,9 @@
 use crate::{
-    calendar_items::{event_status::EventStatus, event_type::EventType},
+    calendar_items::{
+        component_props::{get_string_property, ComponentProps},
+        event_status::EventStatus,
+        event_type::EventType,
+    },
     models::{
         vevent::{NewVEvent, VEvent, VEventTrait},
         vtodo::{NewVTodo, VTodo, VTodoTrait},
@@ -7,14 +11,16 @@ use crate::{
     schema::*,
 };
 use anyhow::anyhow;
+use chrono::{DateTime, NaiveDateTime, TimeZone};
 use diesel::{dsl::update, prelude::*};
+use icalendar::DatePerhapsTime;
 use libdav::FetchedResource;
+use rrule::{RRuleError, RRuleSet};
 
 pub(crate) mod vevent;
 pub(crate) mod vtodo;
 
 /// Enum to unify the [`VEvent`] and [`VTodo`] struct
-
 #[derive(Debug)]
 pub enum VCmp {
     Todo(VTodo),
@@ -162,7 +168,7 @@ pub struct NewCalendar {
     pub sync_token: Option<String>,
 }
 
-pub trait IcalParseableTrait {
+pub trait IcalParseableTrait<Cmp: icalendar::Component> {
     fn get_ical_data(&self) -> String;
     fn get_summary(&self) -> String;
     fn get_description(&self) -> Option<String>;
@@ -172,24 +178,67 @@ pub trait IcalParseableTrait {
     fn get_importance(&self) -> i32;
     fn get_status(&self) -> EventStatus;
     fn get_type(&self) -> EventType;
-    fn parse_ical_data(&self) -> Result<icalendar::Event, String> {
-        let cal: icalendar::Calendar = self.get_ical_data().parse()?;
-        let events = cal
-            .components
-            .into_iter()
-            .filter_map(|f| f.as_event().cloned())
-            .collect::<Vec<icalendar::Event>>();
-        events
+    fn parse_ical_data(&self) -> Result<Cmp, String>;
+    fn get_rrule_str(&self) -> Option<String>;
+    /// Parsed the recurrence of the event using the [`Event::ical_data`]
+    fn get_rrule_from_ical(&self) -> Option<RRuleSet> {
+        let event = self.parse_ical_data().ok()?;
+        let rrule = get_string_property(&event, ComponentProps::RRule)?;
+        let start_str = get_start_string(&event)?;
+
+        let r_date = get_string_property(&event, ComponentProps::RDate);
+        let ex_date = get_string_property(&event, ComponentProps::Exdate);
+        let mut rule_set_string = format!(
+            "{start_str}\
+        RRULE:{rrule}"
+        );
+
+        if let Some(r_date) = r_date {
+            rule_set_string = format!(
+                "
+        {rule_set_string}\n\
+        RDATE:{r_date}"
+            );
+        }
+
+        if let Some(ex_date) = ex_date {
+            rule_set_string = format!(
+                "
+        {rule_set_string}\n\
+        EXDATE:{ex_date}"
+            );
+        }
+        let rrule: Result<RRuleSet, RRuleError> = rule_set_string.parse();
+        rrule.ok()
+    }
+
+    /// Parsed the recurrence of the event using the [`Event::ical_data`]
+    fn get_rrule(&self) -> Option<RRuleSet> {
+        let rrule_str = self.get_rrule_str()?;
+        let rrule: Result<RRuleSet, RRuleError> = rrule_str.parse();
+        rrule.ok()
+    }
+
+    fn get_next_recurrence_from_date<Tz: TimeZone>(
+        &self,
+        date: &DateTime<Tz>,
+    ) -> Option<DateTime<Tz>> {
+        let rule_set = self.get_rrule()?;
+
+        let r_rule = rule_set.after(date.with_timezone(&rrule::Tz::UTC));
+        r_rule
+            .clone()
+            .all(1)
+            .dates
             .first()
-            .cloned()
-            .ok_or("iCal was parsed correctly but not event was found".to_string())
+            .map(|d| d.with_timezone(&date.timezone()))
     }
 }
 
 #[macro_export]
 macro_rules! impl_ical_parseable {
-    ($t: ty) => {
-        impl IcalParseableTrait for $t {
+    ($t: ty, $cmp: ty, $transform: expr) => {
+        impl IcalParseableTrait<$cmp> for $t {
             fn get_ical_data(&self) -> String {
                 self.ical_data.clone()
             }
@@ -223,6 +272,51 @@ macro_rules! impl_ical_parseable {
             fn get_type(&self) -> EventType {
                 self.event_type
             }
+            fn get_rrule_str(&self) -> Option<String> {
+                self.rrule_str.clone()
+            }
+            fn parse_ical_data(&self) -> Result<$cmp, String> {
+                let cal: icalendar::Calendar = self.get_ical_data().parse()?;
+                let events = cal
+                    .components
+                    .iter()
+                    .filter_map($transform)
+                    .collect::<Vec<&$cmp>>();
+                let event = events
+                    .first()
+                    .ok_or("iCal was parsed correctly but not event was found".to_string())?;
+                Ok((*event).clone())
+            }
         }
     };
+}
+
+fn format_date_ical(date: NaiveDateTime) -> String {
+    date.format("%Y%m%dT%H%M%S").to_string()
+}
+
+fn get_start_string(cmp: &impl icalendar::Component) -> Option<String> {
+    let dt_start = cmp.get_start()?;
+
+    match dt_start {
+        DatePerhapsTime::DateTime(calendar_date_time) => match calendar_date_time {
+            icalendar::CalendarDateTime::Floating(_) => None,
+            icalendar::CalendarDateTime::Utc(date_time) =>
+            // Add `Z` to the end of the date string since RRule assumes local otherwise
+            {
+                Some(format!(
+                    "DTSTART:{}Z\n",
+                    format_date_ical(date_time.naive_utc())
+                ))
+            }
+            icalendar::CalendarDateTime::WithTimezone { date_time, tzid } => {
+                let date = format_date_ical(date_time);
+                Some(format!("DTSTART;TZID={tzid}:{date}\n"))
+            }
+        },
+        DatePerhapsTime::Date(naive_date) => Some(format!(
+            "DTSTART:{}\n",
+            format_date_ical(naive_date.and_hms_opt(0, 0, 0).unwrap())
+        )),
+    }
 }
