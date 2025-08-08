@@ -57,7 +57,6 @@ diesel::table! {
         href -> Text,
         ical_data -> Text,
         last_modified -> BigInt,
-        completed -> Bool,
         summary -> Text,
         description -> Nullable<Text>,
         event_type -> Text,
@@ -71,6 +70,9 @@ diesel::table! {
         etag -> Text,
         has_rrule -> Bool,
         rrule_str -> Nullable<Text>,
+        starts_at -> Nullable<TimestamptzSqlite>,
+        ends_at -> Nullable<TimestamptzSqlite>,
+        completed -> Nullable<TimestamptzSqlite>,
     }
 }
 

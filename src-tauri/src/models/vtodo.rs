@@ -12,7 +12,7 @@ use crate::{
     util::remove_multiple_spaces,
 };
 use anyhow::anyhow;
-use chrono::{DateTime, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
 use icalendar::{CalendarComponent, Component, TodoStatus};
 use libdav::FetchedResource;
@@ -29,7 +29,6 @@ pub struct VTodo {
     pub ical_data: String,
     pub summary: String,
     pub description: Option<String>,
-    pub completed: bool,
     pub tag: Option<String>,
     pub status: EventStatus,
     pub event_type: EventType,
@@ -42,6 +41,9 @@ pub struct VTodo {
     pub etag: String,
     pub has_rrule: bool,
     pub rrule_str: Option<String>,
+    pub starts_at: Option<chrono::DateTime<Utc>>,
+    pub ends_at: Option<chrono::DateTime<Utc>>,
+    pub completed: Option<chrono::DateTime<Utc>>,
 }
 
 impl VTodo {
@@ -137,7 +139,6 @@ pub struct NewVTodo {
     pub ical_data: String,
     pub summary: String,
     pub description: Option<String>,
-    pub completed: bool,
     pub tag: Option<String>,
     pub status: EventStatus,
     pub event_type: EventType,
@@ -150,6 +151,9 @@ pub struct NewVTodo {
     pub etag: String,
     pub has_rrule: bool,
     pub rrule_str: Option<String>,
+    pub starts_at: Option<chrono::DateTime<Utc>>,
+    pub ends_at: Option<chrono::DateTime<Utc>>,
+    pub completed: Option<chrono::DateTime<Utc>>,
 }
 
 impl_ical_parseable!(VTodo, icalendar::Todo, |f| f.as_todo());
@@ -264,7 +268,7 @@ impl NewVTodo {
             ical_data: ical_data.to_string(),
             last_modified,
             summary: summary.to_string(),
-            completed: matches!(status, EventStatus::Done),
+            completed: None,
             description,
             status,
             original_text,
@@ -277,6 +281,8 @@ impl NewVTodo {
             etag: etag.to_string(),
             has_rrule: false,
             rrule_str: None,
+            starts_at: None,
+            ends_at: None,
         }))
     }
 }
