@@ -10,6 +10,7 @@ use crate::{
     },
     commands::{
         calendar::super_sync_calendar, errors::CommandError, extended_event::ExtendedEvent,
+        extended_todo::ExtendedTodo,
     },
     establish_connection,
     models::{vevent::VEvent, vtodo::VTodo, Calendar},
@@ -24,13 +25,16 @@ use uuid::Uuid;
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn list_todos(include_done: bool) -> Result<Vec<VTodo>, CommandError> {
+pub async fn list_unscheduled_todos(include_done: bool) -> Result<Vec<VTodo>, CommandError> {
     use crate::schema::vtodos::dsl as todo_dsl;
 
     let conn = &mut establish_connection();
 
     let todos = if include_done {
-        todo_dsl::vtodos.select(VTodo::as_select()).load(conn)?
+        todo_dsl::vtodos
+            .filter(todo_dsl::starts_at.is_null())
+            .select(VTodo::as_select())
+            .load(conn)?
     } else {
         todo_dsl::vtodos
             .filter(todo_dsl::status.is_not(EventStatus::Done))
@@ -43,15 +47,23 @@ pub async fn list_todos(include_done: bool) -> Result<Vec<VTodo>, CommandError> 
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn set_vtodo_status(vtodo_id: i32, status: String) -> Result<(), CommandError> {
+pub async fn set_vtodo_status(
+    vtodo_id: i32,
+    status: String,
+    date_of_change: String,
+) -> Result<(), CommandError> {
     use crate::schema::vtodos::dsl as vtodos_dsl;
 
+    let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
     let status = EventStatus::from_str(status.as_ref())?;
 
     let conn = &mut establish_connection();
     diesel::update(vtodos_dsl::vtodos)
         .filter(vtodos_dsl::id.eq(vtodo_id))
-        .set(vtodos_dsl::status.eq(status))
+        .set((
+            vtodos_dsl::status.eq(status),
+            vtodos_dsl::completed.eq(date_of_change.to_utc()),
+        ))
         .execute(conn)?;
 
     let conn = &mut establish_connection();
@@ -102,6 +114,35 @@ pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>,
     Ok(events)
 }
 
+#[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
+pub async fn list_todos_for_day(datetime: String) -> Result<Vec<ExtendedTodo>, CommandError> {
+    use crate::schema::vtodos::dsl as todos_dsl;
+
+    let conn = &mut establish_connection();
+
+    let parsed: DateTime<FixedOffset> = DateTimeStr(datetime).try_into()?;
+    // let parsed = parsed.to_utc();
+    let start = parsed.beginning_of_day();
+    let end = parsed.end_of_day();
+
+    let events = todos_dsl::vtodos
+        .filter(
+            todos_dsl::has_rrule.eq(true).or(todos_dsl::starts_at
+                .ge(start)
+                .and(todos_dsl::ends_at.le(end))),
+        )
+        .select(VTodo::as_select())
+        .load(conn)?;
+
+    let todos = events
+        .iter()
+        .filter_map(|vtodo| ExtendedTodo::on_day(vtodo, &parsed))
+        .collect::<Vec<ExtendedTodo>>();
+
+    Ok(todos)
+}
+
 #[tauri::command()]
 #[specta::specta]
 pub async fn parse_event(
@@ -117,7 +158,7 @@ pub async fn parse_event(
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn save_event(
+pub async fn save_component(
     calendar_id: i32,
     date_of_input_str: String,
     component_input: String,

@@ -1,7 +1,7 @@
 import { addWeeks, constructNow, format, isSameWeek, isThisWeek, isToday, isTomorrow, isYesterday, startOfWeek, subWeeks, type Day } from 'date-fns';
-import { type VEvent } from '../bindings';
+import { type VEvent, type VTodo } from '../bindings';
 
-export type ParsedEvent = Omit<VEvent, "starts_at" | "ends_at"> & {
+export type ParsedEvent = Omit<VEvent | VTodo, "starts_at" | "ends_at"> & {
   starts_at: Date;
   ends_at: Date;
   natural_recurrence?: string;

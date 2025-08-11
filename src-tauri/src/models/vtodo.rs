@@ -11,6 +11,7 @@ use crate::{
         parse_duration,
     },
     impl_ical_parseable,
+    models::FromResource,
     schema::*,
     util::remove_multiple_spaces,
 };
@@ -22,7 +23,9 @@ use libdav::FetchedResource;
 
 use super::IcalParseableTrait;
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type)]
+#[derive(
+    Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type, Clone,
+)]
 #[diesel(table_name = vtodos)]
 pub struct VTodo {
     pub id: i32,
@@ -127,6 +130,9 @@ impl From<VTodo> for CalendarComponent {
 
         if let Some(tag) = value.tag {
             todo.add_property(ComponentProps::Tag, tag);
+        }
+        if let Some(completed_date) = value.completed {
+            todo.completed(completed_date);
         }
 
         todo.into()
@@ -265,8 +271,8 @@ macro_rules! impl_todo_trait {
 impl_todo_trait!(VTodo);
 impl_todo_trait!(NewVTodo);
 
-impl NewVTodo {
-    pub fn from_resource(
+impl FromResource for NewVTodo {
+    fn from_resource(
         calendar_id: i32,
         fetched_resource: &FetchedResource,
     ) -> anyhow::Result<Option<NewVTodo>> {
@@ -278,7 +284,7 @@ impl NewVTodo {
         NewVTodo::from_ical_data(calendar_id, href, &content.data, &content.etag)
     }
 
-    pub fn from_ical_data(
+    fn from_ical_data(
         calendar_id: i32,
         href: &str,
         ical_data: &str,

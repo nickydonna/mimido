@@ -40,7 +40,7 @@
   import GlassIcon from "$lib/components/glass-icon/GlassIcon.svelte";
 
   let { data }: PageProps = $props();
-  let { date, events, todos } = $derived(data);
+  let { date, events, todos, unscheduledTodos } = $derived(data);
 
   let dragging = $state<VEvent | undefined>(undefined);
   let currentTimeInView = $state(false);
@@ -73,12 +73,13 @@
     event.starts_at != null && slotCheck(event.starts_at);
 
   let sortedEvents: Array<[EventType, Array<ParsedEvent>]> = $derived.by(() => {
-    if (events == null) return [];
+    if (events == null && todos == null) return [];
+    const all = [...events, ...todos];
     return [
-      ["Block", events.filter((e) => e.event_type === "Block")],
-      ["Event", events.filter((e) => e.event_type === "Event")],
-      ["Task", events.filter((e) => e.event_type === "Task")],
-      ["Reminder", events.filter((e) => e.event_type === "Reminder")],
+      ["Block", all.filter((e) => e.event_type === "Block")],
+      ["Event", all.filter((e) => e.event_type === "Event")],
+      ["Task", all.filter((e) => e.event_type === "Task")],
+      ["Reminder", all.filter((e) => e.event_type === "Reminder")],
     ];
   });
 
@@ -340,7 +341,7 @@
   {#if taskDrawerOpen}
     <div class={`flex-1 pt-32 px-4 relative border-l border-l-primary-900`}>
       <div class="sticky top-24">
-        <TaskList tasks={todos ?? []} />
+        <TaskList tasks={unscheduledTodos ?? []} />
       </div>
     </div>
   {/if}

@@ -17,12 +17,35 @@ pub(crate) mod input_traits;
 
 impl<Tz: TimeZone> From<EventUpsertInfo<Tz>> for CalendarComponent {
     fn from(value: EventUpsertInfo<Tz>) -> Self {
-        match value.date_info.0 {
-            Some(date_info) => {
-                let mut event = icalendar::Event::new()
+        match value.event_type {
+            EventType::Event | EventType::Block => match value.date_info.0 {
+                Some(date_info) => {
+                    let mut event = icalendar::Event::new()
+                        .summary(&value.summary)
+                        .starts(date_info.start.to_utc())
+                        .ends(date_info.get_end_or_default(value.event_type).to_utc())
+                        .add_property(ComponentProps::Type, value.event_type)
+                        .add_property(ComponentProps::XStatus, value.status)
+                        .add_property(ComponentProps::Load, value.load.to_string())
+                        .add_property(ComponentProps::Urgency, value.urgency.to_string())
+                        .add_property(ComponentProps::Importance, value.importance.to_string())
+                        .done();
+
+                    if let Some(recurrence) = date_info.get_recurrence_as_cal_property() {
+                        event.add_property(ComponentProps::RRule, recurrence);
+                    }
+
+                    event.into()
+                }
+                None => {
+                    warn!("Event is {} with no date", value.event_type);
+                    let todo = icalendar::Todo::new().summary(&value.summary).done();
+                    todo.into()
+                }
+            },
+            EventType::Reminder | EventType::Task => {
+                let mut todo = icalendar::Todo::new()
                     .summary(&value.summary)
-                    .starts(date_info.start.to_utc())
-                    .ends(date_info.get_end_or_default(value.event_type).to_utc())
                     .add_property(ComponentProps::Type, value.event_type)
                     .add_property(ComponentProps::XStatus, value.status)
                     .add_property(ComponentProps::Load, value.load.to_string())
@@ -30,14 +53,15 @@ impl<Tz: TimeZone> From<EventUpsertInfo<Tz>> for CalendarComponent {
                     .add_property(ComponentProps::Importance, value.importance.to_string())
                     .done();
 
-                if let Some(recurrence) = date_info.get_recurrence_as_cal_property() {
-                    event.add_property(ComponentProps::RRule, recurrence);
+                if let Some(date_info) = value.date_info.0 {
+                    todo.starts(date_info.start.to_utc());
+                    todo.due(date_info.get_end_or_default(value.event_type).to_utc());
+
+                    if let Some(recurrence) = date_info.get_recurrence_as_cal_property() {
+                        todo.add_property(ComponentProps::RRule, recurrence);
+                    }
                 }
 
-                event.into()
-            }
-            None => {
-                let todo = icalendar::Todo::new().summary(&value.summary).done();
                 todo.into()
             }
         }

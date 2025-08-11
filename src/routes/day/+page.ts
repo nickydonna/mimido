@@ -12,18 +12,27 @@ export const load: PageLoad = async ({ url }) => {
   let date = dateParam ? parseISO(dateParam) : new Date();
   date = isValid(date) ? date : new Date();
 
-  const [eventResult, todos] = await Promise.all([
+  const [eventResult, todosResult, unscheduledTodos] = await Promise.all([
     commands.listEventsForDay(formatISO(date)),
-    commands.listTodos(false),
+    commands.listTodosForDay(formatISO(date)),
+    commands.listUnscheduledTodos(false),
   ])
-  const unwrapped = unwrap(eventResult);
-  const events = unwrapped.map((e) => ({
+  const events = unwrap(eventResult).map((e) => ({
     ...e.event,
     starts_at: parseISO(e.starts_at),
     ends_at: parseISO(e.ends_at),
     natural_recurrence: e.natural_recurrence ?? undefined,
     natural_string: e.natural_string
   }));
-  return { events, date, todos: unwrap(todos) };
+
+  const todos = unwrap(todosResult).map((e) => ({
+    ...e.todo,
+    starts_at: parseISO(e.starts_at),
+    ends_at: parseISO(e.ends_at),
+    natural_recurrence: e.natural_recurrence ?? undefined,
+    natural_string: e.natural_string
+  }));
+
+  return { events, todos, date, unscheduledTodos: unwrap(unscheduledTodos) };
 
 }

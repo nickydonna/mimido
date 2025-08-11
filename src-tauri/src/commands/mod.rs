@@ -11,6 +11,7 @@ pub(crate) mod calendar;
 pub(crate) mod components;
 mod errors;
 mod extended_event;
+mod extended_todo;
 
 #[tauri::command()]
 #[specta::specta]

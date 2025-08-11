@@ -168,6 +168,21 @@ pub struct NewCalendar {
     pub sync_token: Option<String>,
 }
 
+pub trait FromResource: Sized {
+    /// Parses a [`FetchedResource`] for a particular calendar_id
+    fn from_resource(
+        calendar_id: i32,
+        fetched_resource: &FetchedResource,
+    ) -> anyhow::Result<Option<Self>>;
+    /// function needed for testing, should be called by [`FromResource::fetched_resource`]
+    fn from_ical_data(
+        calendar_id: i32,
+        href: &str,
+        ical_data: &str,
+        etag: &str,
+    ) -> anyhow::Result<Option<Self>>;
+}
+
 pub trait IcalParseableTrait<Cmp: icalendar::Component> {
     fn get_ical_data(&self) -> String;
     fn get_summary(&self) -> String;

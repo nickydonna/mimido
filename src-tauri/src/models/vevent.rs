@@ -15,6 +15,7 @@ use crate::{
         parse_duration,
     },
     impl_ical_parseable,
+    models::FromResource,
     schema::*,
     util::remove_multiple_spaces,
 };
@@ -349,8 +350,8 @@ fn parse_event_start_and_end(
     Ok((start, end))
 }
 
-impl NewVEvent {
-    pub fn from_resource(
+impl FromResource for NewVEvent {
+    fn from_resource(
         cal_id: i32,
         fetched_resource: &FetchedResource,
     ) -> anyhow::Result<Option<Self>> {
@@ -362,7 +363,7 @@ impl NewVEvent {
         NewVEvent::from_ical_data(cal_id, href, &content.data, &content.etag)
     }
 
-    pub fn from_ical_data(
+    fn from_ical_data(
         cal_id: i32,
         href: &str,
         ical_data: &str,

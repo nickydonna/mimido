@@ -56,12 +56,13 @@ pub fn run() {
             commands::calendar::set_default_calendar,
             commands::calendar::super_sync_calendar,
             commands::components::list_events_for_day,
+            commands::components::list_todos_for_day,
             commands::components::parse_event,
-            commands::components::save_event,
+            commands::components::save_component,
             commands::components::set_vevent_status,
             commands::components::delete_vevent,
             commands::components::update_vevent,
-            commands::components::list_todos,
+            commands::components::list_unscheduled_todos,
             commands::components::set_vtodo_status,
         ]);
 

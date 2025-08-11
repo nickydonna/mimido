@@ -142,7 +142,7 @@
         input,
       );
     } else {
-      await commands.saveEvent(defaultCalendar.id, formatISO(date), input);
+      await commands.saveComponent(defaultCalendar.id, formatISO(date), input);
     }
 
     await invalidateAll();
