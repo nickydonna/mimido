@@ -18,7 +18,7 @@
     addDays,
     subSeconds,
   } from "date-fns/fp";
-  import { formatRelativeDay, type ParsedEvent } from "../../lib/util";
+  import { formatRelativeDay, type ScheduledTask } from "../../lib/util";
   import {
     AngleLeftOutline,
     AngleRightOutline,
@@ -69,19 +69,21 @@
       }));
     });
 
-  let timeCheck = (event: ParsedEvent, slotCheck: (d: Date) => boolean) =>
+  let timeCheck = (event: ScheduledTask, slotCheck: (d: Date) => boolean) =>
     event.starts_at != null && slotCheck(event.starts_at);
 
-  let sortedEvents: Array<[EventType, Array<ParsedEvent>]> = $derived.by(() => {
-    if (events == null && todos == null) return [];
-    const all = [...events, ...todos];
-    return [
-      ["Block", all.filter((e) => e.event_type === "Block")],
-      ["Event", all.filter((e) => e.event_type === "Event")],
-      ["Task", all.filter((e) => e.event_type === "Task")],
-      ["Reminder", all.filter((e) => e.event_type === "Reminder")],
-    ];
-  });
+  let sortedEvents: Array<[EventType, Array<ScheduledTask>]> = $derived.by(
+    () => {
+      if (events == null && todos == null) return [];
+      const all = [...events, ...todos];
+      return [
+        ["Block", all.filter((e) => e.event_type === "Block")],
+        ["Event", all.filter((e) => e.event_type === "Event")],
+        ["Task", all.filter((e) => e.event_type === "Task")],
+        ["Reminder", all.filter((e) => e.event_type === "Reminder")],
+      ];
+    },
+  );
 
   const modalZIndex = 40;
 
@@ -111,7 +113,7 @@
    * if the time is not in a 15 min slot, move it to the nearest before
    * if when moving start and end are the same, move the end 15 min later
    */
-  function getScheduleSlot(e: ParsedEvent) {
+  function getScheduleSlot(e: ScheduledTask) {
     let startDate = roundToNearestMinutes(e.starts_at, {
       nearestTo: 15,
       roundingMethod: "floor",

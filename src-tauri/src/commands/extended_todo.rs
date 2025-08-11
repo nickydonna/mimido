@@ -45,3 +45,20 @@ impl ExtendedTodo {
         }
     }
 }
+
+#[derive(Clone, Debug, serde::Serialize, specta::Type)]
+pub struct UnscheduledTodo {
+    pub todo: VTodo,
+    pub natural_string: String,
+}
+
+impl UnscheduledTodo {
+    // Proving dates for [`ToUserInput`] trait
+    // It will also help with relative dates for completing in the future
+    pub fn on_day<Tz: TimeZone>(todo: &VTodo, query_date: &DateTime<Tz>) -> Self {
+        Self {
+            todo: todo.clone(),
+            natural_string: todo.to_input(query_date),
+        }
+    }
+}

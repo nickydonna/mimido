@@ -1,12 +1,17 @@
 import { addWeeks, constructNow, format, isSameWeek, isThisWeek, isToday, isTomorrow, isYesterday, startOfWeek, subWeeks, type Day } from 'date-fns';
 import { type VEvent, type VTodo } from '../bindings';
 
-export type ParsedEvent = Omit<VEvent | VTodo, "starts_at" | "ends_at"> & {
+export type ScheduledTask = Omit<VEvent | VTodo, "starts_at" | "ends_at"> & {
   starts_at: Date;
   ends_at: Date;
   natural_recurrence?: string;
   natural_string: string;
 };
+
+export type UnscheduledTask = VTodo & {
+  natural_string: string;
+};
+
 
 const IMPORTANCE_STRINGS = ['Sub-Zero', 'Very Low', 'Low', undefined, 'Mid', 'High', 'Very High'];
 const URGENCY_STRINGS = [undefined, 'Soon', 'Next Up', 'Why are you not doing it'];

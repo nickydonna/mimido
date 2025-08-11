@@ -9,15 +9,17 @@ use crate::{
         DisplayUpsertInfo,
     },
     commands::{
-        calendar::super_sync_calendar, errors::CommandError, extended_event::ExtendedEvent,
-        extended_todo::ExtendedTodo,
+        calendar::super_sync_calendar,
+        errors::CommandError,
+        extended_event::ExtendedEvent,
+        extended_todo::{ExtendedTodo, UnscheduledTodo},
     },
     establish_connection,
     models::{vevent::VEvent, vtodo::VTodo, Calendar, VCmp},
     util::DateTimeStr,
 };
 use anyhow::anyhow;
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Utc};
 use diesel::prelude::*;
 use icalendar::Component;
 use now::DateTimeNow;
@@ -25,7 +27,9 @@ use uuid::Uuid;
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn list_unscheduled_todos(include_done: bool) -> Result<Vec<VTodo>, CommandError> {
+pub async fn list_unscheduled_todos(
+    include_done: bool,
+) -> Result<Vec<UnscheduledTodo>, CommandError> {
     use crate::schema::vtodos::dsl as todo_dsl;
 
     let conn = &mut establish_connection();
@@ -46,7 +50,10 @@ pub async fn list_unscheduled_todos(include_done: bool) -> Result<Vec<VTodo>, Co
             .load(conn)?
     };
 
-    Ok(todos)
+    Ok(todos
+        .iter()
+        .map(|t| UnscheduledTodo::on_day(t, &Utc::now()))
+        .collect::<Vec<UnscheduledTodo>>())
 }
 
 #[tauri::command()]

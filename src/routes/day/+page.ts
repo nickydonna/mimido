@@ -12,7 +12,7 @@ export const load: PageLoad = async ({ url }) => {
   let date = dateParam ? parseISO(dateParam) : new Date();
   date = isValid(date) ? date : new Date();
 
-  const [eventResult, todosResult, unscheduledTodos] = await Promise.all([
+  const [eventResult, todosResult, unscheduledResult] = await Promise.all([
     commands.listEventsForDay(formatISO(date)),
     commands.listTodosForDay(formatISO(date)),
     commands.listUnscheduledTodos(false),
@@ -33,6 +33,11 @@ export const load: PageLoad = async ({ url }) => {
     natural_string: e.natural_string
   }));
 
-  return { events, todos, date, unscheduledTodos: unwrap(unscheduledTodos) };
+  const unscheduledTodos = unwrap(unscheduledResult).map(t => ({
+    ...t.todo,
+    natural_string: t.natural_string
+  }))
+
+  return { events, todos, date, unscheduledTodos };
 
 }

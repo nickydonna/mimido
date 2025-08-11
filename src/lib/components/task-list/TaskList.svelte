@@ -6,9 +6,14 @@
   import GlassCheckbox from "../glass-checkbox/GlassCheckbox.svelte";
   import DisclosureGroup from "../disclosure/DisclosureGroup.svelte";
   import Disclosure from "../disclosure/Disclosure.svelte";
+  import {
+    EventUpsert,
+    eventUpserter,
+  } from "../../../stores/eventUpserter.svelte";
+  import type { UnscheduledTask } from "$lib/util";
   const NO_CAT = "[No Category]";
 
-  let { tasks }: { tasks: VTodo[] } = $props();
+  let { tasks }: { tasks: Array<UnscheduledTask> } = $props();
   let loading = $state({} as Record<number, boolean>);
 
   let groupped = $derived.by(() => {
@@ -25,7 +30,7 @@
         });
         return newAcc;
       },
-      { [NO_CAT]: [] } as Record<string, VTodo[]>,
+      { [NO_CAT]: [] } as Record<string, UnscheduledTask[]>,
     );
     return Object.entries(obj).sort((a, b) => {
       if (a[0] === NO_CAT) return 1;
@@ -75,9 +80,12 @@
               ></GlassCheckbox>
             </div>
 
-            <div class="flex-1">
+            <button
+              class="flex-1"
+              onclick={() => (eventUpserter.state = EventUpsert.Updating(task))}
+            >
               {task.summary}
-            </div>
+            </button>
           </div>
         {/each}
       {/snippet}
