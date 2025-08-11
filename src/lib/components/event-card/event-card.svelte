@@ -3,7 +3,7 @@
 		importanceToString,
 		loadToString,
 		urgencyToString,
-		type ParsedEvent,
+		type ScheduledTask,
 	} from "$lib/util.js";
 	import { differenceInMinutes } from "date-fns";
 	import { ArrowsRepeatOutline } from "flowbite-svelte-icons";
@@ -18,7 +18,8 @@
 		eventUpserter,
 	} from "../../../stores/eventUpserter.svelte";
 
-	let { event, tabindex }: { event: ParsedEvent; tabindex: number } = $props();
+	let { event, tabindex }: { event: ScheduledTask; tabindex: number } =
+		$props();
 	let lessThan15Min = $derived(
 		differenceInMinutes(event.ends_at, event.starts_at) < 16,
 	);

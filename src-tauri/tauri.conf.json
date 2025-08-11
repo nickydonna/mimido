@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.mimido",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "npm build",
     "frontendDist": "../build"
   },
   "app": {
