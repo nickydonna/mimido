@@ -295,7 +295,7 @@
           ></div>
           {#each ["Event", "Task", "Reminder"] as type}
             <div
-              class="opacity-0 hover:opacity-100 rounded-4xl hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1"
+              class="opacity-0 hover:opacity-100 rounded hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1 z-1"
               style:grid-column={type.toLowerCase()}
               style:grid-row="time-{format('HHmm', time)}"
             >
@@ -303,7 +303,7 @@
                 {formatedTime}
               </div>
               <GlassButton
-                size="xs"
+                size="xxs"
                 onclick={() => handleClickSlot(type as EventType, time)}
                 >+</GlassButton
               >

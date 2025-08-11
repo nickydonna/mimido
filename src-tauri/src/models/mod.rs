@@ -3,6 +3,7 @@ use crate::{
         component_props::{get_string_property, ComponentProps},
         event_status::EventStatus,
         event_type::EventType,
+        event_upsert::EventUpsertInfo,
     },
     models::{
         vevent::{NewVEvent, VEvent, VEventTrait},
@@ -25,6 +26,58 @@ pub(crate) mod vtodo;
 pub enum VCmp {
     Todo(VTodo),
     Event(VEvent),
+}
+
+impl VCmp {
+    pub fn get_calendar_id(&self) -> i32 {
+        match self {
+            VCmp::Todo(vtodo) => vtodo.calendar_id,
+            VCmp::Event(vevent) => vevent.calendar_id,
+        }
+    }
+
+    pub fn get_href(&self) -> &String {
+        match self {
+            VCmp::Todo(vtodo) => &vtodo.href,
+            VCmp::Event(vevent) => &vevent.href,
+        }
+    }
+
+    pub fn get_etag(&self) -> &String {
+        match self {
+            VCmp::Todo(vtodo) => &vtodo.etag,
+            VCmp::Event(vevent) => &vevent.href,
+        }
+    }
+
+    pub fn by_id(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<Option<VCmp>> {
+        let vevent = VEvent::by_id(conn, id)?;
+        if let Some(vevent) = vevent {
+            return Ok(Some(VCmp::Event(vevent)));
+        }
+        let todo = VTodo::by_id(conn, id)?;
+        if let Some(todo) = todo {
+            return Ok(Some(VCmp::Todo(todo)));
+        }
+        Ok(None)
+    }
+    pub fn update_from_upsert<Tz: TimeZone>(
+        &self,
+        input: &str,
+        extracted: EventUpsertInfo<Tz>,
+        date_of_update: DateTime<Tz>,
+    ) -> anyhow::Result<Self> {
+        match self {
+            VCmp::Todo(vtodo) => {
+                let todo = vtodo.update_from_upsert(input, extracted, date_of_update)?;
+                Ok(VCmp::Todo(todo))
+            }
+            VCmp::Event(vevent) => {
+                let event = vevent.update_from_upsert(input, extracted)?;
+                Ok(VCmp::Event(event))
+            }
+        }
+    }
 }
 
 /// Enum to unify the [`NewVEvent`] and [`NewVTodo`] struct

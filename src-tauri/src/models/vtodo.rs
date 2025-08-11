@@ -7,6 +7,7 @@ use crate::{
         event_status::EventStatus,
         event_tags::EventTags,
         event_type::EventType,
+        event_upsert::EventUpsertInfo,
         input_traits::ToUserInput,
         parse_duration,
     },
@@ -103,6 +104,37 @@ impl VTodo {
             None => Ok(false),
         }
     }
+
+    pub fn update_from_upsert<Tz: TimeZone>(
+        &self,
+        input: &str,
+        extracted: EventUpsertInfo<Tz>,
+        date_of_update: DateTime<Tz>,
+    ) -> anyhow::Result<Self> {
+        let mut todo = self.clone();
+        if let Some(date_info) = extracted.date_info.0 {
+            todo.starts_at = Some(date_info.start.to_utc());
+            todo.ends_at = Some(date_info.get_end_or_default(extracted.event_type).to_utc());
+        }
+        todo.event_type = extracted.event_type;
+        todo.status = extracted.status;
+        todo.postponed = extracted.postponed;
+        todo.urgency = extracted.urgency;
+        todo.load = extracted.load;
+        todo.importance = extracted.importance;
+        todo.summary = extracted.summary;
+        todo.tag = extracted.tag.0;
+        todo.original_text = Some(input.to_string());
+        // Add completed if task was not completed
+        if self.status != extracted.status && matches!(extracted.status, EventStatus::Done) {
+            todo.completed = Some(date_of_update.to_utc())
+        }
+        // Remove completed if task is not completed
+        if !matches!(extracted.status, EventStatus::Done) && self.completed.is_some() {
+            todo.completed = None
+        }
+        Ok(todo)
+    }
 }
 
 impl From<VTodo> for CalendarComponent {
@@ -129,8 +161,10 @@ impl From<VTodo> for CalendarComponent {
             .done();
 
         if let Some(tag) = value.tag {
-            todo.add_property(ComponentProps::Tag, tag);
+            todo.add_property(ComponentProps::Tag, tag.to_lowercase());
+            todo.add_property(ComponentProps::Categories, tag.to_uppercase());
         }
+
         if let Some(completed_date) = value.completed {
             todo.completed(completed_date);
         }

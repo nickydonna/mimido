@@ -13,7 +13,7 @@ use crate::{
         extended_todo::ExtendedTodo,
     },
     establish_connection,
-    models::{vevent::VEvent, vtodo::VTodo, Calendar},
+    models::{vevent::VEvent, vtodo::VTodo, Calendar, VCmp},
     util::DateTimeStr,
 };
 use anyhow::anyhow;
@@ -37,7 +37,11 @@ pub async fn list_unscheduled_todos(include_done: bool) -> Result<Vec<VTodo>, Co
             .load(conn)?
     } else {
         todo_dsl::vtodos
-            .filter(todo_dsl::status.is_not(EventStatus::Done))
+            .filter(
+                todo_dsl::status
+                    .is_not(EventStatus::Done)
+                    .and(todo_dsl::starts_at.is_null()),
+            )
             .select(VTodo::as_select())
             .load(conn)?
     };
@@ -231,19 +235,22 @@ pub async fn update_vevent(
         EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
 
     let conn = &mut establish_connection();
-    let vevent = VEvent::by_id(conn, vevent_id)?;
-    let vevent = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
-    let updated = vevent.update_from_upsert(&component_input, data)?;
-    let (server, calendar) = Calendar::by_id_with_server(conn, vevent.calendar_id)?;
+    let vevent = VCmp::by_id(conn, vevent_id)?;
+    let vcmp = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
+    let updated = vcmp.update_from_upsert(&component_input, data, parsed_date)?;
+    let (server, calendar) = Calendar::by_id_with_server(conn, vcmp.get_calendar_id())?;
 
     let caldav = Caldav::new(server).await?;
-    let updated_calendar_cmp: icalendar::CalendarComponent = updated.into();
+    let etag = updated.get_etag().clone();
+    let href = updated.get_href().clone();
+    let updated_calendar_cmp: icalendar::CalendarComponent = match updated {
+        VCmp::Todo(vtodo) => vtodo.into(),
+        VCmp::Event(vevent) => vevent.into(),
+    };
 
     let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
 
-    caldav
-        .update_cmp(&vevent.href.into(), &vevent.etag.into(), cal)
-        .await?;
+    caldav.update_cmp(&href.into(), &etag.into(), cal).await?;
 
     super_sync_calendar(calendar.id).await?;
 

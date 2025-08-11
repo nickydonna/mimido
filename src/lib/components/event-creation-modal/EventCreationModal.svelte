@@ -16,6 +16,7 @@
     commands,
     type Calendar,
     type DisplayUpsertInfo,
+    type EventType,
   } from "../../../bindings";
   import { match, def } from "@korkje/adt";
   import { unwrap } from "$lib/result";
@@ -83,7 +84,9 @@
     result = unwrap(res);
   }, 100);
 
-  function dateToString(time: Date): string {
+  function dateToString(time?: Date): string {
+    if (time == null) return "";
+
     const minutes = getMinutes(time);
     if (isToday(time)) {
       return minutes === 0
@@ -102,13 +105,33 @@
       : `at ${format(time, "dd/MM h:m")}`;
   }
 
+  function typeToString(eventType?: EventType): string {
+    switch (eventType) {
+      case "Event": {
+        return ".e";
+      }
+      case "Block": {
+        return ".b";
+      }
+      case "Task": {
+        return ".t";
+      }
+      case "Reminder": {
+        return ".r";
+      }
+      default: {
+        return "";
+      }
+    }
+  }
+
   let ref = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
     match(eventUpserter.state, {
       Creating: ({ type, startDate }) => {
         dialog.open();
-        input = `.${type.toLowerCase()} ${dateToString(startDate)} `;
+        input = `${typeToString(type)} ${dateToString(startDate)}`;
         // Set some delay to wait for things to render
         setTimeout(() => {
           ref?.focus();
@@ -254,12 +277,12 @@
                 {result.recurrence}
               </div>
             {/if}
-            {#if result.tag}
-              <div class="flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm">
-                <HoverableIcon iconCmp={TagOutline} text="Tags:" />
-                {result.tag.split(",").join(", ")}
-              </div>
-            {/if}
+          {/if}
+          {#if result.tag}
+            <div class="flex gap-0.5 glass-prop h-9 px-3.5 py-2 text-sm">
+              <HoverableIcon iconCmp={TagOutline} text="Tags:" />
+              {result.tag.split(",").join(", ")}
+            </div>
           {/if}
         </div>
         {@render hr()}

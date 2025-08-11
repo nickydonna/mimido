@@ -12,6 +12,8 @@ pub enum ComponentProps {
     Type,
     #[strum(serialize = "X-TAG")]
     Tag,
+    #[strum(serialize = "CATEGORIES")]
+    Categories,
     #[strum(serialize = "X-URGENCY")]
     Urgency,
     #[strum(serialize = "X-STATUS")]

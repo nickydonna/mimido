@@ -155,7 +155,8 @@ impl From<VEvent> for CalendarComponent {
         }
 
         if let Some(tag) = value.tag {
-            event.add_property(ComponentProps::Tag, tag);
+            event.add_property(ComponentProps::Tag, tag.to_lowercase());
+            event.add_property(ComponentProps::Categories, tag.to_uppercase());
         }
 
         event.into()

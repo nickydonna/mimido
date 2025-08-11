@@ -5,7 +5,7 @@ import type { ParsedEvent } from "$lib/util";
 
 export const EventUpsert = adt({
   None: null,
-  Creating: (type: EventType, startDate: Date) => ({ type, startDate }),
+  Creating: (type?: EventType, startDate?: Date) => ({ type, startDate }),
   Updating: (event: ParsedEvent) => ({ event }),
 });
 

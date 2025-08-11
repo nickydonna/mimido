@@ -24,7 +24,7 @@
   <button use:disclosure.button class="disclosure-button">
     <span>{@render header()}</span>
     <AngleUpIcon
-      class="h-8 w-8 self-center text-primary-100 {$disclosure.expanded
+      class="h-8 w-8 self-center text-primary-100  {$disclosure.expanded
         ? ''
         : 'rotate-180 transform'}"
     />

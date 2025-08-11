@@ -4,9 +4,10 @@
     type HTMLButtonAttributes,
     type HTMLAnchorAttributes,
   } from "svelte/elements";
+  type Sizes = "xxs" | "xs" | "sm" | "md" | "lg" | "xl";
 
   type BaseProps = {
-    size?: SizeType;
+    size?: Sizes;
     disabled?: boolean;
     loading?: boolean;
   };
@@ -15,7 +16,8 @@
     | (HTMLAnchorAttributes & BaseProps)
     | (HTMLButtonAttributes & BaseProps);
 
-  const sizes: Record<SizeType, string> = {
+  const sizes: Record<Sizes, string> = {
+    xxs: "px-2 py-1 text-xs",
     xs: "px-3 py-2 text-xs",
     sm: "px-4 py-2 text-sm",
     md: "px-5 py-2.5 text-sm",

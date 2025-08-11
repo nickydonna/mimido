@@ -37,9 +37,9 @@
   {@attach shortcut({
     key: "a",
     handler() {
-      if (isNone(eventUpserter.state)) {
-        eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
-      }
+      //if (isNone(eventUpserter.state)) {
+      // eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
+      // }
     },
   })}
 >
@@ -74,7 +74,7 @@
       class="pointer-events-auto"
       size="xl"
       onclick={() => {
-        eventUpserter.state = EventUpsert.Creating("Event", timeState.nextSlot);
+        eventUpserter.state = EventUpsert.Creating();
       }}
     >
       <CalendarAddIcon />
