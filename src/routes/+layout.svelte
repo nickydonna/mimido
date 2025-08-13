@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head></svelte:head>
-<main class="container mx-auto h-full">
+<main class="lg:container mx-auto h-full">
   {@render children()}
 </main>
 <Navigation {activeUrl} defaultCalendar={data.defaultCalendar} />
