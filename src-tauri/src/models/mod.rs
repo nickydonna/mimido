@@ -61,6 +61,13 @@ impl VCmp {
         }
         Ok(None)
     }
+
+    pub fn delete(&self, conn: &mut SqliteConnection) -> anyhow::Result<bool> {
+        match self {
+            VCmp::Todo(vtodo) => VTodo::delete_by_id(conn, vtodo.id),
+            VCmp::Event(vevent) => VEvent::delete_by_id(conn, vevent.id),
+        }
+    }
     pub fn update_from_upsert<Tz: TimeZone>(
         &self,
         input: &str,

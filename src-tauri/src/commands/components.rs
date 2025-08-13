@@ -216,15 +216,15 @@ pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), CommandEr
 #[specta::specta]
 pub async fn delete_vevent(vevent_id: i32) -> Result<(), CommandError> {
     let conn = &mut establish_connection();
-    let vevent = VEvent::by_id(conn, vevent_id)?;
-    let vevent = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
-    let (server, _) = Calendar::by_id_with_server(conn, vevent.calendar_id)?;
+    let vevent = VCmp::by_id(conn, vevent_id)?;
+    let vcmp = vevent.ok_or(anyhow!("No cmp with id {vevent_id}"))?;
+    let (server, _) = Calendar::by_id_with_server(conn, vcmp.get_calendar_id())?;
 
+    let etag = vcmp.get_etag().clone();
+    let href = vcmp.get_href().clone();
     let caldav = Caldav::new(server).await?;
-    caldav
-        .delete_resource(&vevent.href.into(), &vevent.etag.into())
-        .await?;
-    VEvent::delete_by_id(conn, vevent_id)?;
+    caldav.delete_resource(&href.into(), &etag.into()).await?;
+    vcmp.delete(conn)?;
 
     Ok(())
 }

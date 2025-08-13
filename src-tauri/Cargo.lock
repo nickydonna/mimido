@@ -2460,8 +2460,6 @@ checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
 [[package]]
 name = "libdav"
 version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "727d7c147fef6462d1f67150a7f79b087edc4dd159a2cb5b53d1fbf589db6487"
 dependencies = [
  "domain",
  "http",

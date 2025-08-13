@@ -131,7 +131,7 @@
     match(eventUpserter.state, {
       Creating: ({ type, startDate }) => {
         dialog.open();
-        input = `${typeToString(type)} ${dateToString(startDate)}`;
+        input = `${typeToString(type)} ${dateToString(startDate)} `;
         // Set some delay to wait for things to render
         setTimeout(() => {
           ref?.focus();
