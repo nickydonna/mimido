@@ -1,6 +1,7 @@
 <script lang="ts">
   import { inview } from "$lib/attachments/inview.svelte";
   import {
+    getHours,
     getMinutes,
     isSameMinute,
     roundToNearestMinutes,
@@ -245,7 +246,9 @@
               ? "event /reminder"
               : e.event_type.toLowerCase()}
             style:grid-row={getScheduleSlot(e)}
-            style:z-index={isBlockType ? 0 : k + 1}
+            style:z-index={isBlockType
+              ? 0
+              : `${getHours(e.starts_at)}${getMinutes(e.starts_at)}`}
           >
             {#if e.event_type === "Block"}
               <div class="flex h-full flex-col items-center justify-center">
