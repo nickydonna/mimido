@@ -5,7 +5,7 @@
 		urgencyToString,
 		type ScheduledTask,
 	} from "$lib/util.js";
-	import { differenceInMinutes } from "date-fns";
+	import { differenceInMinutes, formatISO } from "date-fns";
 	import { ArrowsRepeatOutline } from "flowbite-svelte-icons";
 	// @ts-expect-error iconify
 	import CheckTask from "~icons/solar/bill-check-linear";
@@ -17,6 +17,7 @@
 		EventUpsert,
 		eventUpserter,
 	} from "../../../stores/eventUpserter.svelte";
+	import { timeState } from "../../../stores/times.svelte";
 
 	let { event, tabindex }: { event: ScheduledTask; tabindex: number } =
 		$props();
@@ -32,7 +33,11 @@
 	async function toggleStatus(e: Event) {
 		e.stopPropagation();
 		loading = true;
-		await commands.setVeventStatus(event.id, isDone ? "inprogress" : "done");
+		await commands.setComponentStatus(
+			event.id,
+			isDone ? "inprogress" : "done",
+			formatISO(timeState.time),
+		);
 		invalidateAll();
 		loading = false;
 	}

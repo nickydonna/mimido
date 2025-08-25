@@ -80,7 +80,7 @@
       </GlassIcon>
     </div>
     <div
-      class="flex relative top-3 bg-primary-950 pl-3 pr-6 px-1"
+      class="relative top-3 bg-primary-950 pl-3 pr-6 px-1"
       style:z-index={modalZIndex - 3}
     >
       <Calendar {date} {todos} {events} />

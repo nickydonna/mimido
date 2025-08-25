@@ -1,6 +1,7 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Mutex};
 
 use crate::{
+    app_state::AppState,
     caldav::{Caldav, Etag, Href},
     calendar_items::{
         event_status::EventStatus,
@@ -23,6 +24,7 @@ use chrono::{DateTime, FixedOffset, Utc};
 use diesel::prelude::*;
 use icalendar::Component;
 use now::DateTimeNow;
+use tauri::State;
 use uuid::Uuid;
 
 #[tauri::command()]
@@ -96,9 +98,45 @@ pub async fn set_vtodo_status(
     Ok(())
 }
 
+#[tauri::command()]
+#[specta::specta]
+pub async fn set_component_status(
+    id: i32,
+    status: String,
+    date_of_change: String,
+) -> Result<(), CommandError> {
+    let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
+    let status = EventStatus::from_str(status.as_ref())?;
+
+    let conn = &mut establish_connection();
+    let cmp = VCmp::by_id(conn, id)?;
+
+    let mut cmp = cmp.ok_or(anyhow!("No cmp with id {id}"))?;
+
+    let etag: Etag = cmp.get_etag().clone().into();
+    let href: Href = cmp.get_href().clone().into();
+    let (server, calendar) = Calendar::by_id_with_server(conn, cmp.get_calendar_id())?;
+
+    cmp.set_status(status, date_of_change);
+
+    let updated_calendar_cmp: icalendar::CalendarComponent = cmp.into();
+    let caldav = Caldav::new(server).await?;
+
+    let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
+
+    caldav.update_cmp(&href, &etag, cal).await?;
+
+    super_sync_calendar(calendar.id).await?;
+
+    Ok(())
+}
+
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
-pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>, CommandError> {
+pub async fn list_events_for_day(
+    state: State<'_, Mutex<AppState>>,
+    datetime: String,
+) -> Result<Vec<ExtendedEvent>, CommandError> {
     use crate::schema::vevents::dsl as event_dsl;
 
     let conn = &mut establish_connection();

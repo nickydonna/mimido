@@ -8,6 +8,9 @@ use std::fs::create_dir_all;
 use std::sync::Mutex;
 use tauri::{tray::TrayIconBuilder, Manager};
 use tauri_specta::{collect_commands, Builder};
+
+use crate::app_state::AppState;
+pub mod app_state;
 pub mod caldav;
 pub mod calendar_items;
 mod commands;
@@ -64,6 +67,7 @@ pub fn run() {
             commands::components::update_vevent,
             commands::components::list_unscheduled_todos,
             commands::components::set_vtodo_status,
+            commands::components::set_component_status,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
@@ -92,6 +96,8 @@ pub fn run() {
             if let Err(e) = setup_db(&conn_url) {
                 println!("Database setup failed: {e}");
             }
+
+            app.manage(Mutex::new(AppState::default()));
 
             Ok(())
         })

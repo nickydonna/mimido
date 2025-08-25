@@ -85,6 +85,30 @@ impl VCmp {
             }
         }
     }
+    pub fn set_status<Tz: TimeZone>(&mut self, status: EventStatus, date_of_update: DateTime<Tz>) {
+        match self {
+            VCmp::Todo(vtodo) => {
+                vtodo.status = status;
+                if matches!(status, EventStatus::Done) {
+                    vtodo.completed = Some(date_of_update.to_utc());
+                } else {
+                    vtodo.completed = None;
+                }
+            }
+            VCmp::Event(vevent) => {
+                vevent.status = status;
+            }
+        }
+    }
+}
+
+impl From<VCmp> for icalendar::CalendarComponent {
+    fn from(value: VCmp) -> Self {
+        match value {
+            VCmp::Todo(vtodo) => vtodo.into(),
+            VCmp::Event(vevent) => vevent.into(),
+        }
+    }
 }
 
 /// Enum to unify the [`NewVEvent`] and [`NewVTodo`] struct
