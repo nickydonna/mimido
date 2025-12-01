@@ -1,5 +1,4 @@
 use crate::{
-    caldav::Href,
     calendar_items::{
         component_props::{ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
@@ -14,7 +13,7 @@ use crate::{
     impl_ical_parseable,
     models::FromResource,
     schema::*,
-    util::remove_multiple_spaces,
+    util::{Href, remove_multiple_spaces},
 };
 use anyhow::anyhow;
 use chrono::{DateTime, TimeDelta, TimeZone, Utc};
@@ -32,10 +31,14 @@ pub struct VTodo {
     pub id: i32,
     pub calendar_id: i32,
     pub uid: String,
-    pub href: String,
-    pub ical_data: String,
+    pub href: Option<String>,
+    pub ical_data: Option<String>,
     pub summary: String,
     pub description: Option<String>,
+    pub starts_at: Option<chrono::DateTime<Utc>>,
+    pub ends_at: Option<chrono::DateTime<Utc>>,
+    pub has_rrule: bool,
+    pub rrule_str: Option<String>,
     pub tag: Option<String>,
     pub status: EventStatus,
     pub event_type: EventType,
@@ -45,11 +48,8 @@ pub struct VTodo {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
-    pub etag: String,
-    pub has_rrule: bool,
-    pub rrule_str: Option<String>,
-    pub starts_at: Option<chrono::DateTime<Utc>>,
-    pub ends_at: Option<chrono::DateTime<Utc>>,
+    pub etag: Option<String>,
+    pub synced_at: i64,
     pub completed: Option<chrono::DateTime<Utc>>,
 }
 
@@ -177,11 +177,15 @@ impl From<VTodo> for CalendarComponent {
 #[diesel(table_name = vtodos)]
 pub struct NewVTodo {
     pub calendar_id: i32,
-    pub href: String,
     pub uid: String,
-    pub ical_data: String,
+    pub href: Option<String>,
+    pub ical_data: Option<String>,
     pub summary: String,
     pub description: Option<String>,
+    pub starts_at: Option<chrono::DateTime<Utc>>,
+    pub ends_at: Option<chrono::DateTime<Utc>>,
+    pub has_rrule: bool,
+    pub rrule_str: Option<String>,
     pub tag: Option<String>,
     pub status: EventStatus,
     pub event_type: EventType,
@@ -191,11 +195,8 @@ pub struct NewVTodo {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
-    pub etag: String,
-    pub has_rrule: bool,
-    pub rrule_str: Option<String>,
-    pub starts_at: Option<chrono::DateTime<Utc>>,
-    pub ends_at: Option<chrono::DateTime<Utc>>,
+    pub etag: Option<String>,
+    pub synced_at: i64,
     pub completed: Option<chrono::DateTime<Utc>>,
 }
 
@@ -250,7 +251,7 @@ macro_rules! impl_todo_trait {
             }
 
             fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo> {
-                let href = Href(self.href.clone());
+                let href = Href(self.href.clone().expect("$t must have href"));
                 let vevent = VTodo::by_href(conn, &href)?;
                 match vevent {
                     Some(old) => self.update(conn, old.id),
@@ -360,8 +361,8 @@ impl FromResource for NewVTodo {
         let new_todo = NewVTodo {
             calendar_id,
             uid: uid.to_string(),
-            href: href.to_string(),
-            ical_data: ical_data.to_string(),
+            href: Some(href.to_string()),
+            ical_data: Some(ical_data.to_string()),
             last_modified,
             summary: summary.to_string(),
             completed: None,
@@ -374,7 +375,8 @@ impl FromResource for NewVTodo {
             load,
             urgency,
             postponed,
-            etag: etag.to_string(),
+            etag: Some(etag.to_string()),
+            synced_at: chrono::Utc::now().timestamp(),
             has_rrule: false,
             rrule_str: None,
             starts_at,

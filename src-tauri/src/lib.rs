@@ -1,15 +1,17 @@
+use anyhow::anyhow;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use lazy_static::lazy_static;
+use log::info;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 use std::error::Error;
 use std::fs::create_dir_all;
 use std::sync::Mutex;
-use tauri::{tray::TrayIconBuilder, Manager};
-use tauri_specta::{collect_commands, Builder};
+use tauri::{Listener, Manager, async_runtime, tray::TrayIconBuilder};
+use tauri_specta::{Builder, collect_commands};
 
-use crate::app_state::AppState;
+use crate::{app_state::AppState, commands::calendar::internal_super_sync_calendar};
 pub mod app_state;
 pub mod caldav;
 pub mod calendar_items;
@@ -43,6 +45,11 @@ pub fn setup_db(connection_url: &str) -> Result<(), Box<dyn Error + Send + Sync 
     conn.run_pending_migrations(MIGRATIONS)?;
     log::info!("migration ran correctly");
     Ok(())
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct SyncEventPayload {
+    calendar_id: i32,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -97,7 +104,28 @@ pub fn run() {
                 println!("Database setup failed: {e}");
             }
 
-            app.manage(Mutex::new(AppState::default()));
+            let Ok(state) = AppState::new(conn_url) else {
+                return Err(anyhow!("Could not connect").into_boxed_dyn_error());
+            };
+
+            app.manage(state);
+            let handle = app.handle().clone();
+            app.listen("sync", move |event| {
+                let handle = handle.clone();
+                async_runtime::spawn(async move {
+                    if let Ok(payload) = serde_json::from_str::<SyncEventPayload>(event.payload()) {
+                        let state = handle.state::<AppState>();
+                        let Ok(conn) = &mut state.get_connection() else {
+                            println!("Counldn't sync");
+                            return;
+                        };
+                        let lock = state.syncing.write().await;
+                        let res = internal_super_sync_calendar(conn, payload.calendar_id).await;
+                        drop(lock);
+                        info!("Sync resulted in {res:?}");
+                    }
+                });
+            });
 
             Ok(())
         })

@@ -1,13 +1,18 @@
 use crate::{
-    caldav::{Caldav, CmpSyncResult, Href},
+    app_state::AppState,
+    caldav::{
+        Caldav,
+        get_sync_report::{GetSyncReportResponse, SyncResult},
+    },
     commands::errors::CommandError,
     establish_connection,
-    models::{vevent::VEvent, vtodo::VTodo, Calendar, NewVCmp, Server, VCmp},
-    util::filter_err_and_map,
+    models::{Calendar, NewVCmp, VCmp, server::Server, vevent::VEvent, vtodo::VTodo},
+    util::{Href, filter_err_and_map},
 };
 use diesel::{prelude::*, update};
 use futures::future::join_all;
 use log::{info, warn};
+use tauri::State;
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
@@ -114,25 +119,28 @@ pub async fn sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
     Ok(())
 }
 
-#[tauri::command()]
-#[specta::specta]
-pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
-    let conn = &mut establish_connection();
-
+pub async fn internal_super_sync_calendar(
+    conn: &mut SqliteConnection,
+    calendar_id: i32,
+) -> Result<(), CommandError> {
     let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id)?;
-
     let Some(sync_token) = calendar.sync_token.clone() else {
         return Ok(());
     };
     let cal_href: Href = calendar.url.clone().into();
     let caldav = Caldav::new(server).await?;
-    let (new_sync_token, results) = caldav.get_sync_report(&cal_href, &sync_token).await?;
+    let GetSyncReportResponse {
+        sync_token: new_sync_token,
+        report,
+    } = caldav
+        .get_sync_report(&cal_href, &sync_token.into())
+        .await?;
 
-    let del_res = results
+    let del_res = report
         .iter()
         .filter_map(|r| match r {
-            CmpSyncResult::Upserted(_, _) => None,
-            CmpSyncResult::Deleted(href) => Some(href),
+            SyncResult::Upserted(_, _) => None,
+            SyncResult::Deleted(href) => Some(href),
         })
         .map(|href| {
             info!("del res {href}");
@@ -144,11 +152,11 @@ pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
         .collect::<Vec<anyhow::Result<bool>>>();
     info!("Del {del_res:?}");
 
-    let results = results
+    let results = report
         .iter()
         .filter_map(|r| match r {
-            CmpSyncResult::Upserted(href, etag) => Some((href, etag)),
-            CmpSyncResult::Deleted(_) => None,
+            SyncResult::Upserted(href, etag) => Some((href, etag)),
+            SyncResult::Deleted(_) => None,
         })
         .map(|(href, _)| caldav.fetch_resource(&cal_href, href));
 
@@ -170,6 +178,17 @@ pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
     info!("up {r:?}");
     calendar.update_sync_token(conn, &new_sync_token)?;
     Ok(())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn super_sync_calendar(
+    state: State<'_, AppState>,
+    calendar_id: i32,
+) -> Result<(), CommandError> {
+    let conn = &mut state.get_connection()?;
+
+    internal_super_sync_calendar(conn, calendar_id).await
 }
 
 #[tauri::command()]

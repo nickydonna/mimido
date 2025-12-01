@@ -1,0 +1,48 @@
+-- Your SQL goes here
+-- Make href, ical_data, and etag nullable and add synced_at field
+
+-- Create a new table with the updated schema
+CREATE TABLE vtodos_new (
+    id INTEGER PRIMARY KEY NOT NULL,
+    calendar_id INTEGER NOT NULL,
+    uid TEXT NOT NULL,
+    href TEXT,
+    ical_data TEXT,
+    summary TEXT NOT NULL,
+    description TEXT,
+    starts_at TEXT,
+    ends_at TEXT,
+    has_rrule INTEGER NOT NULL,
+    rrule_str TEXT,
+    tag TEXT,
+    status TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    original_text TEXT,
+    load INTEGER NOT NULL,
+    urgency INTEGER NOT NULL,
+    importance INTEGER NOT NULL,
+    postponed INTEGER NOT NULL,
+    last_modified BIGINT NOT NULL,
+    etag TEXT,
+    synced_at BIGINT NOT NULL DEFAULT 0,
+    completed TEXT,
+    FOREIGN KEY (calendar_id) REFERENCES calendars(id)
+);
+
+-- Copy data from old table to new table
+INSERT INTO vtodos_new (
+    id, calendar_id, uid, href, ical_data, summary, description,
+    starts_at, ends_at, has_rrule, rrule_str, tag, status, event_type,
+    original_text, load, urgency, importance, postponed, last_modified, etag, synced_at, completed
+)
+SELECT
+    id, calendar_id, uid, href, ical_data, summary, description,
+    starts_at, ends_at, has_rrule, rrule_str, tag, status, event_type,
+    original_text, load, urgency, importance, postponed, last_modified, etag, 0, completed
+FROM vtodos;
+
+-- Drop old table
+DROP TABLE vtodos;
+
+-- Rename new table to original name
+ALTER TABLE vtodos_new RENAME TO vtodos;

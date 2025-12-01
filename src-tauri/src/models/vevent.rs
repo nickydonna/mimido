@@ -2,7 +2,6 @@ use anyhow::anyhow;
 use std::str::FromStr;
 
 use crate::{
-    caldav::Href,
     calendar_items::{
         component_props::{ComponentProps, GeneralComponentProps},
         date_from_calendar_to_utc,
@@ -17,7 +16,7 @@ use crate::{
     impl_ical_parseable,
     models::FromResource,
     schema::*,
-    util::remove_multiple_spaces,
+    util::{Href, remove_multiple_spaces},
 };
 use chrono::{DateTime, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
@@ -35,8 +34,8 @@ pub struct VEvent {
     pub id: i32,
     pub calendar_id: i32,
     pub uid: String,
-    pub href: String,
-    pub ical_data: String,
+    pub href: Option<String>,
+    pub ical_data: Option<String>,
     pub summary: String,
     pub description: Option<String>,
     pub starts_at: chrono::DateTime<Utc>,
@@ -52,7 +51,8 @@ pub struct VEvent {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
-    pub etag: String,
+    pub etag: Option<String>,
+    pub synced_at: i64,
 }
 
 impl VEvent {
@@ -168,8 +168,8 @@ impl From<VEvent> for CalendarComponent {
 pub struct NewVEvent {
     pub calendar_id: i32,
     pub uid: String,
-    pub href: String,
-    pub ical_data: String,
+    pub href: Option<String>,
+    pub ical_data: Option<String>,
     pub summary: String,
     pub description: Option<String>,
     pub starts_at: chrono::DateTime<Utc>,
@@ -185,7 +185,8 @@ pub struct NewVEvent {
     pub importance: i32,
     pub postponed: i32,
     pub last_modified: i64,
-    pub etag: String,
+    pub etag: Option<String>,
+    pub synced_at: i64,
 }
 
 impl_ical_parseable!(VEvent, icalendar::Event, |f| f.as_event());
@@ -247,7 +248,11 @@ macro_rules! impl_event_trait {
                 Ok(val)
             }
             fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
-                let href = Href(self.href.clone());
+                let href = Href(
+                    self.href
+                        .clone()
+                        .ok_or(anyhow!("$ty must have href to be update"))?,
+                );
                 let vevent = VEvent::by_href(conn, &href)?;
                 match vevent {
                     Some(old) => self.update(conn, old.id),
@@ -309,6 +314,36 @@ impl TryFrom<NewVEvent> for icalendar::Event {
         }
 
         Ok(vevent)
+    }
+}
+
+impl<Tz: TimeZone> TryFrom<EventUpsertInfo<Tz>> for NewVEvent {
+    type Error = anyhow::Error;
+
+    fn try_from(value: EventUpsertInfo<Tz>) -> Result<Self, Self::Error> {
+        Ok(NewVEvent {
+            calendar_id: todo!(),
+            uid: todo!(),
+            href: todo!(),
+            ical_data: todo!(),
+            summary: todo!(),
+            description: todo!(),
+            starts_at: todo!(),
+            ends_at: todo!(),
+            has_rrule: todo!(),
+            rrule_str: todo!(),
+            tag: todo!(),
+            status: todo!(),
+            event_type: todo!(),
+            original_text: todo!(),
+            load: todo!(),
+            urgency: todo!(),
+            importance: todo!(),
+            postponed: todo!(),
+            last_modified: todo!(),
+            etag: todo!(),
+            synced_at: todo!(),
+        })
     }
 }
 
@@ -403,8 +438,8 @@ impl FromResource for NewVEvent {
         let new_event = NewVEvent {
             calendar_id: cal_id,
             uid: uid.to_string(),
-            href: href.to_string(),
-            ical_data: ical_data.to_string(),
+            href: Some(href.to_string()),
+            ical_data: Some(ical_data.to_string()),
             starts_at,
             ends_at,
             last_modified,
@@ -420,7 +455,8 @@ impl FromResource for NewVEvent {
             load,
             urgency,
             postponed,
-            etag: etag.to_string(),
+            etag: Some(etag.to_string()),
+            synced_at: chrono::Utc::now().timestamp(),
         };
         let rrule_str = new_event.get_rrule_from_ical().map(|r| r.to_string());
         Ok(Some(NewVEvent {
@@ -455,6 +491,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
+        println!("{event:?}");
         let rrule_set = event.get_rrule().unwrap();
         assert_eq!(
             *rrule_set.get_dt_start(),

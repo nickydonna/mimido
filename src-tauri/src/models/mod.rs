@@ -1,11 +1,12 @@
 use crate::{
     calendar_items::{
-        component_props::{get_string_property, ComponentProps},
+        component_props::{ComponentProps, get_string_property},
         event_status::EventStatus,
         event_type::EventType,
         event_upsert::EventUpsertInfo,
     },
     models::{
+        server::Server,
         vevent::{NewVEvent, VEvent, VEventTrait},
         vtodo::{NewVTodo, VTodo, VTodoTrait},
     },
@@ -18,8 +19,12 @@ use icalendar::DatePerhapsTime;
 use libdav::FetchedResource;
 use rrule::{RRuleError, RRuleSet};
 
+pub mod server;
+pub mod vcmp_builder;
 pub(crate) mod vevent;
 pub(crate) mod vtodo;
+
+pub use vcmp_builder::VCmpBuilder;
 
 /// Enum to unify the [`VEvent`] and [`VTodo`] struct
 #[derive(Debug)]
@@ -36,17 +41,17 @@ impl VCmp {
         }
     }
 
-    pub fn get_href(&self) -> &String {
+    pub fn get_href(&self) -> Option<String> {
         match self {
-            VCmp::Todo(vtodo) => &vtodo.href,
-            VCmp::Event(vevent) => &vevent.href,
+            VCmp::Todo(vtodo) => vtodo.href.clone(),
+            VCmp::Event(vevent) => vevent.href.clone(),
         }
     }
 
-    pub fn get_etag(&self) -> &String {
+    pub fn get_etag(&self) -> Option<String> {
         match self {
-            VCmp::Todo(vtodo) => &vtodo.etag,
-            VCmp::Event(vevent) => &vevent.href,
+            VCmp::Todo(vtodo) => vtodo.etag.clone(),
+            VCmp::Event(vevent) => vevent.etag.clone(),
         }
     }
 
@@ -141,35 +146,13 @@ impl NewVCmp {
             NewVCmp::Event(new_vevent) => new_vevent.upsert_by_href(conn).map(VCmp::Event),
         }
     }
-}
 
-#[derive(
-    Queryable,
-    Selectable,
-    Identifiable,
-    Insertable,
-    Debug,
-    serde::Serialize,
-    specta::Type,
-    Clone,
-    PartialEq,
-)]
-#[diesel(table_name = servers)]
-pub struct Server {
-    pub id: i32,
-    pub server_url: String,
-    pub user: String,
-    pub password: String,
-    pub last_sync: Option<i64>,
-}
-
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
-#[diesel(table_name = servers)]
-pub struct NewServer {
-    pub server_url: String,
-    pub user: String,
-    pub password: String,
-    pub last_sync: Option<i64>,
+    pub fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VCmp> {
+        match self {
+            NewVCmp::Todo(new_vtodo) => new_vtodo.save(conn).map(VCmp::Todo),
+            NewVCmp::Event(new_vevent) => new_vevent.save(conn).map(VCmp::Event),
+        }
+    }
 }
 
 #[derive(
@@ -268,7 +251,7 @@ pub trait FromResource: Sized {
 }
 
 pub trait IcalParseableTrait<Cmp: icalendar::Component> {
-    fn get_ical_data(&self) -> String;
+    fn get_ical_data(&self) -> Option<String>;
     fn get_summary(&self) -> String;
     fn get_description(&self) -> Option<String>;
     fn get_postponed(&self) -> i32;
@@ -277,7 +260,7 @@ pub trait IcalParseableTrait<Cmp: icalendar::Component> {
     fn get_importance(&self) -> i32;
     fn get_status(&self) -> EventStatus;
     fn get_type(&self) -> EventType;
-    fn parse_ical_data(&self) -> Result<Cmp, String>;
+    fn parse_ical_data(&self) -> anyhow::Result<Cmp>;
     fn get_rrule_str(&self) -> Option<String>;
     /// Parsed the recurrence of the event using the [`Event::ical_data`]
     fn get_rrule_from_ical(&self) -> Option<RRuleSet> {
@@ -338,7 +321,7 @@ pub trait IcalParseableTrait<Cmp: icalendar::Component> {
 macro_rules! impl_ical_parseable {
     ($t: ty, $cmp: ty, $transform: expr) => {
         impl IcalParseableTrait<$cmp> for $t {
-            fn get_ical_data(&self) -> String {
+            fn get_ical_data(&self) -> Option<String> {
                 self.ical_data.clone()
             }
 
@@ -374,8 +357,12 @@ macro_rules! impl_ical_parseable {
             fn get_rrule_str(&self) -> Option<String> {
                 self.rrule_str.clone()
             }
-            fn parse_ical_data(&self) -> Result<$cmp, String> {
-                let cal: icalendar::Calendar = self.get_ical_data().parse()?;
+            fn parse_ical_data(&self) -> Result<$cmp, anyhow::Error> {
+                let cal: icalendar::Calendar = self
+                    .get_ical_data()
+                    .ok_or(anyhow!("$ty must have ical data to be parsed"))?
+                    .parse()
+                    .map_err(|e: String| anyhow!(e))?;
                 let events = cal
                     .components
                     .iter()
@@ -383,7 +370,7 @@ macro_rules! impl_ical_parseable {
                     .collect::<Vec<&$cmp>>();
                 let event = events
                     .first()
-                    .ok_or("iCal was parsed correctly but not event was found".to_string())?;
+                    .ok_or(anyhow!("iCal was parsed correctly but not event was found"))?;
                 Ok((*event).clone())
             }
         }

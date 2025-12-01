@@ -1,40 +1,42 @@
 use std::{str::FromStr, sync::Mutex};
 
 use crate::{
+    SyncEventPayload,
     app_state::AppState,
-    caldav::{Caldav, Etag, Href},
+    caldav::Caldav,
     calendar_items::{
+        DisplayUpsertInfo,
         event_status::EventStatus,
         event_upsert::EventUpsertInfo,
         input_traits::{ExtractedInput, FromUserInput},
-        DisplayUpsertInfo,
     },
     commands::{
-        calendar::super_sync_calendar,
         errors::CommandError,
         extended_event::ExtendedEvent,
         extended_todo::{ExtendedTodo, UnscheduledTodo},
     },
     establish_connection,
-    models::{vevent::VEvent, vtodo::VTodo, Calendar, VCmp},
-    util::DateTimeStr,
+    models::{Calendar, VCmp, VCmpBuilder, vevent::VEvent, vtodo::VTodo},
+    util::{DateTimeStr, Href},
 };
 use anyhow::anyhow;
 use chrono::{DateTime, FixedOffset, Utc};
 use diesel::prelude::*;
 use icalendar::Component;
+use log::error;
 use now::DateTimeNow;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State, async_runtime};
 use uuid::Uuid;
 
 #[tauri::command()]
 #[specta::specta]
 pub async fn list_unscheduled_todos(
+    state: State<'_, AppState>,
     include_done: bool,
 ) -> Result<Vec<UnscheduledTodo>, CommandError> {
     use crate::schema::vtodos::dsl as todo_dsl;
 
-    let conn = &mut establish_connection();
+    let conn = &mut state.get_connection()?;
 
     let todos = if include_done {
         todo_dsl::vtodos
@@ -65,37 +67,38 @@ pub async fn set_vtodo_status(
     status: String,
     date_of_change: String,
 ) -> Result<(), CommandError> {
-    use crate::schema::vtodos::dsl as vtodos_dsl;
-
-    let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
-    let status = EventStatus::from_str(status.as_ref())?;
-
-    let conn = &mut establish_connection();
-    diesel::update(vtodos_dsl::vtodos)
-        .filter(vtodos_dsl::id.eq(vtodo_id))
-        .set((
-            vtodos_dsl::status.eq(status),
-            vtodos_dsl::completed.eq(date_of_change.to_utc()),
-        ))
-        .execute(conn)?;
-
-    let conn = &mut establish_connection();
-    let vtodo = VTodo::by_id(conn, vtodo_id)?;
-    let vtodo = vtodo.ok_or(anyhow!("No todo with id {vtodo_id}"))?;
-    let etag: Etag = vtodo.etag.clone().into();
-    let href: Href = vtodo.href.clone().into();
-    let (server, calendar) = Calendar::by_id_with_server(conn, vtodo.calendar_id)?;
-
-    let caldav = Caldav::new(server).await?;
-    let updated_calendar_cmp: icalendar::CalendarComponent = vtodo.into();
-
-    let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
-
-    caldav.update_cmp(&href, &etag, cal).await?;
-
-    super_sync_calendar(calendar.id).await?;
-
     Ok(())
+    // use crate::schema::vtodos::dsl as vtodos_dsl;
+    //
+    // let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
+    // let status = EventStatus::from_str(status.as_ref())?;
+    //
+    // let conn = &mut establish_connection();
+    // diesel::update(vtodos_dsl::vtodos)
+    //     .filter(vtodos_dsl::id.eq(vtodo_id))
+    //     .set((
+    //         vtodos_dsl::status.eq(status),
+    //         vtodos_dsl::completed.eq(date_of_change.to_utc()),
+    //     ))
+    //     .execute(conn)?;
+    //
+    // let conn = &mut establish_connection();
+    // let vtodo = VTodo::by_id(conn, vtodo_id)?;
+    // let vtodo = vtodo.ok_or(anyhow!("No todo with id {vtodo_id}"))?;
+    // let etag: Etag = vtodo.etag.clone().into();
+    // let href: Href = vtodo.href.clone().into();
+    // let (server, calendar) = Calendar::by_id_with_server(conn, vtodo.calendar_id)?;
+    //
+    // let caldav = Caldav::new(server).await?;
+    // let updated_calendar_cmp: icalendar::CalendarComponent = vtodo.into();
+    //
+    // let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
+    //
+    // caldav.update_cmp(&href, &etag, cal).await?;
+    //
+    // super_sync_calendar(calendar.id).await?;
+    //
+    // Ok(())
 }
 
 #[tauri::command()]
@@ -105,41 +108,43 @@ pub async fn set_component_status(
     status: String,
     date_of_change: String,
 ) -> Result<(), CommandError> {
-    let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
-    let status = EventStatus::from_str(status.as_ref())?;
-
-    let conn = &mut establish_connection();
-    let cmp = VCmp::by_id(conn, id)?;
-
-    let mut cmp = cmp.ok_or(anyhow!("No cmp with id {id}"))?;
-
-    let etag: Etag = cmp.get_etag().clone().into();
-    let href: Href = cmp.get_href().clone().into();
-    let (server, calendar) = Calendar::by_id_with_server(conn, cmp.get_calendar_id())?;
-
-    cmp.set_status(status, date_of_change);
-
-    let updated_calendar_cmp: icalendar::CalendarComponent = cmp.into();
-    let caldav = Caldav::new(server).await?;
-
-    let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
-
-    caldav.update_cmp(&href, &etag, cal).await?;
-
-    super_sync_calendar(calendar.id).await?;
-
+    // TODO: Move to local update
     Ok(())
+    // let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
+    // let status = EventStatus::from_str(status.as_ref())?;
+    //
+    // let conn = &mut establish_connection();
+    // let cmp = VCmp::by_id(conn, id)?;
+    //
+    // let mut cmp = cmp.ok_or(anyhow!("No cmp with id {id}"))?;
+    //
+    // let etag: Etag = cmp.get_etag().clone().into();
+    // let href: Href = cmp.get_href().clone().into();
+    // let (server, calendar) = Calendar::by_id_with_server(conn, cmp.get_calendar_id())?;
+    //
+    // cmp.set_status(status, date_of_change);
+    //
+    // let updated_calendar_cmp: icalendar::CalendarComponent = cmp.into();
+    // let caldav = Caldav::new(server).await?;
+    //
+    // let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
+    //
+    // caldav.update_cmp(&href, &etag, cal).await?;
+    //
+    // super_sync_calendar(calendar.id).await?;
+    //
+    // Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
 pub async fn list_events_for_day(
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, AppState>,
     datetime: String,
 ) -> Result<Vec<ExtendedEvent>, CommandError> {
     use crate::schema::vevents::dsl as event_dsl;
 
-    let conn = &mut establish_connection();
+    let conn = &mut state.get_connection()?;
 
     let parsed: DateTime<FixedOffset> = DateTimeStr(datetime).try_into()?;
     // let parsed = parsed.to_utc();
@@ -208,6 +213,7 @@ pub async fn parse_event(
 #[tauri::command()]
 #[specta::specta]
 pub async fn save_component(
+    app: AppHandle,
     calendar_id: i32,
     date_of_input_str: String,
     component_input: String,
@@ -222,15 +228,30 @@ pub async fn save_component(
     let ExtractedInput(data, _) =
         EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
 
-    let mut new_calendar_cmp: icalendar::CalendarComponent = data.into();
-
     let uid = Uuid::new_v4().to_string();
-    let new_calendar_cmp = set_uid(&mut new_calendar_cmp, &uid);
-    let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
+
+    let mut new_calendar_cmp = icalendar::CalendarComponent::from(&data);
 
     let cal_href: Href = calendar.url.clone().into();
-    caldav.create_cmp(&cal_href, uid, cal).await?;
-    super_sync_calendar(calendar.id).await?;
+    let builder = VCmpBuilder::from(&data)
+        .calendar_id(calendar_id)
+        .uid(&uid)
+        .calendar_href(&cal_href);
+
+    builder.build_new()?.save(conn)?;
+
+    // Move this to background events
+    async_runtime::spawn(async move {
+        let new_calendar_cmp = set_uid(&mut new_calendar_cmp, &uid);
+        let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
+        let res = caldav.create_component(&cal_href, uid, &cal).await;
+        match res {
+            Ok(_) => app.emit("sync", SyncEventPayload { calendar_id }).unwrap(),
+            Err(err) => {
+                error!("Error while creating component {err:?}");
+            }
+        }
+    });
 
     Ok(())
 }
@@ -261,7 +282,7 @@ pub async fn delete_vevent(vevent_id: i32) -> Result<(), CommandError> {
     let etag = vcmp.get_etag().clone();
     let href = vcmp.get_href().clone();
     let caldav = Caldav::new(server).await?;
-    caldav.delete_resource(&href.into(), &etag.into()).await?;
+    // caldav.delete_resource(&href.into(), &etag.into()).await?;
     vcmp.delete(conn)?;
 
     Ok(())
@@ -274,32 +295,33 @@ pub async fn update_vevent(
     date_of_input_str: String,
     component_input: String,
 ) -> Result<(), CommandError> {
-    let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
-
-    let ExtractedInput(data, _) =
-        EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
-
-    let conn = &mut establish_connection();
-    let vevent = VCmp::by_id(conn, vevent_id)?;
-    let vcmp = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
-    let updated = vcmp.update_from_upsert(&component_input, data, parsed_date)?;
-    let (server, calendar) = Calendar::by_id_with_server(conn, vcmp.get_calendar_id())?;
-
-    let caldav = Caldav::new(server).await?;
-    let etag = updated.get_etag().clone();
-    let href = updated.get_href().clone();
-    let updated_calendar_cmp: icalendar::CalendarComponent = match updated {
-        VCmp::Todo(vtodo) => vtodo.into(),
-        VCmp::Event(vevent) => vevent.into(),
-    };
-
-    let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
-
-    caldav.update_cmp(&href.into(), &etag.into(), cal).await?;
-
-    super_sync_calendar(calendar.id).await?;
-
     Ok(())
+    // let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
+    //
+    // let ExtractedInput(data, _) =
+    //     EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
+    //
+    // let conn = &mut establish_connection();
+    // let vevent = VCmp::by_id(conn, vevent_id)?;
+    // let vcmp = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
+    // let updated = vcmp.update_from_upsert(&component_input, data, parsed_date)?;
+    // let (server, calendar) = Calendar::by_id_with_server(conn, vcmp.get_calendar_id())?;
+    //
+    // let caldav = Caldav::new(server).await?;
+    // let etag = updated.get_etag().clone();
+    // let href = updated.get_href().clone();
+    // let updated_calendar_cmp: icalendar::CalendarComponent = match updated {
+    //     VCmp::Todo(vtodo) => vtodo.into(),
+    //     VCmp::Event(vevent) => vevent.into(),
+    // };
+    //
+    // let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
+    //
+    // caldav.update_cmp(&href.into(), &etag.into(), cal).await?;
+    //
+    // super_sync_calendar(calendar.id).await?;
+    //
+    // Ok(())
 }
 
 fn set_uid(cmp: &mut icalendar::CalendarComponent, uid: &str) -> icalendar::CalendarComponent {

@@ -15,10 +15,10 @@ pub(crate) mod event_type;
 pub(crate) mod event_upsert;
 pub(crate) mod input_traits;
 
-impl<Tz: TimeZone> From<EventUpsertInfo<Tz>> for CalendarComponent {
-    fn from(value: EventUpsertInfo<Tz>) -> Self {
+impl<Tz: TimeZone> From<&EventUpsertInfo<Tz>> for CalendarComponent {
+    fn from(value: &EventUpsertInfo<Tz>) -> Self {
         match value.event_type {
-            EventType::Event | EventType::Block => match value.date_info.0 {
+            EventType::Event | EventType::Block => match value.date_info.0.clone() {
                 Some(date_info) => {
                     let mut event = icalendar::Event::new()
                         .summary(&value.summary)
@@ -53,7 +53,7 @@ impl<Tz: TimeZone> From<EventUpsertInfo<Tz>> for CalendarComponent {
                     .add_property(ComponentProps::Importance, value.importance.to_string())
                     .done();
 
-                if let Some(date_info) = value.date_info.0 {
+                if let Some(date_info) = value.date_info.0.clone() {
                     todo.starts(date_info.start.to_utc());
                     todo.due(date_info.get_end_or_default(value.event_type).to_utc());
 
