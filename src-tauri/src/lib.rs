@@ -121,10 +121,6 @@ pub fn run() {
                 async_runtime::spawn(async move {
                     if let Ok(payload) = serde_json::from_str::<SyncEventPayload>(event.payload()) {
                         let state = handle.state::<AppState>();
-                        let Ok(conn) = &mut state.get_connection() else {
-                            println!("Counldn't sync");
-                            return;
-                        };
                         let lock = state.syncing.write().await;
                         let res = internal_super_sync_calendar(payload.calendar_id).await;
                         drop(lock);
