@@ -156,10 +156,10 @@ impl NewVCmp {
         }
     }
 
-    pub async fn save(&self, conn: DbConn) -> anyhow::Result<VCmp> {
+    pub async fn create(&self, conn: DbConn) -> anyhow::Result<VCmp> {
         match self {
-            NewVCmp::Todo(new_vtodo) => new_vtodo.save(conn.clone()).await.map(VCmp::Todo),
-            NewVCmp::Event(new_vevent) => new_vevent.save(conn).await.map(VCmp::Event),
+            NewVCmp::Todo(new_vtodo) => new_vtodo.create(conn.clone()).await.map(VCmp::Todo),
+            NewVCmp::Event(new_vevent) => new_vevent.create(conn).await.map(VCmp::Event),
         }
     }
 }

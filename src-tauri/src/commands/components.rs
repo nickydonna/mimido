@@ -129,7 +129,7 @@ pub async fn parse_event(
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn save_component(
+pub async fn create_component(
     app: AppHandle,
     calendar_id: i32,
     date_of_input_str: String,
@@ -155,7 +155,7 @@ pub async fn save_component(
         .uid(&uid)
         .calendar_href(&cal_href);
 
-    builder.build_new()?.save(conn).await?;
+    builder.build_new()?.create(conn).await?;
 
     // Move this to background events
     async_runtime::spawn(async move {

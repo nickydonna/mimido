@@ -264,7 +264,7 @@ impl_ical_parseable!(VEvent, icalendar::Event, |f| f.as_event());
 impl_ical_parseable!(NewVEvent, icalendar::Event, |f| f.as_event());
 
 pub trait VEventTrait: IcalParseableTrait<icalendar::Event> {
-    async fn save(&self, conn: DbConn) -> anyhow::Result<VEvent>;
+    async fn create(&self, conn: DbConn) -> anyhow::Result<VEvent>;
     async fn update(&self, conn: DbConn, id: i32) -> anyhow::Result<VEvent>;
     async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VEvent>;
     /// Get [`Event::starts_at`]
@@ -302,7 +302,7 @@ macro_rules! impl_event_trait {
                 &self.ends_at
             }
 
-            async fn save(&self, conn: DbConn) -> anyhow::Result<VEvent> {
+            async fn create(&self, conn: DbConn) -> anyhow::Result<VEvent> {
                 use crate::schema::vevents::dsl as events_dsl;
                 let event = self.clone();
                 let val = spawn_blocking(move || {
@@ -338,7 +338,7 @@ macro_rules! impl_event_trait {
                 let vevent = VEvent::by_href(conn.clone(), &href).await?;
                 match vevent {
                     Some(old) => self.update(conn.clone(), old.id).await,
-                    None => self.save(conn).await,
+                    None => self.create(conn).await,
                 }
             }
         }

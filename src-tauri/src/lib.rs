@@ -75,7 +75,7 @@ pub fn run() {
             commands::components::list_events_for_day,
             commands::components::list_todos_for_day,
             commands::components::parse_event,
-            commands::components::save_component,
+            commands::components::create_component,
             commands::components::set_vevent_status,
             commands::components::delete_vevent,
             commands::components::update_vevent,

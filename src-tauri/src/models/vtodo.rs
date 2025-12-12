@@ -321,7 +321,7 @@ impl_ical_parseable!(VTodo, icalendar::Todo, |f| f.as_todo());
 impl_ical_parseable!(NewVTodo, icalendar::Todo, |f| f.as_todo());
 
 pub(crate) trait VTodoTrait: IcalParseableTrait<icalendar::Todo> {
-    async fn save(&self, conn: DbConn) -> anyhow::Result<VTodo>;
+    async fn create(&self, conn: DbConn) -> anyhow::Result<VTodo>;
     async fn update(&self, conn: DbConn, id: i32) -> anyhow::Result<VTodo>;
     async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VTodo>;
     /// Get [`Event::starts_at`]
@@ -350,7 +350,7 @@ pub(crate) trait VTodoTrait: IcalParseableTrait<icalendar::Todo> {
 macro_rules! impl_todo_trait {
     ($t: ty) => {
         impl VTodoTrait for $t {
-            async fn save(&self, conn: DbConn) -> anyhow::Result<VTodo> {
+            async fn create(&self, conn: DbConn) -> anyhow::Result<VTodo> {
                 use crate::schema::vtodos::dsl as todo_dsl;
 
                 let todo = self.clone();
@@ -385,7 +385,7 @@ macro_rules! impl_todo_trait {
                 let vevent = VTodo::by_href(conn.clone(), &href).await?;
                 match vevent {
                     Some(old) => self.update(conn.clone(), old.id).await,
-                    None => self.save(conn).await,
+                    None => self.create(conn).await,
                 }
             }
 
