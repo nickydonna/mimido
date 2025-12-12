@@ -2,7 +2,7 @@ use chrono::{DateTime, FixedOffset};
 use log::warn;
 use newtype::NewType;
 use regex::Regex;
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 pub struct DateTimeStr(pub String);
 

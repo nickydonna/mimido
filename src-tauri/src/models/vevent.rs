@@ -1,5 +1,7 @@
 use anyhow::anyhow;
+use now::DateTimeNow;
 use std::str::FromStr;
+use tauri::async_runtime::spawn_blocking;
 
 use crate::{
     calendar_items::{
@@ -13,8 +15,12 @@ use crate::{
         input_traits::ToUserInput,
         parse_duration,
     },
+    db_conn::DbConn,
     impl_ical_parseable,
-    models::FromResource,
+    models::{
+        FromResource,
+        model_traits::{ByHref, ById, DeleteAllByCalendar, DeleteById, ListForDayOrRecurring},
+    },
     schema::*,
     util::{Href, remove_multiple_spaces},
 };
@@ -55,60 +61,125 @@ pub struct VEvent {
     pub synced_at: i64,
 }
 
-impl VEvent {
-    pub fn by_href(
-        conn: &mut SqliteConnection,
-        vevent_href: &Href,
-    ) -> anyhow::Result<Option<Self>> {
+impl ById for VEvent {
+    async fn by_id(conn: DbConn, id: i32) -> anyhow::Result<Option<Self>> {
         use crate::schema::vevents::dsl as event_dsl;
 
-        event_dsl::vevents
-            .filter(event_dsl::href.eq(&vevent_href.0))
-            .select(Self::as_select())
-            .first::<Self>(conn)
-            .optional()
-            .map_err(anyhow::Error::new)
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            event_dsl::vevents
+                .filter(event_dsl::id.eq(id))
+                .select(Self::as_select())
+                .first::<Self>(conn)
+                .optional()
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
+}
 
-    pub fn by_id(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<Option<Self>> {
+impl ByHref for VEvent {
+    async fn by_href(conn: DbConn, href: &Href) -> anyhow::Result<Option<Self>> {
         use crate::schema::vevents::dsl as event_dsl;
+        let href_str = href.to_string();
 
-        event_dsl::vevents
-            .filter(event_dsl::id.eq(id))
-            .select(Self::as_select())
-            .first::<Self>(conn)
-            .optional()
-            .map_err(anyhow::Error::new)
+        spawn_blocking(move || {
+            let c = &mut *conn.0.lock().unwrap();
+            event_dsl::vevents
+                .filter(event_dsl::href.eq(href_str))
+                .select(Self::as_select())
+                .first::<Self>(c)
+                .optional()
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
+}
 
-    pub fn delete_all(conn: &mut SqliteConnection, calendar_id: i32) -> anyhow::Result<()> {
+impl DeleteById for VEvent {
+    async fn delete_by_id(conn: DbConn, vevent_id: i32) -> anyhow::Result<bool> {
         use crate::schema::vevents::dsl as event_dsl;
-        // Clean the events from that calendar
-        delete(event_dsl::vevents)
-            .filter(event_dsl::calendar_id.eq(calendar_id))
-            .execute(conn)?;
-        Ok(())
-    }
 
-    /// will return true if the vevent has been found and deleted
-    pub fn delete_by_id(conn: &mut SqliteConnection, vevent_id: i32) -> anyhow::Result<bool> {
-        use crate::schema::vevents::dsl as event_dsl;
-        let res = delete(event_dsl::vevents)
-            .filter(event_dsl::id.eq(vevent_id))
-            .execute(conn)?;
+        let res = spawn_blocking(move || {
+            let c = &mut *conn.0.lock().unwrap();
+            delete(event_dsl::vevents)
+                .filter(event_dsl::id.eq(vevent_id))
+                .execute(&mut *c)
+        })
+        .await??;
         Ok(res > 0)
     }
+}
 
+impl DeleteAllByCalendar for VEvent {
+    async fn delete_all_by_calendar(conn: DbConn, calendar_id: i32) -> anyhow::Result<()> {
+        use crate::schema::vevents::dsl as event_dsl;
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            // Clean the events from that calendar
+            delete(event_dsl::vevents)
+                .filter(event_dsl::calendar_id.eq(calendar_id))
+                .execute(conn)
+        })
+        .await??;
+        Ok(())
+    }
+}
+
+impl ListForDayOrRecurring for VEvent {
+    async fn list_for_day_or_recurring(
+        conn: DbConn,
+        date: DateTime<chrono::FixedOffset>,
+    ) -> anyhow::Result<Vec<Self>> {
+        use crate::schema::vevents::dsl as event_dsl;
+        let start = date.beginning_of_day();
+        let end = date.end_of_day();
+        let events = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            event_dsl::vevents
+                .filter(
+                    event_dsl::has_rrule.eq(true).or(event_dsl::starts_at
+                        .ge(start)
+                        .and(event_dsl::ends_at.le(end))),
+                )
+                .select(VEvent::as_select())
+                .load(conn)
+        })
+        .await??;
+        Ok(events)
+    }
+}
+
+impl VEvent {
     /// Will try to find it, if it doesn't find it it will do nothing
     /// will return true if the vevent has been found and deleted
-    pub fn try_delete_by_href(
-        conn: &mut SqliteConnection,
-        vevent_href: &Href,
-    ) -> anyhow::Result<bool> {
-        match Self::by_href(conn, vevent_href)? {
-            Some(vevent) => Self::delete_by_id(conn, vevent.id),
+    pub async fn try_delete_by_href(conn: DbConn, vevent_href: &Href) -> anyhow::Result<bool> {
+        match Self::by_href(conn.clone(), vevent_href).await? {
+            Some(vevent) => Self::delete_by_id(conn, vevent.id).await,
             None => Ok(false),
         }
+    }
+
+    pub async fn update_status_by_id(
+        conn: DbConn,
+        vevent_id: i32,
+        status: EventStatus,
+    ) -> anyhow::Result<Option<VEvent>> {
+        use crate::schema::vevents::dsl as vevents_dsl;
+        let conn_2 = conn.clone();
+        spawn_blocking(move || {
+            let conn = &mut *conn_2.0.lock().unwrap();
+
+            diesel::update(vevents_dsl::vevents)
+                .filter(vevents_dsl::id.eq(vevent_id))
+                .set(vevents_dsl::status.eq(status))
+                .execute(conn)
+        })
+        .await??;
+        Self::by_id(conn, vevent_id).await
     }
 
     pub fn update_from_upsert<Tz: TimeZone>(
@@ -193,9 +264,9 @@ impl_ical_parseable!(VEvent, icalendar::Event, |f| f.as_event());
 impl_ical_parseable!(NewVEvent, icalendar::Event, |f| f.as_event());
 
 pub trait VEventTrait: IcalParseableTrait<icalendar::Event> {
-    fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
-    fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VEvent>;
-    fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent>;
+    async fn save(&self, conn: DbConn) -> anyhow::Result<VEvent>;
+    async fn update(&self, conn: DbConn, id: i32) -> anyhow::Result<VEvent>;
+    async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VEvent>;
     /// Get [`Event::starts_at`]
     fn get_start(&self) -> &DateTime<Utc>;
     /// Get [`Event::ends_at`]
@@ -231,32 +302,43 @@ macro_rules! impl_event_trait {
                 &self.ends_at
             }
 
-            fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
+            async fn save(&self, conn: DbConn) -> anyhow::Result<VEvent> {
                 use crate::schema::vevents::dsl as events_dsl;
-                let val = insert_into(events_dsl::vevents)
-                    .values(self)
-                    .returning(VEvent::as_returning())
-                    .get_result(conn)?;
+                let event = self.clone();
+                let val = spawn_blocking(move || {
+                    let conn = &mut *conn.0.lock().unwrap();
+                    insert_into(events_dsl::vevents)
+                        .values(event)
+                        .returning(VEvent::as_returning())
+                        .get_result(conn)
+                })
+                .await??;
                 Ok(val)
             }
-            fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VEvent> {
+            async fn update(&self, conn: DbConn, id: i32) -> anyhow::Result<VEvent> {
                 use crate::schema::vevents::dsl as events_dsl;
-                let val = update(events_dsl::vevents.filter(events_dsl::id.eq(id)))
-                    .set(self)
-                    .returning(VEvent::as_returning())
-                    .get_result(conn)?;
+                let event = self.clone();
+                let val = spawn_blocking(move || {
+                    let conn = &mut *conn.0.lock().unwrap();
+
+                    update(events_dsl::vevents.filter(events_dsl::id.eq(id)))
+                        .set(event)
+                        .returning(VEvent::as_returning())
+                        .get_result(conn)
+                })
+                .await??;
                 Ok(val)
             }
-            fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VEvent> {
+            async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VEvent> {
                 let href = Href(
                     self.href
                         .clone()
                         .ok_or(anyhow!("$ty must have href to be update"))?,
                 );
-                let vevent = VEvent::by_href(conn, &href)?;
+                let vevent = VEvent::by_href(conn.clone(), &href).await?;
                 match vevent {
-                    Some(old) => self.update(conn, old.id),
-                    None => self.save(conn),
+                    Some(old) => self.update(conn.clone(), old.id).await,
+                    None => self.save(conn).await,
                 }
             }
         }
@@ -314,36 +396,6 @@ impl TryFrom<NewVEvent> for icalendar::Event {
         }
 
         Ok(vevent)
-    }
-}
-
-impl<Tz: TimeZone> TryFrom<EventUpsertInfo<Tz>> for NewVEvent {
-    type Error = anyhow::Error;
-
-    fn try_from(value: EventUpsertInfo<Tz>) -> Result<Self, Self::Error> {
-        Ok(NewVEvent {
-            calendar_id: todo!(),
-            uid: todo!(),
-            href: todo!(),
-            ical_data: todo!(),
-            summary: todo!(),
-            description: todo!(),
-            starts_at: todo!(),
-            ends_at: todo!(),
-            has_rrule: todo!(),
-            rrule_str: todo!(),
-            tag: todo!(),
-            status: todo!(),
-            event_type: todo!(),
-            original_text: todo!(),
-            load: todo!(),
-            urgency: todo!(),
-            importance: todo!(),
-            postponed: todo!(),
-            last_modified: todo!(),
-            etag: todo!(),
-            synced_at: todo!(),
-        })
     }
 }
 

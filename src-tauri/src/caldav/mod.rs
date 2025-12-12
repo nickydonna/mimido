@@ -99,7 +99,7 @@ impl Caldav {
         Ok(res)
     }
 
-    pub async fn list_calendars(&self) -> anyhow::Result<Vec<NewCalendar>> {
+    pub async fn list_caldav_calendars(&self) -> anyhow::Result<Vec<NewCalendar>> {
         let urls = self.urls_for_finding_calendars().await?;
         let found_collections = try_join_all(
             urls.iter()

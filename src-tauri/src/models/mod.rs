@@ -5,7 +5,10 @@ use crate::{
         event_type::EventType,
         event_upsert::EventUpsertInfo,
     },
+    db_conn::DbConn,
+    establish_connection,
     models::{
+        model_traits::{ById, DeleteById},
         server::Server,
         vevent::{NewVEvent, VEvent, VEventTrait},
         vtodo::{NewVTodo, VTodo, VTodoTrait},
@@ -19,11 +22,13 @@ use icalendar::DatePerhapsTime;
 use libdav::FetchedResource;
 use rrule::{RRuleError, RRuleSet};
 
+pub mod model_traits;
 pub mod server;
 pub mod vcmp_builder;
 pub(crate) mod vevent;
 pub(crate) mod vtodo;
 
+use tauri::async_runtime::spawn_blocking;
 pub use vcmp_builder::VCmpBuilder;
 
 /// Enum to unify the [`VEvent`] and [`VTodo`] struct
@@ -31,6 +36,20 @@ pub use vcmp_builder::VCmpBuilder;
 pub enum VCmp {
     Todo(VTodo),
     Event(VEvent),
+}
+
+impl ById for VCmp {
+    async fn by_id(conn: DbConn, id: i32) -> anyhow::Result<Option<VCmp>> {
+        let vevent = VEvent::by_id(conn.clone(), id).await?;
+        if let Some(vevent) = vevent {
+            return Ok(Some(VCmp::Event(vevent)));
+        }
+        let todo = VTodo::by_id(conn, id).await?;
+        if let Some(todo) = todo {
+            return Ok(Some(VCmp::Todo(todo)));
+        }
+        Ok(None)
+    }
 }
 
 impl VCmp {
@@ -55,22 +74,10 @@ impl VCmp {
         }
     }
 
-    pub fn by_id(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<Option<VCmp>> {
-        let vevent = VEvent::by_id(conn, id)?;
-        if let Some(vevent) = vevent {
-            return Ok(Some(VCmp::Event(vevent)));
-        }
-        let todo = VTodo::by_id(conn, id)?;
-        if let Some(todo) = todo {
-            return Ok(Some(VCmp::Todo(todo)));
-        }
-        Ok(None)
-    }
-
-    pub fn delete(&self, conn: &mut SqliteConnection) -> anyhow::Result<bool> {
+    pub async fn delete(&self, conn: DbConn) -> anyhow::Result<bool> {
         match self {
-            VCmp::Todo(vtodo) => VTodo::delete_by_id(conn, vtodo.id),
-            VCmp::Event(vevent) => VEvent::delete_by_id(conn, vevent.id),
+            VCmp::Todo(vtodo) => VTodo::delete_by_id(conn.clone(), vtodo.id).await,
+            VCmp::Event(vevent) => VEvent::delete_by_id(conn, vevent.id).await,
         }
     }
     pub fn update_from_upsert<Tz: TimeZone>(
@@ -140,17 +147,19 @@ impl NewVCmp {
         Err(anyhow!("No Supported Component found"))
     }
 
-    pub fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VCmp> {
+    pub async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VCmp> {
         match self {
-            NewVCmp::Todo(new_vtodo) => new_vtodo.upsert_by_href(conn).map(VCmp::Todo),
-            NewVCmp::Event(new_vevent) => new_vevent.upsert_by_href(conn).map(VCmp::Event),
+            NewVCmp::Todo(new_vtodo) => {
+                new_vtodo.upsert_by_href(conn.clone()).await.map(VCmp::Todo)
+            }
+            NewVCmp::Event(new_vevent) => new_vevent.upsert_by_href(conn).await.map(VCmp::Event),
         }
     }
 
-    pub fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VCmp> {
+    pub async fn save(&self, conn: DbConn) -> anyhow::Result<VCmp> {
         match self {
-            NewVCmp::Todo(new_vtodo) => new_vtodo.save(conn).map(VCmp::Todo),
-            NewVCmp::Event(new_vevent) => new_vevent.save(conn).map(VCmp::Event),
+            NewVCmp::Todo(new_vtodo) => new_vtodo.save(conn.clone()).await.map(VCmp::Todo),
+            NewVCmp::Event(new_vevent) => new_vevent.save(conn).await.map(VCmp::Event),
         }
     }
 }
@@ -180,47 +189,89 @@ pub struct Calendar {
 }
 
 impl Calendar {
-    pub fn by_id_with_server(
-        conn: &mut SqliteConnection,
+    pub async fn by_id_with_server(
+        conn: DbConn,
         calendar_id: i32,
     ) -> anyhow::Result<(Server, Calendar)> {
         use crate::schema::calendars::dsl as calendars_dsl;
         use crate::schema::servers::dsl as server_dsl;
 
-        server_dsl::servers
-            .inner_join(calendars_dsl::calendars)
-            .filter(calendars_dsl::id.eq(calendar_id))
-            .select((Server::as_select(), Calendar::as_select()))
-            .first::<(Server, Calendar)>(conn)
-            .map_err(anyhow::Error::new)
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            server_dsl::servers
+                .inner_join(calendars_dsl::calendars)
+                .filter(calendars_dsl::id.eq(calendar_id))
+                .select((Server::as_select(), Calendar::as_select()))
+                .first::<(Server, Calendar)>(conn)
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
 
-    pub fn by_name(
-        connection: &mut SqliteConnection,
-        name: &str,
-    ) -> anyhow::Result<Option<Calendar>> {
+    pub async fn by_name(name: &str) -> anyhow::Result<Option<Calendar>> {
         use crate::schema::calendars::dsl as calendars_dsl;
-
-        calendars_dsl::calendars
-            .filter(calendars_dsl::name.eq(name))
-            .select(Calendar::as_select())
-            .first::<Calendar>(connection)
-            .optional()
-            .map_err(anyhow::Error::new)
+        let name = name.to_string();
+        spawn_blocking(|| {
+            let conn = &mut establish_connection();
+            calendars_dsl::calendars
+                .filter(calendars_dsl::name.eq(name))
+                .select(Calendar::as_select())
+                .first::<Calendar>(conn)
+                .optional()
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
 
-    pub fn update_sync_token(
-        &self,
-        conn: &mut SqliteConnection,
-        new_token: &str,
-    ) -> anyhow::Result<Calendar> {
+    pub async fn list_all() -> anyhow::Result<Vec<Calendar>> {
         use crate::schema::calendars::dsl as calendars_dsl;
+        use crate::schema::servers::dsl as server_dsl;
+        let servers = spawn_blocking(|| {
+            let conn = &mut establish_connection();
+            server_dsl::servers
+                .inner_join(calendars_dsl::calendars)
+                .select(Calendar::as_select())
+                .load(conn)
+        })
+        .await??;
 
-        update(calendars_dsl::calendars.filter(calendars_dsl::id.eq(self.id)))
-            .set(calendars_dsl::sync_token.eq(Some(new_token)))
-            .returning(Calendar::as_returning())
-            .get_result(conn)
+        Ok(servers)
+    }
+
+    pub async fn set_default_calendar(calendar_id: i32) -> anyhow::Result<()> {
+        use crate::schema::calendars::dsl as calendars_dsl;
+        spawn_blocking(move || {
+            let conn = &mut establish_connection();
+            conn.transaction::<(), diesel::result::Error, _>(|conn| {
+                diesel::update(calendars_dsl::calendars)
+                    .set(calendars_dsl::is_default.eq(false))
+                    .execute(conn)?;
+
+                diesel::update(calendars_dsl::calendars)
+                    .filter(calendars_dsl::id.eq(calendar_id))
+                    .set(calendars_dsl::is_default.eq(true))
+                    .execute(conn)?;
+                Ok(())
+            })
             .map_err(anyhow::Error::new)
+        })
+        .await?
+    }
+
+    pub async fn update_sync_token(&self, new_token: &str) -> anyhow::Result<Calendar> {
+        use crate::schema::calendars::dsl as calendars_dsl;
+        let new_token = new_token.to_string();
+        let id = self.id;
+        spawn_blocking(move || {
+            let conn = &mut establish_connection();
+            update(calendars_dsl::calendars.filter(calendars_dsl::id.eq(id)))
+                .set(calendars_dsl::sync_token.eq(Some(new_token)))
+                .returning(Calendar::as_returning())
+                .get_result(conn)
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
 }
 

@@ -7,6 +7,8 @@ pub(crate) enum CommandError {
     Diesel(#[from] diesel::result::Error),
     #[error("Could not connect to caldav")]
     CaldavBootstrap(#[from] BootstrapError),
+    #[error("Tauri error {0:?}")]
+    Tauri(#[from] tauri::Error),
     #[error("Error: {0}")]
     Anyhow(#[from] anyhow::Error),
 }

@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Mutex};
+use std::str::FromStr;
 
 use crate::{
     SyncEventPayload,
@@ -15,16 +15,19 @@ use crate::{
         extended_event::ExtendedEvent,
         extended_todo::{ExtendedTodo, UnscheduledTodo},
     },
-    establish_connection,
-    models::{Calendar, VCmp, VCmpBuilder, vevent::VEvent, vtodo::VTodo},
+    db_conn::DbConn,
+    models::{
+        Calendar, VCmp, VCmpBuilder,
+        model_traits::{ById, ListForDayOrRecurring},
+        vevent::VEvent,
+        vtodo::VTodo,
+    },
     util::{DateTimeStr, Href},
 };
 use anyhow::anyhow;
-use chrono::{DateTime, FixedOffset, Utc};
-use diesel::prelude::*;
+use chrono::{DateTime, FixedOffset};
 use icalendar::Component;
 use log::error;
-use now::DateTimeNow;
 use tauri::{AppHandle, Emitter, State, async_runtime};
 use uuid::Uuid;
 
@@ -34,132 +37,59 @@ pub async fn list_unscheduled_todos(
     state: State<'_, AppState>,
     include_done: bool,
 ) -> Result<Vec<UnscheduledTodo>, CommandError> {
-    use crate::schema::vtodos::dsl as todo_dsl;
+    let conn = DbConn::new().await?;
 
-    let conn = &mut state.get_connection()?;
-
-    let todos = if include_done {
-        todo_dsl::vtodos
-            .filter(todo_dsl::starts_at.is_null())
-            .select(VTodo::as_select())
-            .load(conn)?
-    } else {
-        todo_dsl::vtodos
-            .filter(
-                todo_dsl::status
-                    .is_not(EventStatus::Done)
-                    .and(todo_dsl::starts_at.is_null()),
-            )
-            .select(VTodo::as_select())
-            .load(conn)?
-    };
-
-    Ok(todos
-        .iter()
-        .map(|t| UnscheduledTodo::on_day(t, &Utc::now()))
-        .collect::<Vec<UnscheduledTodo>>())
+    let todos = VTodo::list_unscheduled(conn, include_done).await?;
+    Ok(todos)
 }
 
 #[tauri::command()]
 #[specta::specta]
 pub async fn set_vtodo_status(
+    app: AppHandle,
     vtodo_id: i32,
     status: String,
     date_of_change: String,
 ) -> Result<(), CommandError> {
+    let updated_at: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
+    let status = EventStatus::from_str(status.as_ref())?;
+    let conn = DbConn::new().await?;
+
+    let vtodo = VTodo::update_status_by_id(conn, vtodo_id, status, updated_at)
+        .await?
+        .ok_or(anyhow!("No todo with id {vtodo_id}"))?;
+
+    app.emit("sync", SyncEventPayload::new(vtodo.calendar_id));
+
     Ok(())
-    // use crate::schema::vtodos::dsl as vtodos_dsl;
-    //
-    // let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
-    // let status = EventStatus::from_str(status.as_ref())?;
-    //
-    // let conn = &mut establish_connection();
-    // diesel::update(vtodos_dsl::vtodos)
-    //     .filter(vtodos_dsl::id.eq(vtodo_id))
-    //     .set((
-    //         vtodos_dsl::status.eq(status),
-    //         vtodos_dsl::completed.eq(date_of_change.to_utc()),
-    //     ))
-    //     .execute(conn)?;
-    //
-    // let conn = &mut establish_connection();
-    // let vtodo = VTodo::by_id(conn, vtodo_id)?;
-    // let vtodo = vtodo.ok_or(anyhow!("No todo with id {vtodo_id}"))?;
-    // let etag: Etag = vtodo.etag.clone().into();
-    // let href: Href = vtodo.href.clone().into();
-    // let (server, calendar) = Calendar::by_id_with_server(conn, vtodo.calendar_id)?;
-    //
-    // let caldav = Caldav::new(server).await?;
-    // let updated_calendar_cmp: icalendar::CalendarComponent = vtodo.into();
-    //
-    // let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
-    //
-    // caldav.update_cmp(&href, &etag, cal).await?;
-    //
-    // super_sync_calendar(calendar.id).await?;
-    //
-    // Ok(())
 }
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn set_component_status(
-    id: i32,
+pub async fn set_vevent_status(
+    app: AppHandle,
+    vevent_id: i32,
     status: String,
-    date_of_change: String,
 ) -> Result<(), CommandError> {
-    // TODO: Move to local update
+    let status = EventStatus::from_str(status.as_ref())?;
+    let conn = DbConn::new().await?;
+
+    let vevent = VEvent::update_status_by_id(conn, vevent_id, status)
+        .await?
+        .ok_or(anyhow!("No todo with id {vevent_id}"))?;
+
+    let _ = app.emit("sync", SyncEventPayload::new(vevent.calendar_id));
+
     Ok(())
-    // let date_of_change: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
-    // let status = EventStatus::from_str(status.as_ref())?;
-    //
-    // let conn = &mut establish_connection();
-    // let cmp = VCmp::by_id(conn, id)?;
-    //
-    // let mut cmp = cmp.ok_or(anyhow!("No cmp with id {id}"))?;
-    //
-    // let etag: Etag = cmp.get_etag().clone().into();
-    // let href: Href = cmp.get_href().clone().into();
-    // let (server, calendar) = Calendar::by_id_with_server(conn, cmp.get_calendar_id())?;
-    //
-    // cmp.set_status(status, date_of_change);
-    //
-    // let updated_calendar_cmp: icalendar::CalendarComponent = cmp.into();
-    // let caldav = Caldav::new(server).await?;
-    //
-    // let cal = icalendar::Calendar::new().push(updated_calendar_cmp).done();
-    //
-    // caldav.update_cmp(&href, &etag, cal).await?;
-    //
-    // super_sync_calendar(calendar.id).await?;
-    //
-    // Ok(())
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command()]
 #[specta::specta]
-pub async fn list_events_for_day(
-    state: State<'_, AppState>,
-    datetime: String,
-) -> Result<Vec<ExtendedEvent>, CommandError> {
-    use crate::schema::vevents::dsl as event_dsl;
-
-    let conn = &mut state.get_connection()?;
-
+pub async fn list_events_for_day(datetime: String) -> Result<Vec<ExtendedEvent>, CommandError> {
+    let conn = DbConn::new().await?;
     let parsed: DateTime<FixedOffset> = DateTimeStr(datetime).try_into()?;
-    // let parsed = parsed.to_utc();
-    let start = parsed.beginning_of_day();
-    let end = parsed.end_of_day();
 
-    let events = event_dsl::vevents
-        .filter(
-            event_dsl::has_rrule.eq(true).or(event_dsl::starts_at
-                .ge(start)
-                .and(event_dsl::ends_at.le(end))),
-        )
-        .select(VEvent::as_select())
-        .load(conn)?;
-
+    let events = VEvent::list_for_day_or_recurring(conn, parsed).await?;
     let events = events
         .iter()
         .filter_map(|event| ExtendedEvent::on_day(event, &parsed))
@@ -171,25 +101,12 @@ pub async fn list_events_for_day(
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
 pub async fn list_todos_for_day(datetime: String) -> Result<Vec<ExtendedTodo>, CommandError> {
-    use crate::schema::vtodos::dsl as todos_dsl;
-
-    let conn = &mut establish_connection();
+    let conn = DbConn::new().await?;
 
     let parsed: DateTime<FixedOffset> = DateTimeStr(datetime).try_into()?;
-    // let parsed = parsed.to_utc();
-    let start = parsed.beginning_of_day();
-    let end = parsed.end_of_day();
 
-    let events = todos_dsl::vtodos
-        .filter(
-            todos_dsl::has_rrule.eq(true).or(todos_dsl::starts_at
-                .ge(start)
-                .and(todos_dsl::ends_at.le(end))),
-        )
-        .select(VTodo::as_select())
-        .load(conn)?;
-
-    let todos = events
+    let todos = VTodo::list_for_day_or_recurring(conn, parsed).await?;
+    let todos = todos
         .iter()
         .filter_map(|vtodo| ExtendedTodo::on_day(vtodo, &parsed))
         .collect::<Vec<ExtendedTodo>>();
@@ -218,9 +135,9 @@ pub async fn save_component(
     date_of_input_str: String,
     component_input: String,
 ) -> Result<(), CommandError> {
-    let conn = &mut establish_connection();
+    let conn = DbConn::new().await?;
 
-    let (server, calendar) = Calendar::by_id_with_server(conn, calendar_id)?;
+    let (server, calendar) = Calendar::by_id_with_server(conn.clone(), calendar_id).await?;
     let caldav = Caldav::new(server).await?;
 
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
@@ -238,7 +155,7 @@ pub async fn save_component(
         .uid(&uid)
         .calendar_href(&cal_href);
 
-    builder.build_new()?.save(conn)?;
+    builder.build_new()?.save(conn).await?;
 
     // Move this to background events
     async_runtime::spawn(async move {
@@ -258,32 +175,11 @@ pub async fn save_component(
 
 #[tauri::command()]
 #[specta::specta]
-pub fn set_vevent_status(vevent_id: i32, status: String) -> Result<(), CommandError> {
-    use crate::schema::vevents::dsl as vevents_dsl;
-
-    let status = EventStatus::from_str(status.as_ref())?;
-
-    let conn = &mut establish_connection();
-    diesel::update(vevents_dsl::vevents)
-        .filter(vevents_dsl::id.eq(vevent_id))
-        .set(vevents_dsl::status.eq(status))
-        .execute(conn)?;
-    Ok(())
-}
-
-#[tauri::command()]
-#[specta::specta]
 pub async fn delete_vevent(vevent_id: i32) -> Result<(), CommandError> {
-    let conn = &mut establish_connection();
-    let vevent = VCmp::by_id(conn, vevent_id)?;
-    let vcmp = vevent.ok_or(anyhow!("No cmp with id {vevent_id}"))?;
-    let (server, _) = Calendar::by_id_with_server(conn, vcmp.get_calendar_id())?;
-
-    let etag = vcmp.get_etag().clone();
-    let href = vcmp.get_href().clone();
-    let caldav = Caldav::new(server).await?;
-    // caldav.delete_resource(&href.into(), &etag.into()).await?;
-    vcmp.delete(conn)?;
+    let conn = DbConn::new().await?;
+    let vevent = VCmp::by_id(conn.clone(), vevent_id)
+        .await?
+        .ok_or(anyhow!("No cmp with id {vevent_id}"))?;
 
     Ok(())
 }

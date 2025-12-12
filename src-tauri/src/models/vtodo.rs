@@ -10,16 +10,23 @@ use crate::{
         input_traits::ToUserInput,
         parse_duration,
     },
+    commands::extended_todo::UnscheduledTodo,
+    db_conn::DbConn,
     impl_ical_parseable,
-    models::FromResource,
+    models::{
+        FromResource,
+        model_traits::{ByHref, ById, DeleteAllByCalendar, DeleteById, ListForDayOrRecurring},
+    },
     schema::*,
     util::{Href, remove_multiple_spaces},
 };
 use anyhow::anyhow;
-use chrono::{DateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, TimeDelta, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
 use icalendar::{CalendarComponent, Component, TodoStatus};
 use libdav::FetchedResource;
+use now::DateTimeNow;
+use tauri::async_runtime::spawn_blocking;
 
 use super::IcalParseableTrait;
 
@@ -27,6 +34,7 @@ use super::IcalParseableTrait;
     Queryable, Selectable, Insertable, AsChangeset, Debug, serde::Serialize, specta::Type, Clone,
 )]
 #[diesel(table_name = vtodos)]
+#[diesel(treat_none_as_null = true)]
 pub struct VTodo {
     pub id: i32,
     pub calendar_id: i32,
@@ -53,56 +61,165 @@ pub struct VTodo {
     pub completed: Option<chrono::DateTime<Utc>>,
 }
 
-impl VTodo {
-    pub fn by_href(conn: &mut SqliteConnection, vtodo_href: &Href) -> anyhow::Result<Option<Self>> {
+impl ById for VTodo {
+    async fn by_id(conn: DbConn, id: i32) -> anyhow::Result<Option<Self>> {
         use crate::schema::vtodos::dsl as todo_dsl;
 
-        todo_dsl::vtodos
-            .filter(todo_dsl::href.eq(&vtodo_href.0))
-            .select(Self::as_select())
-            .first::<Self>(conn)
-            .optional()
-            .map_err(anyhow::Error::new)
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            todo_dsl::vtodos
+                .filter(todo_dsl::id.eq(id))
+                .select(Self::as_select())
+                .first::<Self>(conn)
+                .optional()
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
+}
 
-    pub fn by_id(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<Option<Self>> {
+impl ByHref for VTodo {
+    async fn by_href(conn: DbConn, href: &Href) -> anyhow::Result<Option<Self>> {
         use crate::schema::vtodos::dsl as todo_dsl;
+        let href_str = href.to_string();
 
-        todo_dsl::vtodos
-            .filter(todo_dsl::id.eq(id))
-            .select(Self::as_select())
-            .first::<Self>(conn)
-            .optional()
-            .map_err(anyhow::Error::new)
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            todo_dsl::vtodos
+                .filter(todo_dsl::href.eq(href_str))
+                .select(Self::as_select())
+                .first::<Self>(conn)
+                .optional()
+                .map_err(anyhow::Error::new)
+        })
+        .await?
     }
+}
 
-    pub fn delete_all(conn: &mut SqliteConnection, calendar_id: i32) -> anyhow::Result<()> {
+impl DeleteById for VTodo {
+    async fn delete_by_id(conn: DbConn, vevent_id: i32) -> anyhow::Result<bool> {
         use crate::schema::vtodos::dsl as todo_dsl;
-        delete(todo_dsl::vtodos)
-            .filter(todo_dsl::calendar_id.eq(calendar_id))
-            .execute(conn)?;
-        Ok(())
-    }
+        let res = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
 
-    /// will return true if the vevent has been found and deleted
-    pub fn delete_by_id(conn: &mut SqliteConnection, vevent_id: i32) -> anyhow::Result<bool> {
-        use crate::schema::vtodos::dsl as todo_dsl;
-        let res = delete(todo_dsl::vtodos)
-            .filter(todo_dsl::id.eq(vevent_id))
-            .execute(conn)?;
+            delete(todo_dsl::vtodos)
+                .filter(todo_dsl::id.eq(vevent_id))
+                .execute(conn)
+        })
+        .await??;
         Ok(res > 0)
     }
+}
 
+impl DeleteAllByCalendar for VTodo {
+    async fn delete_all_by_calendar(conn: DbConn, calendar_id: i32) -> anyhow::Result<()> {
+        use crate::schema::vtodos::dsl as todo_dsl;
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            delete(todo_dsl::vtodos)
+                .filter(todo_dsl::calendar_id.eq(calendar_id))
+                .execute(conn)
+        })
+        .await??;
+        Ok(())
+    }
+}
+
+impl ListForDayOrRecurring for VTodo {
+    async fn list_for_day_or_recurring(
+        conn: DbConn,
+        date: DateTime<FixedOffset>,
+    ) -> anyhow::Result<Vec<Self>> {
+        use crate::schema::vtodos::dsl as todos_dsl;
+        let start = date.beginning_of_day();
+        let end = date.end_of_day();
+        let todos = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            todos_dsl::vtodos
+                .filter(
+                    todos_dsl::has_rrule.eq(true).or(todos_dsl::starts_at
+                        .ge(start)
+                        .and(todos_dsl::ends_at.le(end))),
+                )
+                .select(VTodo::as_select())
+                .load(conn)
+        })
+        .await??;
+        Ok(todos)
+    }
+}
+
+impl VTodo {
     /// Will try to find it, if it doesn't find it it will do nothing
     /// will return true if the vevent has been found and deleted
-    pub fn try_delete_by_href(
-        conn: &mut SqliteConnection,
-        vevent_href: &Href,
-    ) -> anyhow::Result<bool> {
-        match Self::by_href(conn, vevent_href)? {
-            Some(vevent) => Self::delete_by_id(conn, vevent.id),
+    pub async fn try_delete_by_href(conn: DbConn, vtodo_href: &Href) -> anyhow::Result<bool> {
+        match Self::by_href(conn.clone(), vtodo_href).await? {
+            Some(vevent) => Self::delete_by_id(conn, vevent.id).await,
             None => Ok(false),
         }
+    }
+
+    pub async fn list_unscheduled(
+        conn: DbConn,
+        include_done: bool,
+    ) -> anyhow::Result<Vec<UnscheduledTodo>> {
+        use crate::schema::vtodos::dsl as todo_dsl;
+
+        let todos = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            if include_done {
+                todo_dsl::vtodos
+                    .filter(todo_dsl::starts_at.is_null())
+                    .select(VTodo::as_select())
+                    .load(conn)
+            } else {
+                todo_dsl::vtodos
+                    .filter(
+                        todo_dsl::status
+                            .is_not(EventStatus::Done)
+                            .and(todo_dsl::starts_at.is_null()),
+                    )
+                    .select(VTodo::as_select())
+                    .load(conn)
+            }
+        })
+        .await??;
+
+        Ok(todos
+            .iter()
+            .map(|t| UnscheduledTodo::on_day(t, &Utc::now()))
+            .collect::<Vec<UnscheduledTodo>>())
+    }
+
+    pub async fn update_status_by_id(
+        conn: DbConn,
+        vtodo_id: i32,
+        status: EventStatus,
+        update_at: DateTime<FixedOffset>,
+    ) -> anyhow::Result<Option<VTodo>> {
+        use crate::schema::vtodos::dsl as vtodos_dsl;
+        let conn_2 = conn.clone();
+        spawn_blocking(move || {
+            let conn = &mut *conn_2.0.lock().unwrap();
+
+            let completed_update = if matches!(status, EventStatus::Done) {
+                vtodos_dsl::completed.eq(Some(update_at.to_utc()))
+            } else {
+                vtodos_dsl::completed.eq(None)
+            };
+
+            diesel::update(vtodos_dsl::vtodos)
+                .filter(vtodos_dsl::id.eq(vtodo_id))
+                .set((vtodos_dsl::status.eq(status), completed_update))
+                .execute(conn)
+        })
+        .await??;
+        Self::by_id(conn, vtodo_id).await
     }
 
     pub fn update_from_upsert<Tz: TimeZone>(
@@ -173,7 +290,7 @@ impl From<VTodo> for CalendarComponent {
     }
 }
 
-#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]
+#[derive(Queryable, Selectable, Insertable, AsChangeset, Debug, Clone)]
 #[diesel(table_name = vtodos)]
 pub struct NewVTodo {
     pub calendar_id: i32,
@@ -204,9 +321,9 @@ impl_ical_parseable!(VTodo, icalendar::Todo, |f| f.as_todo());
 impl_ical_parseable!(NewVTodo, icalendar::Todo, |f| f.as_todo());
 
 pub(crate) trait VTodoTrait: IcalParseableTrait<icalendar::Todo> {
-    fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
-    fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo>;
-    fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo>;
+    async fn save(&self, conn: DbConn) -> anyhow::Result<VTodo>;
+    async fn update(&self, conn: DbConn, id: i32) -> anyhow::Result<VTodo>;
+    async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VTodo>;
     /// Get [`Event::starts_at`]
     fn get_start(&self) -> Option<&DateTime<Utc>>;
     /// Get [`Event::ends_at`]
@@ -233,29 +350,42 @@ pub(crate) trait VTodoTrait: IcalParseableTrait<icalendar::Todo> {
 macro_rules! impl_todo_trait {
     ($t: ty) => {
         impl VTodoTrait for $t {
-            fn save(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo> {
+            async fn save(&self, conn: DbConn) -> anyhow::Result<VTodo> {
                 use crate::schema::vtodos::dsl as todo_dsl;
-                let val = insert_into(todo_dsl::vtodos)
-                    .values(self)
-                    .returning(VTodo::as_returning())
-                    .get_result(conn)?;
+
+                let todo = self.clone();
+                let val = spawn_blocking(move || {
+                    let conn = &mut *conn.0.lock().unwrap();
+
+                    insert_into(todo_dsl::vtodos)
+                        .values(todo)
+                        .returning(VTodo::as_returning())
+                        .get_result(conn)
+                })
+                .await??;
                 Ok(val)
             }
-            fn update(&self, conn: &mut SqliteConnection, id: i32) -> anyhow::Result<VTodo> {
+            async fn update(&self, conn: DbConn, id: i32) -> anyhow::Result<VTodo> {
                 use crate::schema::vtodos::dsl as todo_dsl;
-                let val = update(todo_dsl::vtodos.filter(todo_dsl::id.eq(id)))
-                    .set(self)
-                    .returning(VTodo::as_returning())
-                    .get_result(conn)?;
+
+                let todo = self.clone();
+                let val = spawn_blocking(move || {
+                    let conn = &mut *conn.0.lock().unwrap();
+                    update(todo_dsl::vtodos.filter(todo_dsl::id.eq(id)))
+                        .set(todo)
+                        .returning(VTodo::as_returning())
+                        .get_result(conn)
+                })
+                .await??;
                 Ok(val)
             }
 
-            fn upsert_by_href(&self, conn: &mut SqliteConnection) -> anyhow::Result<VTodo> {
+            async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VTodo> {
                 let href = Href(self.href.clone().expect("$t must have href"));
-                let vevent = VTodo::by_href(conn, &href)?;
+                let vevent = VTodo::by_href(conn.clone(), &href).await?;
                 match vevent {
-                    Some(old) => self.update(conn, old.id),
-                    None => self.save(conn),
+                    Some(old) => self.update(conn.clone(), old.id).await,
+                    None => self.save(conn).await,
                 }
             }
 

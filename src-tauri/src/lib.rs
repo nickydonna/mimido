@@ -16,6 +16,7 @@ pub mod app_state;
 pub mod caldav;
 pub mod calendar_items;
 mod commands;
+pub mod db_conn;
 pub mod models;
 pub mod schema;
 pub(crate) mod util;
@@ -52,6 +53,12 @@ pub struct SyncEventPayload {
     calendar_id: i32,
 }
 
+impl SyncEventPayload {
+    pub fn new(calendar_id: i32) -> Self {
+        Self { calendar_id }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = Builder::<tauri::Wry>::new()
@@ -60,9 +67,9 @@ pub fn run() {
             commands::create_server,
             commands::list_servers,
             commands::calendar::list_calendars,
-            commands::calendar::fetch_calendars,
-            commands::calendar::sync_calendar,
-            commands::calendar::sync_all_calendars,
+            commands::calendar::fetch_calendars_from_caldav,
+            // commands::calendar::sync_calendar,
+            // commands::calendar::sync_all_calendars,
             commands::calendar::set_default_calendar,
             commands::calendar::super_sync_calendar,
             commands::components::list_events_for_day,
@@ -74,7 +81,6 @@ pub fn run() {
             commands::components::update_vevent,
             commands::components::list_unscheduled_todos,
             commands::components::set_vtodo_status,
-            commands::components::set_component_status,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
@@ -120,7 +126,7 @@ pub fn run() {
                             return;
                         };
                         let lock = state.syncing.write().await;
-                        let res = internal_super_sync_calendar(conn, payload.calendar_id).await;
+                        let res = internal_super_sync_calendar(payload.calendar_id).await;
                         drop(lock);
                         info!("Sync resulted in {res:?}");
                     }
