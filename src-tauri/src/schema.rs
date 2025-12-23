@@ -10,6 +10,7 @@ diesel::table! {
         default_value -> Bool,
         is_default -> Bool,
         sync_token -> Nullable<Text>,
+        synced_at -> Nullable<TimestamptzSqlite>,
     }
 }
 

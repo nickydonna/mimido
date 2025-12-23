@@ -29,25 +29,9 @@ async listCalendars() : Promise<Result<Calendar[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async fetchCalendars(serverId: number) : Promise<Result<Calendar[], string>> {
+async fetchCalendarsFromCaldav(serverId: number) : Promise<Result<Calendar[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("fetch_calendars", { serverId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async syncCalendar(calendarId: number) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("sync_calendar", { calendarId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async syncAllCalendars() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("sync_all_calendars") };
+    return { status: "ok", data: await TAURI_INVOKE("fetch_calendars_from_caldav", { serverId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -93,9 +77,9 @@ async parseEvent(dateOfInputStr: string, componentInput: string) : Promise<Resul
     else return { status: "error", error: e  as any };
 }
 },
-async saveComponent(calendarId: number, dateOfInputStr: string, componentInput: string) : Promise<Result<null, string>> {
+async createComponent(calendarId: number, dateOfInputStr: string, componentInput: string) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("save_component", { calendarId, dateOfInputStr, componentInput }) };
+    return { status: "ok", data: await TAURI_INVOKE("create_component", { calendarId, dateOfInputStr, componentInput }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -109,17 +93,17 @@ async setVeventStatus(veventId: number, status: string) : Promise<Result<null, s
     else return { status: "error", error: e  as any };
 }
 },
-async deleteVevent(veventId: number) : Promise<Result<null, string>> {
+async deleteVcmp(veventId: number) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("delete_vevent", { veventId }) };
+    return { status: "ok", data: await TAURI_INVOKE("delete_vcmp", { veventId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
-async updateVevent(veventId: number, dateOfInputStr: string, componentInput: string) : Promise<Result<null, string>> {
+async updateVcmp(veventId: number, dateOfInputStr: string, componentInput: string) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("update_vevent", { veventId, dateOfInputStr, componentInput }) };
+    return { status: "ok", data: await TAURI_INVOKE("update_vcmp", { veventId, dateOfInputStr, componentInput }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -136,14 +120,6 @@ async listUnscheduledTodos(includeDone: boolean) : Promise<Result<UnscheduledTod
 async setVtodoStatus(vtodoId: number, status: string, dateOfChange: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_vtodo_status", { vtodoId, status, dateOfChange }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async setComponentStatus(id: number, status: string, dateOfChange: string) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("set_component_status", { id, status, dateOfChange }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

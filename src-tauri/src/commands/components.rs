@@ -26,8 +26,7 @@ use crate::{
 use anyhow::anyhow;
 use chrono::{DateTime, FixedOffset};
 use icalendar::Component;
-use log::error;
-use tauri::{AppHandle, Emitter, async_runtime};
+use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 #[tauri::command()]
@@ -128,7 +127,6 @@ pub async fn parse_event(
 #[tauri::command()]
 #[specta::specta]
 pub async fn create_component(
-    app: AppHandle,
     calendar_id: i32,
     date_of_input_str: String,
     component_input: String,
@@ -145,46 +143,45 @@ pub async fn create_component(
 
     let uid = Uuid::new_v4().to_string();
 
-    let mut new_calendar_cmp = icalendar::CalendarComponent::from(&data);
-
-    let cal_href: Href = calendar.url.clone().into();
     let builder = VCmpBuilder::from(&data)
         .calendar_id(calendar_id)
         .uid(&uid)
-        .calendar_href(&cal_href);
+        .calendar_href(Href(calendar.url));
 
     builder.build_new()?.create(conn).await?;
 
     // Move this to background events
-    async_runtime::spawn(async move {
-        let new_calendar_cmp = set_uid(&mut new_calendar_cmp, &uid);
-        let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
-        let res = caldav.create_component(&cal_href, uid, &cal).await;
-        match res {
-            Ok(_) => app.emit("sync", SyncEventPayload { calendar_id }).unwrap(),
-            Err(err) => {
-                error!("Error while creating component {err:?}");
-            }
-        }
-    });
+    // async_runtime::spawn(async move {
+    //     let new_calendar_cmp = set_uid(&mut new_calendar_cmp, &uid);
+    //     let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
+    //     let res = caldav.create_component(&cal_href, uid, &cal).await;
+    //     match res {
+    //         Ok(_) => app.emit("sync", SyncEventPayload { calendar_id }).unwrap(),
+    //         Err(err) => {
+    //             error!("Error while creating component {err:?}");
+    //         }
+    //     }
+    // });
 
     Ok(())
 }
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn delete_vevent(vevent_id: i32) -> Result<(), CommandError> {
+pub async fn delete_vcmp(vevent_id: i32) -> Result<(), CommandError> {
     let conn = DbConn::new().await?;
-    VCmp::by_id(conn.clone(), vevent_id)
+    let cmp = VCmp::by_id(conn.clone(), vevent_id)
         .await?
         .ok_or(anyhow!("No cmp with id {vevent_id}"))?;
 
+    cmp.delete(conn).await?;
+
     Ok(())
 }
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn update_vevent(
+pub async fn update_vcmp(
     vevent_id: i32,
     date_of_input_str: String,
     component_input: String,

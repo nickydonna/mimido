@@ -77,8 +77,8 @@ pub fn run() {
             commands::components::parse_event,
             commands::components::create_component,
             commands::components::set_vevent_status,
-            commands::components::delete_vevent,
-            commands::components::update_vevent,
+            commands::components::delete_vcmp,
+            commands::components::update_vcmp,
             commands::components::list_unscheduled_todos,
             commands::components::set_vtodo_status,
         ]);

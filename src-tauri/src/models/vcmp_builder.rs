@@ -7,6 +7,7 @@ use crate::{
         vevent::{NewVEvent, VEvent},
         vtodo::{NewVTodo, VTodo},
     },
+    util::Href,
 };
 use chrono::{DateTime, TimeZone, Utc};
 
@@ -49,8 +50,8 @@ impl VCmpBuilder {
         Self::default()
     }
 
-    pub fn calendar_href(mut self, calendar_url: impl Into<String>) -> Self {
-        self.calendar_url = Some(calendar_url.into());
+    pub fn calendar_href(mut self, calendar_href: impl Into<Href>) -> Self {
+        self.calendar_url = Some(calendar_href.into().to_string());
         self
     }
 

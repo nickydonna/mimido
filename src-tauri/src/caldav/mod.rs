@@ -154,6 +154,7 @@ impl Caldav {
             is_default: false,
             sync_token: sync_token.clone(),
             server_id: self.server.id,
+            synced_at: None,
         })
     }
 

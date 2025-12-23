@@ -7,7 +7,11 @@ use crate::{
     db_conn::DbConn,
     establish_connection,
     models::{
-        Calendar, NewVCmp, VCmp, model_traits::ById, server::Server, vevent::VEvent, vtodo::VTodo,
+        Calendar, NewVCmp, VCmp,
+        model_traits::{ById, ListAll},
+        server::Server,
+        vevent::VEvent,
+        vtodo::VTodo,
     },
     util::{Href, filter_err_and_map},
 };
@@ -16,42 +20,44 @@ use diesel::prelude::*;
 use futures::future::join_all;
 use log::info;
 
-// #[tauri::command(rename_all = "snake_case")]
-// #[specta::specta]
-// pub async fn sync_all_calendars() -> Result<(), CommandError> {
-//     use crate::schema::servers::dsl as server_dsl;
-//
-//     let conn = DbConn::new().await?;
-//     // Get all servers and fetch their calendars
-//     let servers = Server::list_all(conn.clone()).await?;
-//     let syncs = servers.iter().map(|server| fetch_calendars(server.id));
-//     join_all(syncs)
-//         .await
-//         .into_iter()
-//         .collect::<Result<Vec<Vec<Calendar>>, CommandError>>()?;
-//
-//     let calendars = list_calendars().await?;
-//     let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
-//
-//     // Sync all the calendar events
-//     join_all(syncs)
-//         .await
-//         .into_iter()
-//         .collect::<Result<Vec<()>, CommandError>>()?;
-//
-//     spawn_blocking(move || {
-//         let now = chrono::Utc::now().timestamp();
-//         let conn = &mut *conn.0.lock().unwrap();
-//
-//         update(server_dsl::servers)
-//             .filter(server_dsl::id.eq_any(servers.iter().map(|s| s.id)))
-//             .set(server_dsl::last_sync.eq(now))
-//             .execute(conn)
-//     })
-//     .await??;
-//
-//     Ok(())
-// }
+#[tauri::command(rename_all = "snake_case")]
+#[specta::specta]
+pub async fn sync_all_calendars() -> Result<(), CommandError> {
+    use crate::schema::servers::dsl as server_dsl;
+
+    let conn = DbConn::new().await?;
+    // Get all servers and fetch their calendars
+    let servers = Server::list_all(conn.clone()).await?;
+    let syncs = servers
+        .iter()
+        .map(|server| fetch_calendars_from_caldav(server.id));
+    join_all(syncs)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<Vec<Calendar>>, CommandError>>()?;
+
+    // let calendars = list_calendars().await?;
+    // let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
+    //
+    // // Sync all the calendar events
+    // join_all(syncs)
+    //     .await
+    //     .into_iter()
+    //     .collect::<Result<Vec<()>, CommandError>>()?;
+    //
+    // spawn_blocking(move || {
+    //     let now = chrono::Utc::now().timestamp();
+    //     let conn = &mut *conn.0.lock().unwrap();
+    //
+    //     update(server_dsl::servers)
+    //         .filter(server_dsl::id.eq_any(servers.iter().map(|s| s.id)))
+    //         .set(server_dsl::last_sync.eq(now))
+    //         .execute(conn)
+    // })
+    // .await??;
+
+    Ok(())
+}
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
@@ -73,7 +79,7 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     let Some(sync_token) = calendar.sync_token.clone() else {
         return Ok(());
     };
-    let cal_href: Href = calendar.url.clone().into();
+    let cal_href = Href(calendar.url.clone());
     let caldav = Caldav::new(server).await?;
     let GetSyncReportResponse {
         sync_token: new_sync_token,
@@ -82,7 +88,7 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
         .get_sync_report(&cal_href, &sync_token.into())
         .await?;
 
-    let del_res = join_all(
+    let _ = join_all(
         report
             .iter()
             .filter_map(|r| match r {
@@ -99,8 +105,6 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
             }),
     )
     .await;
-    // .collect::<Vec<anyhow::Result<bool>>>();
-    info!("Del {del_res:?}");
 
     let results = report
         .iter()
@@ -117,12 +121,14 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
         .flatten()
         .map(|f| NewVCmp::from_resource(calendar.id, &f))
         .filter_map(filter_err_and_map);
-    let r = join_all(r.map(async |cmp| cmp.upsert_by_href(conn.clone()).await.unwrap()))
+
+    let _ = join_all(r.map(async |cmp| cmp.upsert_by_href(conn.clone()).await.unwrap()))
         .await
         .into_iter()
         .collect::<Vec<VCmp>>();
-    info!("up {r:?}");
+
     calendar.update_sync_token(&new_sync_token).await?;
+
     Ok(())
 }
 

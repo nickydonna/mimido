@@ -16,7 +16,7 @@ use crate::{
     schema::*,
 };
 use anyhow::anyhow;
-use chrono::{DateTime, NaiveDateTime, TimeZone};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use diesel::{dsl::update, prelude::*};
 use icalendar::DatePerhapsTime;
 use libdav::FetchedResource;
@@ -266,7 +266,10 @@ impl Calendar {
         spawn_blocking(move || {
             let conn = &mut establish_connection();
             update(calendars_dsl::calendars.filter(calendars_dsl::id.eq(id)))
-                .set(calendars_dsl::sync_token.eq(Some(new_token)))
+                .set((
+                    calendars_dsl::sync_token.eq(Some(new_token)),
+                    calendars_dsl::synced_at.eq(Some(Utc::now())),
+                ))
                 .returning(Calendar::as_returning())
                 .get_result(conn)
                 .map_err(anyhow::Error::new)
@@ -284,6 +287,7 @@ pub struct NewCalendar {
     pub server_id: i32,
     pub is_default: bool,
     pub sync_token: Option<String>,
+    pub synced_at: Option<chrono::DateTime<Utc>>,
 }
 
 pub trait FromResource: Sized {
