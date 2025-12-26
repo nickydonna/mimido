@@ -68,19 +68,18 @@ pub fn run() {
             commands::list_servers,
             commands::calendar::list_calendars,
             commands::calendar::fetch_calendars_from_caldav,
-            // commands::calendar::sync_calendar,
-            // commands::calendar::sync_all_calendars,
+            commands::calendar::sync_calendar,
+            commands::calendar::sync_all_calendars,
             commands::calendar::set_default_calendar,
             commands::calendar::super_sync_calendar,
             commands::components::list_events_for_day,
             commands::components::list_todos_for_day,
             commands::components::parse_event,
             commands::components::create_component,
-            commands::components::set_vevent_status,
+            commands::components::set_vcmp_status,
             commands::components::delete_vcmp,
             commands::components::update_vcmp,
             commands::components::list_unscheduled_todos,
-            commands::components::set_vtodo_status,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

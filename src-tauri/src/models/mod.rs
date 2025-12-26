@@ -124,7 +124,7 @@ impl From<VCmp> for icalendar::CalendarComponent {
 }
 
 /// Enum to unify the [`NewVEvent`] and [`NewVTodo`] struct
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NewVCmp {
     Todo(NewVTodo),
     Event(NewVEvent),
@@ -147,7 +147,7 @@ impl NewVCmp {
         Err(anyhow!("No Supported Component found"))
     }
 
-    pub async fn upsert_by_href(&self, conn: DbConn) -> anyhow::Result<VCmp> {
+    pub async fn upsert_by_href(self, conn: DbConn) -> anyhow::Result<VCmp> {
         match self {
             NewVCmp::Todo(new_vtodo) => {
                 new_vtodo.upsert_by_href(conn.clone()).await.map(VCmp::Todo)
@@ -186,6 +186,7 @@ pub struct Calendar {
     pub server_id: i32,
     pub is_default: bool,
     pub sync_token: Option<String>,
+    pub synced_at: Option<chrono::DateTime<Utc>>,
 }
 
 impl Calendar {

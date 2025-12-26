@@ -45,9 +45,9 @@ diesel::table! {
         urgency -> Integer,
         importance -> Integer,
         postponed -> Integer,
-        last_modified -> BigInt,
         etag -> Nullable<Text>,
-        synced_at -> BigInt,
+        synced_at -> Nullable<TimestamptzSqlite>,
+        last_modified -> Nullable<TimestamptzSqlite>,
     }
 }
 
@@ -72,10 +72,10 @@ diesel::table! {
         urgency -> Integer,
         importance -> Integer,
         postponed -> Integer,
-        last_modified -> BigInt,
         etag -> Nullable<Text>,
-        synced_at -> BigInt,
         completed -> Nullable<TimestamptzSqlite>,
+        synced_at -> Nullable<TimestamptzSqlite>,
+        last_modified -> Nullable<TimestamptzSqlite>,
     }
 }
 

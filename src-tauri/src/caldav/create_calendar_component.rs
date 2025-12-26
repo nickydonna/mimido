@@ -40,22 +40,25 @@ impl DavRequest for CreateCalendarComponent<'_> {
     // FIXME: error type needs refinement
     fn prepare_request(&self) -> Result<PreparedRequest, http::Error> {
         let body = self.component.to_string();
+        log::info!("creating {}", self.path);
 
         Ok(PreparedRequest {
             method: Method::from_bytes(b"PUT")?,
             path: self.path.to_string(),
             body,
-            headers: vec![],
+            headers: vec![("Content-Type".into(), "text/calendar; charset=utf-8".into())],
         })
     }
 
     fn parse_response(
         &self,
         parts: &http::response::Parts,
-        _body: &[u8],
+        body: &[u8],
     ) -> Result<Self::Response, ParseResponseError> {
         let created = parts.status == StatusCode::CREATED || parts.status.is_success();
 
+        let body = std::str::from_utf8(body)?;
+        log::info!("body {body}");
         if !created {
             return Err(ParseResponseError::BadStatusCode(parts.status));
         }

@@ -18,7 +18,7 @@
     type DisplayUpsertInfo,
     type EventType,
   } from "../../../bindings";
-  import { match, def } from "@korkje/adt";
+  import { match } from "@korkje/adt";
   import { unwrap } from "$lib/result";
   // @ts-expect-error iconify
   import ClockIcon from "~icons/solar/clock-circle-broken";
@@ -159,13 +159,17 @@
     }
     loading = true;
     if (isUpdating(eventUpserter.state)) {
-      await commands.updateVevent(
+      await commands.updateVcmp(
         eventUpserter.state[1].event.id,
         formatISO(date),
         input,
       );
     } else {
-      await commands.saveComponent(defaultCalendar.id, formatISO(date), input);
+      await commands.createComponent(
+        defaultCalendar.id,
+        formatISO(date),
+        input,
+      );
     }
 
     await invalidateAll();
@@ -179,7 +183,7 @@
     }
     loading = true;
     const [_, data] = eventUpserter.state;
-    await commands.deleteVevent(data.event.id);
+    await commands.deleteVcmp(data.event.id);
     await invalidateAll();
     eventUpserter.state = EventUpsert.None;
     loading = false;

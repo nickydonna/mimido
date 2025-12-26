@@ -37,6 +37,22 @@ async fetchCalendarsFromCaldav(serverId: number) : Promise<Result<Calendar[], st
     else return { status: "error", error: e  as any };
 }
 },
+async syncCalendar(calendarId: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sync_calendar", { calendarId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async syncAllCalendars() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sync_all_calendars") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async setDefaultCalendar(calendarId: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_default_calendar", { calendarId }) };
@@ -85,9 +101,9 @@ async createComponent(calendarId: number, dateOfInputStr: string, componentInput
     else return { status: "error", error: e  as any };
 }
 },
-async setVeventStatus(veventId: number, status: string) : Promise<Result<null, string>> {
+async setVcmpStatus(vcmp: number, status: string, dateOfChange: string) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("set_vevent_status", { veventId, status }) };
+    return { status: "ok", data: await TAURI_INVOKE("set_vcmp_status", { vcmp, status, dateOfChange }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -116,14 +132,6 @@ async listUnscheduledTodos(includeDone: boolean) : Promise<Result<UnscheduledTod
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
-},
-async setVtodoStatus(vtodoId: number, status: string, dateOfChange: string) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("set_vtodo_status", { vtodoId, status, dateOfChange }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
 }
 }
 
@@ -137,7 +145,7 @@ async setVtodoStatus(vtodoId: number, status: string, dateOfChange: string) : Pr
 
 /** user-defined types **/
 
-export type Calendar = { id: number; name: string; url: string; etag: string | null; server_id: number; is_default: boolean; sync_token: string | null }
+export type Calendar = { id: number; name: string; url: string; etag: string | null; server_id: number; is_default: boolean; sync_token: string | null; synced_at: string | null }
 /**
  * Simplified version of a [`EventUpsertInfo`] for showing to the user while creating
  */
@@ -172,8 +180,8 @@ starts_at: string;
 ends_at: string; natural_recurrence: string | null; natural_string: string }
 export type Server = { id: number; server_url: string; user: string; password: string; last_sync: string | null }
 export type UnscheduledTodo = { todo: VTodo; natural_string: string }
-export type VEvent = { id: number; calendar_id: number; uid: string; href: string | null; ical_data: string | null; summary: string; description: string | null; starts_at: string; ends_at: string; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string; etag: string | null; synced_at: string }
-export type VTodo = { id: number; calendar_id: number; uid: string; href: string | null; ical_data: string | null; summary: string; description: string | null; starts_at: string | null; ends_at: string | null; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string; etag: string | null; synced_at: string; completed: string | null }
+export type VEvent = { id: number; calendar_id: number; uid: string; href: string | null; ical_data: string | null; summary: string; description: string | null; starts_at: string; ends_at: string; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string | null; etag: string | null; synced_at: string | null }
+export type VTodo = { id: number; calendar_id: number; uid: string; href: string | null; ical_data: string | null; summary: string; description: string | null; starts_at: string | null; ends_at: string | null; has_rrule: boolean; rrule_str: string | null; tag: string | null; status: EventStatus; event_type: EventType; original_text: string | null; load: number; urgency: number; importance: number; postponed: number; last_modified: string | null; etag: string | null; synced_at: string | null; completed: string | null }
 
 /** tauri-specta globals **/
 

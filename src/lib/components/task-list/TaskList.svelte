@@ -47,7 +47,7 @@
 
   async function toggleDone(task: VTodo) {
     loading[task.id] = true;
-    await commands.setVtodoStatus(
+    await commands.setVcmpStatus(
       task.id,
       task.status === "Done" ? "InProgress" : "Done",
       formatISO(timeState.time),

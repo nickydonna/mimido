@@ -19,7 +19,10 @@ use crate::{
     impl_ical_parseable,
     models::{
         FromResource,
-        model_traits::{ByHref, ById, DeleteAllByCalendar, DeleteById, ListForDayOrRecurring},
+        model_traits::{
+            ByHref, ById, CalendarAndSyncStatus, DeleteAllByCalendar, DeleteById,
+            ListForDayOrRecurring, SetSyncedAt,
+        },
     },
     schema::*,
     util::{Href, remove_multiple_spaces},
@@ -56,9 +59,9 @@ pub struct VEvent {
     pub urgency: i32,
     pub importance: i32,
     pub postponed: i32,
-    pub last_modified: i64,
+    pub last_modified: Option<chrono::DateTime<Utc>>,
     pub etag: Option<String>,
-    pub synced_at: i64,
+    pub synced_at: Option<chrono::DateTime<Utc>>,
 }
 
 impl ById for VEvent {
@@ -150,6 +153,70 @@ impl ListForDayOrRecurring for VEvent {
         })
         .await??;
         Ok(events)
+    }
+}
+
+impl CalendarAndSyncStatus for VEvent {
+    async fn by_calendar_id_and_not_sync(
+        conn: DbConn,
+        calendar_id: i32,
+    ) -> anyhow::Result<Vec<Self>> {
+        use crate::schema::vevents::dsl as event_dsl;
+
+        let todos = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            event_dsl::vevents
+                .filter(
+                    event_dsl::calendar_id
+                        .eq(calendar_id)
+                        .and(event_dsl::synced_at.is_null()),
+                )
+                .select(VEvent::as_select())
+                .load(conn)
+        })
+        .await??;
+        Ok(todos)
+    }
+
+    async fn by_calendar_id_and_modified_after(
+        conn: DbConn,
+        calendar_id: i32,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<Self>> {
+        use crate::schema::vevents::dsl as event_dsl;
+
+        let events = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            event_dsl::vevents
+                .filter(
+                    event_dsl::calendar_id
+                        .eq(calendar_id)
+                        .and(event_dsl::last_modified.gt(synced_at)),
+                )
+                .select(VEvent::as_select())
+                .load(conn)
+        })
+        .await??;
+        Ok(events)
+    }
+}
+
+impl SetSyncedAt for VEvent {
+    async fn set_synced_at(&self, conn: DbConn, synced_at: DateTime<Utc>) -> anyhow::Result<()> {
+        use crate::schema::vevents::dsl as vevent_dsl;
+
+        let id = self.id;
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+            update(vevent_dsl::vevents)
+                .filter(vevent_dsl::id.eq(id))
+                .set(vevent_dsl::synced_at.eq(synced_at))
+                .execute(conn)
+        })
+        .await??;
+        Ok(())
     }
 }
 
@@ -255,9 +322,9 @@ pub struct NewVEvent {
     pub urgency: i32,
     pub importance: i32,
     pub postponed: i32,
-    pub last_modified: i64,
+    pub last_modified: Option<chrono::DateTime<Utc>>,
     pub etag: Option<String>,
-    pub synced_at: i64,
+    pub synced_at: Option<chrono::DateTime<Utc>>,
 }
 
 impl_ical_parseable!(VEvent, icalendar::Event, |f| f.as_event());
@@ -494,7 +561,7 @@ impl FromResource for NewVEvent {
             ical_data: Some(ical_data.to_string()),
             starts_at,
             ends_at,
-            last_modified,
+            last_modified: Some(last_modified),
             summary: summary.to_string(),
             description,
             has_rrule: false,
@@ -508,7 +575,7 @@ impl FromResource for NewVEvent {
             urgency,
             postponed,
             etag: Some(etag.to_string()),
-            synced_at: chrono::Utc::now().timestamp(),
+            synced_at: Some(chrono::Utc::now()),
         };
         let rrule_str = new_event.get_rrule_from_ical().map(|r| r.to_string());
         Ok(Some(NewVEvent {

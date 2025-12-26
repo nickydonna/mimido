@@ -19,41 +19,43 @@
 	} from "../../../stores/eventUpserter.svelte";
 	import { timeState } from "../../../stores/times.svelte";
 
-	let { event, tabindex }: { event: ScheduledTask; tabindex: number } =
+	let { event: vcmp, tabindex }: { event: ScheduledTask; tabindex: number } =
 		$props();
 	let lessThan15Min = $derived(
-		differenceInMinutes(event.ends_at, event.starts_at) < 16,
+		differenceInMinutes(vcmp.ends_at, vcmp.starts_at) < 16,
 	);
 	let loading = $state(false);
 
-	let isDone = event.status === "Done";
-	let isTask = event.event_type === "Task";
-	let isReminder = event.event_type === "Reminder";
+	let isDone = vcmp.status === "Done";
+	let isTask = vcmp.event_type === "Task";
+	let isReminder = vcmp.event_type === "Reminder";
 
 	async function toggleStatus(e: Event) {
 		e.stopPropagation();
 		loading = true;
-		await commands.setComponentStatus(
-			event.id,
-			isDone ? "inprogress" : "done",
-			formatISO(timeState.time),
-		);
+		if (isTask) {
+			await commands.setVcmpStatus(
+				vcmp.id,
+				isDone ? "inprogress" : "done",
+				formatISO(timeState.time),
+			);
+		}
 		invalidateAll();
 		loading = false;
 	}
 
 	let classes = $derived([
 		"event-card",
-		`event-card-${event.event_type.toLowerCase()}`,
+		`event-card-${vcmp.event_type.toLowerCase()}`,
 		lessThan15Min ? "text-xs" : "text-sm",
 	]);
 
 	let [importance, load, urgency] = $derived.by(() =>
-		isTask || isReminder ? [event.importance, event.load, event.urgency] : [],
+		isTask || isReminder ? [vcmp.importance, vcmp.load, vcmp.urgency] : [],
 	);
 
 	function openEvent() {
-		eventUpserter.state = EventUpsert.Updating(event);
+		eventUpserter.state = EventUpsert.Updating(vcmp);
 	}
 </script>
 
@@ -73,9 +75,9 @@
 	>
 		<p>
 			<span class:line-through={isDone} class:text-gray-400={isDone}>
-				{event.summary}
+				{vcmp.summary}
 			</span>
-			{#if event.natural_recurrence}
+			{#if vcmp.natural_recurrence}
 				<ArrowsRepeatOutline class="inline-block" />
 			{/if}
 			<!-- {#if event.alarms.length > 0} -->

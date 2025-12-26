@@ -36,9 +36,9 @@ pub struct VCmpBuilder {
     urgency: Option<i32>,
     importance: Option<i32>,
     postponed: Option<i32>,
-    last_modified: Option<i64>,
+    last_modified: Option<chrono::DateTime<Utc>>,
     etag: Option<String>,
-    synced_at: Option<i64>,
+    synced_at: Option<chrono::DateTime<Utc>>,
 
     // VTodo specific
     completed: Option<DateTime<Utc>>,
@@ -153,7 +153,7 @@ impl VCmpBuilder {
         self
     }
 
-    pub fn last_modified(mut self, last_modified: i64) -> Self {
+    pub fn last_modified(mut self, last_modified: DateTime<Utc>) -> Self {
         self.last_modified = Some(last_modified);
         self
     }
@@ -163,7 +163,7 @@ impl VCmpBuilder {
         self
     }
 
-    pub fn synced_at(mut self, synced_at: i64) -> Self {
+    pub fn synced_at(mut self, synced_at: DateTime<Utc>) -> Self {
         self.synced_at = Some(synced_at);
         self
     }
@@ -175,7 +175,7 @@ impl VCmpBuilder {
 
     fn get_href(&self) -> Option<String> {
         if let Some(href) = self.href.clone() {
-            return Some(href);
+            Some(href)
         } else if let Some(cal_href) = self.calendar_url.clone()
             && let Some(id) = self.id
         {
@@ -224,9 +224,8 @@ impl VCmpBuilder {
         let urgency = self.urgency.unwrap_or(0);
         let importance = self.importance.unwrap_or(0);
         let postponed = self.postponed.unwrap_or(0);
-        let now = Utc::now().timestamp();
+        let now = Utc::now();
         let last_modified = self.last_modified.unwrap_or(now);
-        let synced_at = self.synced_at.unwrap_or(now);
 
         if is_task || has_no_dates {
             // Build NewVTodo
@@ -249,9 +248,9 @@ impl VCmpBuilder {
                 urgency,
                 importance,
                 postponed,
-                last_modified,
+                last_modified: Some(last_modified),
                 etag: self.etag.clone(),
-                synced_at,
+                synced_at: self.synced_at,
                 completed: self.completed,
             }))
         } else {
@@ -282,9 +281,9 @@ impl VCmpBuilder {
                 urgency,
                 importance,
                 postponed,
-                last_modified,
+                last_modified: Some(last_modified),
                 etag: self.etag.clone(),
-                synced_at,
+                synced_at: self.synced_at,
             }))
         }
     }
@@ -320,9 +319,8 @@ impl VCmpBuilder {
         let urgency = self.urgency.unwrap_or(0);
         let importance = self.importance.unwrap_or(0);
         let postponed = self.postponed.unwrap_or(0);
-        let now = Utc::now().timestamp();
+        let now = Utc::now();
         let last_modified = self.last_modified.unwrap_or(now);
-        let synced_at = self.synced_at.unwrap_or(now);
 
         if is_task || has_no_dates {
             // Build VTodo
@@ -346,9 +344,9 @@ impl VCmpBuilder {
                 urgency,
                 importance,
                 postponed,
-                last_modified,
+                last_modified: Some(last_modified),
                 etag: self.etag.clone(),
-                synced_at,
+                synced_at: self.synced_at,
                 completed: self.completed,
             }))
         } else {
@@ -380,9 +378,9 @@ impl VCmpBuilder {
                 urgency,
                 importance,
                 postponed,
-                last_modified,
+                last_modified: Some(last_modified),
                 etag: self.etag.clone(),
-                synced_at,
+                synced_at: self.synced_at,
             }))
         }
     }
@@ -413,9 +411,9 @@ impl From<&VEvent> for VCmpBuilder {
             urgency: Some(event.urgency),
             importance: Some(event.importance),
             postponed: Some(event.postponed),
-            last_modified: Some(event.last_modified),
+            last_modified: event.last_modified,
             etag: event.etag.clone(),
-            synced_at: Some(event.synced_at),
+            synced_at: event.synced_at,
             completed: None,
         }
     }
@@ -444,9 +442,9 @@ impl From<&VTodo> for VCmpBuilder {
             urgency: Some(todo.urgency),
             importance: Some(todo.importance),
             postponed: Some(todo.postponed),
-            last_modified: Some(todo.last_modified),
+            last_modified: todo.last_modified,
             etag: todo.etag.clone(),
-            synced_at: Some(todo.synced_at),
+            synced_at: todo.synced_at,
             completed: todo.completed,
         }
     }
@@ -599,9 +597,9 @@ mod tests {
             urgency: 3,
             importance: 4,
             postponed: 0,
-            last_modified: now.timestamp(),
+            last_modified: Some(now),
             etag: Some("etag123".to_string()),
-            synced_at: now.timestamp(),
+            synced_at: Some(Utc::now()),
         };
 
         let rebuilt = VCmpBuilder::from(&original_event).build().unwrap();
@@ -641,9 +639,9 @@ mod tests {
             urgency: 3,
             importance: 4,
             postponed: 0,
-            last_modified: now.timestamp(),
+            last_modified: Some(now),
             etag: Some("etag123".to_string()),
-            synced_at: now.timestamp(),
+            synced_at: Some(now),
             completed: None,
         };
 

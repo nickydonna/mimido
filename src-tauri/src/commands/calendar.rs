@@ -8,7 +8,7 @@ use crate::{
     establish_connection,
     models::{
         Calendar, NewVCmp, VCmp,
-        model_traits::{ById, ListAll},
+        model_traits::{ById, CalendarAndSyncStatus, DeleteAllByCalendar, ListAll},
         server::Server,
         vevent::VEvent,
         vtodo::VTodo,
@@ -16,9 +16,10 @@ use crate::{
     util::{Href, filter_err_and_map},
 };
 use anyhow::anyhow;
-use diesel::prelude::*;
+use diesel::{dsl::update, prelude::*};
 use futures::future::join_all;
 use log::info;
+use tauri::async_runtime::spawn_blocking;
 
 #[tauri::command(rename_all = "snake_case")]
 #[specta::specta]
@@ -36,25 +37,56 @@ pub async fn sync_all_calendars() -> Result<(), CommandError> {
         .into_iter()
         .collect::<Result<Vec<Vec<Calendar>>, CommandError>>()?;
 
-    // let calendars = list_calendars().await?;
-    // let syncs = calendars.iter().map(|cal| sync_calendar(cal.id));
-    //
-    // // Sync all the calendar events
-    // join_all(syncs)
-    //     .await
-    //     .into_iter()
-    //     .collect::<Result<Vec<()>, CommandError>>()?;
-    //
-    // spawn_blocking(move || {
-    //     let now = chrono::Utc::now().timestamp();
-    //     let conn = &mut *conn.0.lock().unwrap();
-    //
-    //     update(server_dsl::servers)
-    //         .filter(server_dsl::id.eq_any(servers.iter().map(|s| s.id)))
-    //         .set(server_dsl::last_sync.eq(now))
-    //         .execute(conn)
-    // })
-    // .await??;
+    let calendars = list_calendars().await?;
+
+    // Sync them sequentially
+    for cal in calendars {
+        sync_calendar(cal.id).await?;
+    }
+
+    spawn_blocking(move || {
+        let now = chrono::Utc::now().timestamp();
+        let conn = &mut *conn.0.lock().unwrap();
+
+        update(server_dsl::servers)
+            .filter(server_dsl::id.eq_any(servers.iter().map(|s| s.id)))
+            .set(server_dsl::last_sync.eq(now))
+            .execute(conn)
+    })
+    .await??;
+
+    Ok(())
+}
+
+#[tauri::command()]
+#[specta::specta]
+pub async fn sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
+    let conn = DbConn::new().await?;
+
+    let (server, calendar) = Calendar::by_id_with_server(conn.clone(), calendar_id).await?;
+
+    let caldav = Caldav::new(server).await?;
+
+    let items = caldav.get_calendar_items(&calendar.url).await?;
+
+    // Clean the events from that calendar
+    VEvent::delete_all_by_calendar(conn.clone(), calendar_id).await?;
+    VTodo::delete_all_by_calendar(conn.clone(), calendar_id).await?;
+
+    let _ = join_all(
+        items
+            .iter()
+            .map(|fetched_resource| NewVCmp::from_resource(calendar_id, fetched_resource))
+            .filter_map(|new_v| match new_v {
+                Ok(new_v) => Some(new_v),
+                Err(e) => {
+                    log::warn!("{e}");
+                    None
+                }
+            })
+            .map(|cmp| cmp.upsert_by_href(conn.clone())),
+    )
+    .await;
 
     Ok(())
 }
@@ -81,6 +113,27 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     };
     let cal_href = Href(calendar.url.clone());
     let caldav = Caldav::new(server).await?;
+
+    let not_synced = VEvent::by_calendar_id_and_not_sync(conn.clone(), calendar_id).await?;
+
+    // let out_of_sync = if let Some(synced_at) = calendar.synced_at {
+    //     VTodo::by_calendar_id_and_modified_after(conn.clone(), calendar_id, synced_at).await?
+    // } else {
+    //     Vec::<VTodo>::new()
+    // };
+
+    info!("not_synced, {:?}", not_synced);
+    for vevent in not_synced {
+        let uid = vevent.uid.clone();
+        info!("syncing vevent {}", uid.clone());
+        let vcmp: icalendar::CalendarComponent = vevent.into();
+        let cal = icalendar::Calendar::new().push(vcmp).done();
+        let res = caldav
+            .create_component(&cal_href, uid.clone(), &cal)
+            .await?;
+        info!("sync vtodo {uid} {:?}", res);
+    }
+
     let GetSyncReportResponse {
         sync_token: new_sync_token,
         report,

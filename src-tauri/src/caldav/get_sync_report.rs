@@ -6,10 +6,7 @@ use libdav::{
 use log::info;
 
 use crate::{
-    caldav::{
-        CaldavError,
-        util::{check_status, get_node_by_name, get_node_prop_by_name},
-    },
+    caldav::util::{check_status, get_node_by_name, get_node_prop_by_name},
     util::{Etag, Href, SyncToken},
 };
 
@@ -89,9 +86,15 @@ impl DavRequest for GetSyncReport<'_> {
         let sync_token: SyncToken = get_node_prop_by_name(doc.root_element(), names::SYNC_TOKEN)
             .expect("Sync token")
             .into();
-        info!("s {sync_token:?}");
-        let responses = get_node_by_name(doc.root_element(), names::RESPONSE)
-            .ok_or(CaldavError::NodeNotFound("Response".to_string()))?;
+        info!("Sync Token found: {sync_token:?}");
+        let responses = get_node_by_name(doc.root_element(), names::RESPONSE);
+
+        let Some(responses) = responses else {
+            return Ok(GetSyncReportResponse {
+                sync_token,
+                report: Vec::new(),
+            });
+        };
 
         let report = responses
             .descendants()

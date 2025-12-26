@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use crate::{
     SyncEventPayload,
-    caldav::Caldav,
     calendar_items::{
         DisplayUpsertInfo,
         event_status::EventStatus,
@@ -42,41 +41,28 @@ pub async fn list_unscheduled_todos(
 
 #[tauri::command()]
 #[specta::specta]
-pub async fn set_vtodo_status(
+pub async fn set_vcmp_status(
     app: AppHandle,
-    vtodo_id: i32,
+    vcmp: i32,
     status: String,
     date_of_change: String,
 ) -> Result<(), CommandError> {
+    let conn = DbConn::new().await?;
+
     let updated_at: DateTime<FixedOffset> = DateTimeStr(date_of_change).try_into()?;
     let status = EventStatus::from_str(status.as_ref())?;
-    let conn = DbConn::new().await?;
+    let vevent = VEvent::by_id(conn.clone(), vcmp).await?;
 
-    let vtodo = VTodo::update_status_by_id(conn, vtodo_id, status, updated_at)
-        .await?
-        .ok_or(anyhow!("No todo with id {vtodo_id}"))?;
-
-    let _ = app.emit("sync", SyncEventPayload::new(vtodo.calendar_id));
-
-    Ok(())
-}
-
-#[tauri::command()]
-#[specta::specta]
-pub async fn set_vevent_status(
-    app: AppHandle,
-    vevent_id: i32,
-    status: String,
-) -> Result<(), CommandError> {
-    let status = EventStatus::from_str(status.as_ref())?;
-    let conn = DbConn::new().await?;
-
-    let vevent = VEvent::update_status_by_id(conn, vevent_id, status)
-        .await?
-        .ok_or(anyhow!("No todo with id {vevent_id}"))?;
-
-    let _ = app.emit("sync", SyncEventPayload::new(vevent.calendar_id));
-
+    let vcmp = if vevent.is_some() {
+        let vevent = VEvent::update_status_by_id(conn.clone(), vcmp, status).await?;
+        vevent.map(VCmp::Event)
+    } else {
+        let vtodo = VTodo::update_status_by_id(conn, vcmp, status, updated_at).await?;
+        vtodo.map(VCmp::Todo)
+    };
+    if let Some(vcmp) = vcmp {
+        let _ = app.emit("sync", SyncEventPayload::new(vcmp.get_calendar_id()));
+    }
     Ok(())
 }
 
@@ -134,7 +120,7 @@ pub async fn create_component(
     let conn = DbConn::new().await?;
 
     let (server, calendar) = Calendar::by_id_with_server(conn.clone(), calendar_id).await?;
-    let caldav = Caldav::new(server).await?;
+    // let caldav = Caldav::new(server).await?;
 
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
 

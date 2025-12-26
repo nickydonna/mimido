@@ -15,7 +15,10 @@ use crate::{
     impl_ical_parseable,
     models::{
         FromResource,
-        model_traits::{ByHref, ById, DeleteAllByCalendar, DeleteById, ListForDayOrRecurring},
+        model_traits::{
+            ByHref, ById, CalendarAndSyncStatus, DeleteAllByCalendar, DeleteById,
+            ListForDayOrRecurring,
+        },
     },
     schema::*,
     util::{Href, remove_multiple_spaces},
@@ -55,9 +58,9 @@ pub struct VTodo {
     pub urgency: i32,
     pub importance: i32,
     pub postponed: i32,
-    pub last_modified: i64,
+    pub last_modified: Option<chrono::DateTime<Utc>>,
     pub etag: Option<String>,
-    pub synced_at: i64,
+    pub synced_at: Option<chrono::DateTime<Utc>>,
     pub completed: Option<chrono::DateTime<Utc>>,
 }
 
@@ -144,6 +147,53 @@ impl ListForDayOrRecurring for VTodo {
                     todos_dsl::has_rrule.eq(true).or(todos_dsl::starts_at
                         .ge(start)
                         .and(todos_dsl::ends_at.le(end))),
+                )
+                .select(VTodo::as_select())
+                .load(conn)
+        })
+        .await??;
+        Ok(todos)
+    }
+}
+
+impl CalendarAndSyncStatus for VTodo {
+    async fn by_calendar_id_and_not_sync(
+        conn: DbConn,
+        calendar_id: i32,
+    ) -> anyhow::Result<Vec<Self>> {
+        use crate::schema::vtodos::dsl as todos_dsl;
+
+        let todos = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            todos_dsl::vtodos
+                .filter(
+                    todos_dsl::calendar_id
+                        .eq(calendar_id)
+                        .and(todos_dsl::synced_at.is_null()),
+                )
+                .select(VTodo::as_select())
+                .load(conn)
+        })
+        .await??;
+        Ok(todos)
+    }
+
+    async fn by_calendar_id_and_modified_after(
+        conn: DbConn,
+        calendar_id: i32,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<Self>> {
+        use crate::schema::vtodos::dsl as todos_dsl;
+
+        let todos = spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+
+            todos_dsl::vtodos
+                .filter(
+                    todos_dsl::calendar_id
+                        .eq(calendar_id)
+                        .and(todos_dsl::last_modified.gt(synced_at)),
                 )
                 .select(VTodo::as_select())
                 .load(conn)
@@ -311,9 +361,9 @@ pub struct NewVTodo {
     pub urgency: i32,
     pub importance: i32,
     pub postponed: i32,
-    pub last_modified: i64,
+    pub last_modified: Option<chrono::DateTime<Utc>>,
     pub etag: Option<String>,
-    pub synced_at: i64,
+    pub synced_at: Option<chrono::DateTime<Utc>>,
     pub completed: Option<chrono::DateTime<Utc>>,
 }
 
@@ -493,7 +543,7 @@ impl FromResource for NewVTodo {
             uid: uid.to_string(),
             href: Some(href.to_string()),
             ical_data: Some(ical_data.to_string()),
-            last_modified,
+            last_modified: Some(last_modified),
             summary: summary.to_string(),
             completed: None,
             description,
@@ -506,7 +556,7 @@ impl FromResource for NewVTodo {
             urgency,
             postponed,
             etag: Some(etag.to_string()),
-            synced_at: chrono::Utc::now().timestamp(),
+            synced_at: Some(chrono::Utc::now()),
             has_rrule: false,
             rrule_str: None,
             starts_at,

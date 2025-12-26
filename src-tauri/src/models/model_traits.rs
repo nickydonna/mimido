@@ -1,9 +1,21 @@
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Utc};
 
 use crate::{db_conn::DbConn, util::Href};
 
 pub(crate) trait ById: Sized {
     async fn by_id(conn: DbConn, id: i32) -> anyhow::Result<Option<Self>>;
+}
+
+pub(crate) trait CalendarAndSyncStatus: Sized {
+    async fn by_calendar_id_and_not_sync(
+        conn: DbConn,
+        calendar_id: i32,
+    ) -> anyhow::Result<Vec<Self>>;
+    async fn by_calendar_id_and_modified_after(
+        conn: DbConn,
+        calendar_id: i32,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<Self>>;
 }
 
 pub(crate) trait ByHref: Sized {
@@ -27,4 +39,8 @@ pub(crate) trait ListForDayOrRecurring: Sized {
         conn: DbConn,
         date: DateTime<FixedOffset>,
     ) -> anyhow::Result<Vec<Self>>;
+}
+
+pub(crate) trait SetSyncedAt: Sized {
+    async fn set_synced_at(&self, conn: DbConn, synced_at: DateTime<Utc>) -> anyhow::Result<()>;
 }
