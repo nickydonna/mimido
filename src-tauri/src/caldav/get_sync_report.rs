@@ -1,4 +1,4 @@
-use http::{HeaderValue, Method, Uri};
+use http::{HeaderValue, Method};
 use libdav::{
     Depth, names,
     requests::{DavRequest, PreparedRequest},
@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub struct GetSyncReport<'a> {
-    uri: &'a Uri,
+    href: &'a Href,
     sync_token: &'a SyncToken,
 }
 
@@ -33,8 +33,8 @@ impl<'a> GetSyncReport<'a> {
     ///
     /// The path should be a collection path relative to the server's base URL.
     #[must_use]
-    pub fn new(uri: &'a Uri, sync_token: &'a SyncToken) -> Self {
-        Self { uri, sync_token }
+    pub fn new(href: &'a Href, sync_token: &'a SyncToken) -> Self {
+        Self { href, sync_token }
     }
 }
 
@@ -61,7 +61,7 @@ impl DavRequest for GetSyncReport<'_> {
 
         Ok(PreparedRequest {
             method: Method::from_bytes(b"REPORT")?,
-            path: self.uri.to_string(),
+            path: self.href.to_string(),
             body,
             headers: vec![
                 (

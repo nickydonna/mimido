@@ -1,6 +1,9 @@
 use chrono::{DateTime, FixedOffset, Utc};
 
-use crate::{db_conn::DbConn, util::Href};
+use crate::{
+    db_conn::DbConn,
+    util::{Etag, Href},
+};
 
 pub(crate) trait ById: Sized {
     async fn by_id(conn: DbConn, id: i32) -> anyhow::Result<Option<Self>>;
@@ -42,5 +45,10 @@ pub(crate) trait ListForDayOrRecurring: Sized {
 }
 
 pub(crate) trait SetSyncedAt: Sized {
-    async fn set_synced_at(&self, conn: DbConn, synced_at: DateTime<Utc>) -> anyhow::Result<()>;
+    async fn set_synced_at(
+        self,
+        conn: DbConn,
+        etag: Option<Etag>,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<()>;
 }

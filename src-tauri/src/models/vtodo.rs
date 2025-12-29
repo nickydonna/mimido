@@ -17,11 +17,11 @@ use crate::{
         FromResource,
         model_traits::{
             ByHref, ById, CalendarAndSyncStatus, DeleteAllByCalendar, DeleteById,
-            ListForDayOrRecurring,
+            ListForDayOrRecurring, SetSyncedAt,
         },
     },
     schema::*,
-    util::{Href, remove_multiple_spaces},
+    util::{Etag, Href, remove_multiple_spaces},
 };
 use anyhow::anyhow;
 use chrono::{DateTime, FixedOffset, TimeDelta, TimeZone, Utc};
@@ -200,6 +200,31 @@ impl CalendarAndSyncStatus for VTodo {
         })
         .await??;
         Ok(todos)
+    }
+}
+
+impl SetSyncedAt for VTodo {
+    async fn set_synced_at(
+        self,
+        conn: DbConn,
+        etag: Option<Etag>,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
+        use crate::schema::vtodos::dsl as todos_dsl;
+
+        let id = self.id;
+        spawn_blocking(move || {
+            let conn = &mut *conn.0.lock().unwrap();
+            update(todos_dsl::vtodos)
+                .filter(todos_dsl::id.eq(id))
+                .set((
+                    todos_dsl::etag.eq(etag.map(|e| e.to_string())),
+                    todos_dsl::synced_at.eq(synced_at),
+                ))
+                .execute(conn)
+        })
+        .await??;
+        Ok(())
     }
 }
 

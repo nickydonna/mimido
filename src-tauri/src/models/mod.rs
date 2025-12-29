@@ -8,12 +8,13 @@ use crate::{
     db_conn::DbConn,
     establish_connection,
     models::{
-        model_traits::{ById, DeleteById},
+        model_traits::{ById, DeleteById, SetSyncedAt},
         server::Server,
         vevent::{NewVEvent, VEvent, VEventTrait},
         vtodo::{NewVTodo, VTodo, VTodoTrait},
     },
     schema::*,
+    util::Etag,
 };
 use anyhow::anyhow;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
@@ -32,7 +33,7 @@ use tauri::async_runtime::spawn_blocking;
 pub use vcmp_builder::VCmpBuilder;
 
 /// Enum to unify the [`VEvent`] and [`VTodo`] struct
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VCmp {
     Todo(VTodo),
     Event(VEvent),
@@ -53,6 +54,12 @@ impl ById for VCmp {
 }
 
 impl VCmp {
+    pub fn get_uid(&self) -> String {
+        match self {
+            VCmp::Todo(vtodo) => vtodo.uid.clone(),
+            VCmp::Event(vevent) => vevent.uid.clone(),
+        }
+    }
     pub fn get_calendar_id(&self) -> i32 {
         match self {
             VCmp::Todo(vtodo) => vtodo.calendar_id,
@@ -119,6 +126,20 @@ impl From<VCmp> for icalendar::CalendarComponent {
         match value {
             VCmp::Todo(vtodo) => vtodo.into(),
             VCmp::Event(vevent) => vevent.into(),
+        }
+    }
+}
+
+impl SetSyncedAt for VCmp {
+    async fn set_synced_at(
+        self,
+        conn: DbConn,
+        etag: Option<Etag>,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
+        match self {
+            VCmp::Todo(vtodo) => vtodo.set_synced_at(conn, etag, synced_at).await,
+            VCmp::Event(vevent) => vevent.set_synced_at(conn, etag, synced_at).await,
         }
     }
 }

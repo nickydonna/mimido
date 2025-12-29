@@ -1,12 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    caldav::{
-        create_calendar_component::CreateCalendarComponent,
-        delete_calendar_component::DeleteCalendarComponent,
-        get_sync_report::{GetSyncReport, GetSyncReportResponse},
-        update_calendar_component::UpdateCalendarComponent,
-    },
+    caldav::get_sync_report::{GetSyncReport, GetSyncReportResponse},
     models::{NewCalendar, server::Server},
     util::{Etag, Href, SyncToken},
 };
@@ -20,7 +15,7 @@ use hyper_util::{
 use libdav::{
     CalDavClient, FetchedResource,
     caldav::{FindCalendarHomeSet, FindCalendars, GetCalendarResources},
-    dav::GetProperties,
+    dav::{Delete, GetProperties, PutResource, PutResourceResponse, mime_types},
 };
 use libdav::{
     dav::{FoundCollection, ListResources, WebDavClient},
@@ -29,10 +24,7 @@ use libdav::{
 };
 use tower_http::auth::AddAuthorization;
 
-pub mod create_calendar_component;
-pub mod delete_calendar_component;
 pub mod get_sync_report;
-pub mod update_calendar_component;
 pub mod util;
 
 pub type HyperAuthClient =
@@ -164,7 +156,6 @@ impl Caldav {
                 let home_set = self
                     .caldav_client
                     .request(FindCalendarHomeSet::new(&principal))
-                    // .find_calendar_home_set(&principal)
                     .await?
                     .home_sets;
                 if home_set.is_empty() {
@@ -183,13 +174,13 @@ impl Caldav {
         base_href: &Href,
         id: impl Display,
         calendar: &icalendar::Calendar,
-    ) -> anyhow::Result<Href> {
+    ) -> anyhow::Result<(Href, Option<Etag>)> {
         let href_str = format!("{base_href}{id}.ics");
-        let _ = self
-            .caldav_client
-            .request(CreateCalendarComponent::new(&href_str, calendar))
-            .await?;
-        Ok(href_str.into())
+        let body = calendar.to_string();
+        let create_req = PutResource::new(&href_str).create(body, mime_types::CALENDAR);
+        let PutResourceResponse { etag } = self.caldav_client.request(create_req).await?;
+
+        Ok((href_str.into(), etag.map(Etag)))
     }
 
     pub async fn update_component(
@@ -198,11 +189,11 @@ impl Caldav {
         etag: &Etag,
         calendar: &icalendar::Calendar,
     ) -> anyhow::Result<Option<Etag>> {
-        let etag = self
-            .caldav_client
-            .request(UpdateCalendarComponent::new(&cmp_href.0, &etag.0, calendar))
-            .await?
-            .etag;
+        let body = calendar.to_string();
+        let href = cmp_href.to_string();
+        let create_req = PutResource::new(&href).update(body, mime_types::CALENDAR, etag);
+        let PutResourceResponse { etag } = self.caldav_client.request(create_req).await?;
+
         Ok(etag.map(Etag))
     }
 
@@ -220,9 +211,8 @@ impl Caldav {
     }
 
     pub async fn delete_resource(&self, href: &Href, etag: &Etag) -> anyhow::Result<()> {
-        self.caldav_client
-            .request(DeleteCalendarComponent::new(&href.0, &etag.0))
-            .await?;
+        let request = Delete::new(&href.0).with_etag(etag);
+        self.caldav_client.request(request).await?;
         Ok(())
     }
 
@@ -231,61 +221,10 @@ impl Caldav {
         calendar_href: &Href,
         sync_token: &SyncToken,
     ) -> anyhow::Result<GetSyncReportResponse> {
-        let uri = self.caldav_client.relative_uri(calendar_href)?;
         let res = self
             .caldav_client
-            .request(GetSyncReport::new(&uri, sync_token))
+            .request(GetSyncReport::new(calendar_href, sync_token))
             .await?;
         Ok(res)
-        // let mut body = String::from(r#"<sync-collection xmlns="DAV:">"#);
-        // body.push_str(&format!("<sync-token>{sync_token}</sync-token>"));
-        // body.push_str(
-        //     r#"
-        //         <sync-level>1</sync-level>
-        //         <prop>
-        //             <getetag />
-        //         </prop>
-        //     </sync-collection>
-        //     "#,
-        // );
-        //
-        // let uri = self.caldav_client.relative_uri(calendar_href)?;
-        // let request = Request::builder()
-        //     .method("REPORT")
-        //     .uri(uri)
-        //     .header("Content-Type", "application/xml; charset=utf-8")
-        //     .header("Depth", HeaderValue::from(Depth::Zero))
-        //     .body(body)?;
-        //
-        // let (head, body) = self.caldav_client.request(request).await?;
-        // check_status(head.status)?;
-        // let body = std::str::from_utf8(&body)?;
-        //
-        // let doc = roxmltree::Document::parse(body)?;
-        //
-        // let sync_token =
-        //     get_node_prop_by_name(doc.root_element(), names::SYNC_TOKEN).expect("Sync token");
-        // info!("s {sync_token:?}");
-        // let responses = get_node_by_name(doc.root_element(), names::RESPONSE)
-        //     .ok_or(CaldavError::NodeNotFound("Response".to_string()))?;
-        //
-        // let result = responses
-        //     .descendants()
-        //     .filter_map(|res| {
-        //         let href = get_node_prop_by_name(res, names::HREF)?;
-        //         let status = get_node_prop_by_name(res, names::STATUS)?;
-        //         info!("a {href} - {status}");
-        //
-        //         if status.contains("404") {
-        //             Some(CmpSyncResult::Deleted(Href(href)))
-        //         } else if status.contains("200") {
-        //             let etag = get_node_prop_by_name(res, names::GETETAG).expect("To have etag");
-        //             Some(CmpSyncResult::Upserted(Href(href), Etag(etag)))
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .collect::<Vec<CmpSyncResult>>();
-        // Ok((sync_token, result))
     }
 }

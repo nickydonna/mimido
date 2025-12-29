@@ -25,7 +25,7 @@ use crate::{
         },
     },
     schema::*,
-    util::{Href, remove_multiple_spaces},
+    util::{Etag, Href, remove_multiple_spaces},
 };
 use chrono::{DateTime, TimeZone, Utc};
 use diesel::{delete, insert_into, prelude::*, update};
@@ -204,7 +204,12 @@ impl CalendarAndSyncStatus for VEvent {
 }
 
 impl SetSyncedAt for VEvent {
-    async fn set_synced_at(&self, conn: DbConn, synced_at: DateTime<Utc>) -> anyhow::Result<()> {
+    async fn set_synced_at(
+        self,
+        conn: DbConn,
+        etag: Option<Etag>,
+        synced_at: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
         use crate::schema::vevents::dsl as vevent_dsl;
 
         let id = self.id;
@@ -212,7 +217,10 @@ impl SetSyncedAt for VEvent {
             let conn = &mut *conn.0.lock().unwrap();
             update(vevent_dsl::vevents)
                 .filter(vevent_dsl::id.eq(id))
-                .set(vevent_dsl::synced_at.eq(synced_at))
+                .set((
+                    vevent_dsl::etag.eq(etag.map(|e| e.to_string())),
+                    vevent_dsl::synced_at.eq(synced_at),
+                ))
                 .execute(conn)
         })
         .await??;

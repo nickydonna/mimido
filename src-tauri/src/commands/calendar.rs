@@ -8,7 +8,7 @@ use crate::{
     establish_connection,
     models::{
         Calendar, NewVCmp, VCmp,
-        model_traits::{ById, CalendarAndSyncStatus, DeleteAllByCalendar, ListAll},
+        model_traits::{ById, CalendarAndSyncStatus, DeleteAllByCalendar, ListAll, SetSyncedAt},
         server::Server,
         vevent::VEvent,
         vtodo::VTodo,
@@ -16,8 +16,10 @@ use crate::{
     util::{Href, filter_err_and_map},
 };
 use anyhow::anyhow;
+use chrono::Utc;
 use diesel::{dsl::update, prelude::*};
 use futures::future::join_all;
+use itertools::Itertools;
 use log::info;
 use tauri::async_runtime::spawn_blocking;
 
@@ -114,24 +116,45 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     let cal_href = Href(calendar.url.clone());
     let caldav = Caldav::new(server).await?;
 
-    let not_synced = VEvent::by_calendar_id_and_not_sync(conn.clone(), calendar_id).await?;
+    let not_synced_vevent = VEvent::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
+        .await?
+        .into_iter()
+        .map(VCmp::Event)
+        .collect::<Vec<VCmp>>();
+
+    let not_synced_vtodo = VTodo::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
+        .await?
+        .into_iter()
+        .map(VCmp::Todo)
+        .collect::<Vec<VCmp>>();
+
+    let not_sync_cmp = vec![not_synced_vevent, not_synced_vtodo]
+        .into_iter()
+        .concat();
 
     // let out_of_sync = if let Some(synced_at) = calendar.synced_at {
     //     VTodo::by_calendar_id_and_modified_after(conn.clone(), calendar_id, synced_at).await?
     // } else {
     //     Vec::<VTodo>::new()
     // };
+    //
+    // let not_synced_vevent = not_synced_vevent.iter().map(|vevent| {
+    //     let vcmp: icalendar::CalendarComponent = vevent.clone().into();
+    //     icalendar::Calendar::new().push(vcmp).done()
+    // });
 
-    info!("not_synced, {:?}", not_synced);
-    for vevent in not_synced {
-        let uid = vevent.uid.clone();
-        info!("syncing vevent {}", uid.clone());
-        let vcmp: icalendar::CalendarComponent = vevent.into();
-        let cal = icalendar::Calendar::new().push(vcmp).done();
-        let res = caldav
+    let synced_at = Utc::now();
+    for vcmp in not_sync_cmp {
+        let uid = vcmp.get_uid();
+        info!("syncing vcmp {}", uid.clone());
+        // let vcmp: icalendar::CalendarComponent = vevent.clone().into();
+        let cal = icalendar::Calendar::new().push(vcmp.clone()).done();
+        let (href, etag) = caldav
             .create_component(&cal_href, uid.clone(), &cal)
             .await?;
-        info!("sync vtodo {uid} {:?}", res);
+
+        info!("sync vcmp {uid} {:?} - {:?}", href, etag);
+        vcmp.set_synced_at(conn.clone(), etag, synced_at).await?;
     }
 
     let GetSyncReportResponse {

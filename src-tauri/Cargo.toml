@@ -18,8 +18,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
-# [dependencies.libdav]
-# path = "../../libdav/"
+[dependencies.libdav]
+path = "../../libdav/"
 
 [dependencies]
 tauri = { version = "2.9.5", features = ["tray-icon"] }
@@ -34,7 +34,7 @@ diesel = { version = "2.3.4", features = [
 diesel_migrations = "2.3.1"
 lazy_static = "1.5"
 chrono = { version = "0.4.42", features = ["serde"] }
-libdav = "0.10.0"
+# libdav = "0.10.0"
 icalendar = { version = "0.17.5", features = ["serde", "serde_json"] }
 http = "1.4.0"
 tower-http = { version = "0.6.8", features = ["auth"] }
