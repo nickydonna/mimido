@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use crate::{
-    SyncEventPayload,
     calendar_items::{
         DisplayUpsertInfo,
         event_status::EventStatus,
@@ -24,8 +23,6 @@ use crate::{
 };
 use anyhow::anyhow;
 use chrono::{DateTime, FixedOffset};
-use icalendar::Component;
-use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 #[tauri::command()]
@@ -42,7 +39,6 @@ pub async fn list_unscheduled_todos(
 #[tauri::command()]
 #[specta::specta]
 pub async fn set_vcmp_status(
-    app: AppHandle,
     vcmp: i32,
     status: String,
     date_of_change: String,
@@ -53,16 +49,11 @@ pub async fn set_vcmp_status(
     let status = EventStatus::from_str(status.as_ref())?;
     let vevent = VEvent::by_id(conn.clone(), vcmp).await?;
 
-    let vcmp = if vevent.is_some() {
-        let vevent = VEvent::update_status_by_id(conn.clone(), vcmp, status).await?;
-        vevent.map(VCmp::Event)
+    if vevent.is_some() {
+        VEvent::update_status_by_id(conn.clone(), vcmp, status).await?;
     } else {
-        let vtodo = VTodo::update_status_by_id(conn, vcmp, status, updated_at).await?;
-        vtodo.map(VCmp::Todo)
+        VTodo::update_status_by_id(conn, vcmp, status, updated_at).await?;
     };
-    if let Some(vcmp) = vcmp {
-        let _ = app.emit("sync", SyncEventPayload::new(vcmp.get_calendar_id()));
-    }
     Ok(())
 }
 
@@ -119,9 +110,7 @@ pub async fn create_component(
 ) -> Result<(), CommandError> {
     let conn = DbConn::new().await?;
 
-    let (server, calendar) = Calendar::by_id_with_server(conn.clone(), calendar_id).await?;
-    // let caldav = Caldav::new(server).await?;
-
+    let (_, calendar) = Calendar::by_id_with_server(conn.clone(), calendar_id).await?;
     let parsed_date: DateTime<FixedOffset> = DateTimeStr(date_of_input_str).try_into()?;
 
     let ExtractedInput(data, _) =
@@ -135,19 +124,6 @@ pub async fn create_component(
         .calendar_href(Href(calendar.url));
 
     builder.build_new()?.create(conn).await?;
-
-    // Move this to background events
-    // async_runtime::spawn(async move {
-    //     let new_calendar_cmp = set_uid(&mut new_calendar_cmp, &uid);
-    //     let cal = icalendar::Calendar::new().push(new_calendar_cmp).done();
-    //     let res = caldav.create_component(&cal_href, uid, &cal).await;
-    //     match res {
-    //         Ok(_) => app.emit("sync", SyncEventPayload { calendar_id }).unwrap(),
-    //         Err(err) => {
-    //             error!("Error while creating component {err:?}");
-    //         }
-    //     }
-    // });
 
     Ok(())
 }
@@ -168,7 +144,7 @@ pub async fn delete_vcmp(vevent_id: i32) -> Result<(), CommandError> {
 #[tauri::command()]
 #[specta::specta]
 pub async fn update_vcmp(
-    vevent_id: i32,
+    vcmp_id: i32,
     date_of_input_str: String,
     component_input: String,
 ) -> Result<(), CommandError> {
@@ -178,18 +154,10 @@ pub async fn update_vcmp(
     let ExtractedInput(data, _) =
         EventUpsertInfo::extract_from_input(parsed_date, &component_input)?.into();
 
-    let vevent = VCmp::by_id(conn, vevent_id).await?;
-    let vcmp = vevent.ok_or(anyhow!("No event with id {vevent_id}"))?;
-    vcmp.update_from_upsert(&component_input, data, parsed_date)?;
+    let vcmp = VCmp::by_id(conn.clone(), vcmp_id).await?;
+    let vcmp = vcmp.ok_or(anyhow!("No cmp with id {vcmp_id}"))?;
+    let updated = vcmp.apply_upsert(&component_input, data, parsed_date, Some(true))?;
+    updated.update(conn).await?;
 
     Ok(())
-}
-
-fn set_uid(cmp: &mut icalendar::CalendarComponent, uid: &str) -> icalendar::CalendarComponent {
-    let updated: icalendar::CalendarComponent = match cmp {
-        icalendar::CalendarComponent::Todo(todo) => todo.uid(uid).done().into(),
-        icalendar::CalendarComponent::Event(event) => event.uid(uid).done().into(),
-        _ => todo!(),
-    };
-    updated
 }

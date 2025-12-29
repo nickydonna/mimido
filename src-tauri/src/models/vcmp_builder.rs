@@ -39,6 +39,7 @@ pub struct VCmpBuilder {
     last_modified: Option<chrono::DateTime<Utc>>,
     etag: Option<String>,
     synced_at: Option<chrono::DateTime<Utc>>,
+    out_of_sync: Option<bool>,
 
     // VTodo specific
     completed: Option<DateTime<Utc>>,
@@ -173,6 +174,11 @@ impl VCmpBuilder {
         self
     }
 
+    pub fn out_of_sync(mut self, out_of_sync: bool) -> Self {
+        self.out_of_sync = Some(out_of_sync);
+        self
+    }
+
     fn get_href(&self) -> Option<String> {
         if let Some(href) = self.href.clone() {
             Some(href)
@@ -252,6 +258,7 @@ impl VCmpBuilder {
                 etag: self.etag.clone(),
                 synced_at: self.synced_at,
                 completed: self.completed,
+                out_of_sync: false,
             }))
         } else {
             // Build NewVEvent - requires dates
@@ -284,6 +291,7 @@ impl VCmpBuilder {
                 last_modified: Some(last_modified),
                 etag: self.etag.clone(),
                 synced_at: self.synced_at,
+                out_of_sync: false,
             }))
         }
     }
@@ -348,6 +356,7 @@ impl VCmpBuilder {
                 etag: self.etag.clone(),
                 synced_at: self.synced_at,
                 completed: self.completed,
+                out_of_sync: false,
             }))
         } else {
             // Build VEvent - requires dates
@@ -381,6 +390,7 @@ impl VCmpBuilder {
                 last_modified: Some(last_modified),
                 etag: self.etag.clone(),
                 synced_at: self.synced_at,
+                out_of_sync: false,
             }))
         }
     }
@@ -415,6 +425,7 @@ impl From<&VEvent> for VCmpBuilder {
             etag: event.etag.clone(),
             synced_at: event.synced_at,
             completed: None,
+            out_of_sync: Some(event.out_of_sync),
         }
     }
 }
@@ -446,6 +457,7 @@ impl From<&VTodo> for VCmpBuilder {
             etag: todo.etag.clone(),
             synced_at: todo.synced_at,
             completed: todo.completed,
+            out_of_sync: Some(todo.out_of_sync),
         }
     }
 }
@@ -600,6 +612,7 @@ mod tests {
             last_modified: Some(now),
             etag: Some("etag123".to_string()),
             synced_at: Some(Utc::now()),
+            out_of_sync: false,
         };
 
         let rebuilt = VCmpBuilder::from(&original_event).build().unwrap();
@@ -643,6 +656,7 @@ mod tests {
             etag: Some("etag123".to_string()),
             synced_at: Some(now),
             completed: None,
+            out_of_sync: false,
         };
 
         let rebuilt = VCmpBuilder::from(&original_todo).build().unwrap();

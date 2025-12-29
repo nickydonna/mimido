@@ -62,6 +62,7 @@ pub struct VEvent {
     pub last_modified: Option<chrono::DateTime<Utc>>,
     pub etag: Option<String>,
     pub synced_at: Option<chrono::DateTime<Utc>>,
+    pub out_of_sync: bool,
 }
 
 impl ById for VEvent {
@@ -179,10 +180,9 @@ impl CalendarAndSyncStatus for VEvent {
         Ok(todos)
     }
 
-    async fn by_calendar_id_and_modified_after(
+    async fn by_calendar_id_and_out_of_sync(
         conn: DbConn,
         calendar_id: i32,
-        synced_at: DateTime<Utc>,
     ) -> anyhow::Result<Vec<Self>> {
         use crate::schema::vevents::dsl as event_dsl;
 
@@ -193,7 +193,7 @@ impl CalendarAndSyncStatus for VEvent {
                 .filter(
                     event_dsl::calendar_id
                         .eq(calendar_id)
-                        .and(event_dsl::last_modified.gt(synced_at)),
+                        .and(event_dsl::out_of_sync.eq(true)),
                 )
                 .select(VEvent::as_select())
                 .load(conn)
@@ -219,6 +219,7 @@ impl SetSyncedAt for VEvent {
                 .filter(vevent_dsl::id.eq(id))
                 .set((
                     vevent_dsl::etag.eq(etag.map(|e| e.to_string())),
+                    vevent_dsl::out_of_sync.eq(false),
                     vevent_dsl::synced_at.eq(synced_at),
                 ))
                 .execute(conn)
@@ -257,11 +258,13 @@ impl VEvent {
         Self::by_id(conn, vevent_id).await
     }
 
-    pub fn update_from_upsert<Tz: TimeZone>(
+    pub fn apply_upsert<Tz: TimeZone>(
         &self,
         input: &str,
         extracted: EventUpsertInfo<Tz>,
+        out_of_sync: Option<bool>,
     ) -> anyhow::Result<Self> {
+        log::info!("from: '{}' -> '{}", self.summary, extracted.summary);
         let mut event = self.clone();
         let date_info = extracted.date_info.0.ok_or(anyhow!("Event need dates"))?;
         event.starts_at = date_info.start.to_utc();
@@ -275,6 +278,10 @@ impl VEvent {
         event.summary = extracted.summary;
         event.tag = extracted.tag.0;
         event.original_text = Some(input.to_string());
+        if let Some(out_of_sync) = out_of_sync {
+            event.out_of_sync = out_of_sync
+        }
+
         Ok(event)
     }
 }
@@ -333,6 +340,7 @@ pub struct NewVEvent {
     pub last_modified: Option<chrono::DateTime<Utc>>,
     pub etag: Option<String>,
     pub synced_at: Option<chrono::DateTime<Utc>>,
+    pub out_of_sync: bool,
 }
 
 impl_ical_parseable!(VEvent, icalendar::Event, |f| f.as_event());
@@ -584,6 +592,7 @@ impl FromResource for NewVEvent {
             postponed,
             etag: Some(etag.to_string()),
             synced_at: Some(chrono::Utc::now()),
+            out_of_sync: false,
         };
         let rrule_str = new_event.get_rrule_from_ical().map(|r| r.to_string());
         Ok(Some(NewVEvent {

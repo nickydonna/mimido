@@ -48,6 +48,7 @@ diesel::table! {
         etag -> Nullable<Text>,
         synced_at -> Nullable<TimestamptzSqlite>,
         last_modified -> Nullable<TimestamptzSqlite>,
+        out_of_sync -> Bool,
     }
 }
 
@@ -76,6 +77,7 @@ diesel::table! {
         completed -> Nullable<TimestamptzSqlite>,
         synced_at -> Nullable<TimestamptzSqlite>,
         last_modified -> Nullable<TimestamptzSqlite>,
+        out_of_sync -> Bool,
     }
 }
 

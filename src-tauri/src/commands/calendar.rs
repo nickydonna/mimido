@@ -13,7 +13,7 @@ use crate::{
         vevent::VEvent,
         vtodo::VTodo,
     },
-    util::{Href, filter_err_and_map},
+    util::{Etag, Href, filter_err_and_map},
 };
 use anyhow::anyhow;
 use chrono::Utc;
@@ -116,32 +116,23 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     let cal_href = Href(calendar.url.clone());
     let caldav = Caldav::new(server).await?;
 
-    let not_synced_vevent = VEvent::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
-        .await?
-        .into_iter()
-        .map(VCmp::Event)
-        .collect::<Vec<VCmp>>();
+    let not_sync_cmp = {
+        let not_synced_vevent = VEvent::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
+            .await?
+            .into_iter()
+            .map(VCmp::Event)
+            .collect::<Vec<VCmp>>();
 
-    let not_synced_vtodo = VTodo::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
-        .await?
-        .into_iter()
-        .map(VCmp::Todo)
-        .collect::<Vec<VCmp>>();
+        let not_synced_vtodo = VTodo::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
+            .await?
+            .into_iter()
+            .map(VCmp::Todo)
+            .collect::<Vec<VCmp>>();
 
-    let not_sync_cmp = vec![not_synced_vevent, not_synced_vtodo]
-        .into_iter()
-        .concat();
-
-    // let out_of_sync = if let Some(synced_at) = calendar.synced_at {
-    //     VTodo::by_calendar_id_and_modified_after(conn.clone(), calendar_id, synced_at).await?
-    // } else {
-    //     Vec::<VTodo>::new()
-    // };
-    //
-    // let not_synced_vevent = not_synced_vevent.iter().map(|vevent| {
-    //     let vcmp: icalendar::CalendarComponent = vevent.clone().into();
-    //     icalendar::Calendar::new().push(vcmp).done()
-    // });
+        vec![not_synced_vevent, not_synced_vtodo]
+            .into_iter()
+            .concat()
+    };
 
     let synced_at = Utc::now();
     for vcmp in not_sync_cmp {
@@ -154,6 +145,46 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
             .await?;
 
         info!("sync vcmp {uid} {:?} - {:?}", href, etag);
+        vcmp.set_synced_at(conn.clone(), etag, synced_at).await?;
+    }
+
+    let out_of_sync_cmp = if calendar.synced_at.is_some() {
+        let out_of_sync_vtodo = VTodo::by_calendar_id_and_out_of_sync(conn.clone(), calendar_id)
+            .await?
+            .into_iter()
+            .map(VCmp::Todo)
+            .collect::<Vec<VCmp>>();
+        let out_of_sync_vevent = VEvent::by_calendar_id_and_out_of_sync(conn.clone(), calendar_id)
+            .await?
+            .into_iter()
+            .map(VCmp::Event)
+            .collect::<Vec<VCmp>>();
+
+        vec![out_of_sync_vtodo, out_of_sync_vevent]
+            .into_iter()
+            .concat()
+    } else {
+        Vec::<VCmp>::new()
+    };
+    info!("out_of_sync_cmp {:?}", out_of_sync_cmp);
+    for vcmp in out_of_sync_cmp {
+        let uid = vcmp.get_uid();
+        let Some(href) = vcmp.get_href() else {
+            continue;
+        };
+        let Some(etag) = vcmp.get_etag() else {
+            continue;
+        };
+        info!("syncing vcmp {}", uid.clone());
+        // let vcmp: icalendar::CalendarComponent = vevent.clone().into();
+        let cal = icalendar::Calendar::new().push(vcmp.clone()).done();
+        let etag = caldav
+            .update_component(&Href(href), &Etag(etag), &cal)
+            .await;
+
+        info!("e {etag:?}");
+        let etag = etag?;
+        info!("sync vcmp {uid} {:?}", etag);
         vcmp.set_synced_at(conn.clone(), etag, synced_at).await?;
     }
 

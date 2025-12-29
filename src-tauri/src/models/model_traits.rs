@@ -14,10 +14,9 @@ pub(crate) trait CalendarAndSyncStatus: Sized {
         conn: DbConn,
         calendar_id: i32,
     ) -> anyhow::Result<Vec<Self>>;
-    async fn by_calendar_id_and_modified_after(
+    async fn by_calendar_id_and_out_of_sync(
         conn: DbConn,
         calendar_id: i32,
-        synced_at: DateTime<Utc>,
     ) -> anyhow::Result<Vec<Self>>;
 }
 

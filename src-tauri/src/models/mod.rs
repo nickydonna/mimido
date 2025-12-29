@@ -87,19 +87,28 @@ impl VCmp {
             VCmp::Event(vevent) => VEvent::delete_by_id(conn, vevent.id).await,
         }
     }
-    pub fn update_from_upsert<Tz: TimeZone>(
+
+    pub async fn update(&self, conn: DbConn) -> anyhow::Result<VCmp> {
+        match self {
+            VCmp::Todo(vtodo) => vtodo.update(conn.clone(), vtodo.id).await.map(VCmp::Todo),
+            VCmp::Event(vevent) => vevent.update(conn, vevent.id).await.map(VCmp::Event),
+        }
+    }
+
+    pub fn apply_upsert<Tz: TimeZone>(
         &self,
         input: &str,
         extracted: EventUpsertInfo<Tz>,
         date_of_update: DateTime<Tz>,
+        out_of_sync: Option<bool>,
     ) -> anyhow::Result<Self> {
         match self {
             VCmp::Todo(vtodo) => {
-                let todo = vtodo.update_from_upsert(input, extracted, date_of_update)?;
+                let todo = vtodo.apply_upsert(input, extracted, date_of_update, out_of_sync)?;
                 Ok(VCmp::Todo(todo))
             }
             VCmp::Event(vevent) => {
-                let event = vevent.update_from_upsert(input, extracted)?;
+                let event = vevent.apply_upsert(input, extracted, out_of_sync)?;
                 Ok(VCmp::Event(event))
             }
         }

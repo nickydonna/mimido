@@ -62,6 +62,7 @@ pub struct VTodo {
     pub etag: Option<String>,
     pub synced_at: Option<chrono::DateTime<Utc>>,
     pub completed: Option<chrono::DateTime<Utc>>,
+    pub out_of_sync: bool,
 }
 
 impl ById for VTodo {
@@ -179,10 +180,9 @@ impl CalendarAndSyncStatus for VTodo {
         Ok(todos)
     }
 
-    async fn by_calendar_id_and_modified_after(
+    async fn by_calendar_id_and_out_of_sync(
         conn: DbConn,
         calendar_id: i32,
-        synced_at: DateTime<Utc>,
     ) -> anyhow::Result<Vec<Self>> {
         use crate::schema::vtodos::dsl as todos_dsl;
 
@@ -193,7 +193,7 @@ impl CalendarAndSyncStatus for VTodo {
                 .filter(
                     todos_dsl::calendar_id
                         .eq(calendar_id)
-                        .and(todos_dsl::last_modified.gt(synced_at)),
+                        .and(todos_dsl::out_of_sync.eq(true)),
                 )
                 .select(VTodo::as_select())
                 .load(conn)
@@ -219,6 +219,7 @@ impl SetSyncedAt for VTodo {
                 .filter(todos_dsl::id.eq(id))
                 .set((
                     todos_dsl::etag.eq(etag.map(|e| e.to_string())),
+                    todos_dsl::out_of_sync.eq(false),
                     todos_dsl::synced_at.eq(synced_at),
                 ))
                 .execute(conn)
@@ -297,11 +298,12 @@ impl VTodo {
         Self::by_id(conn, vtodo_id).await
     }
 
-    pub fn update_from_upsert<Tz: TimeZone>(
+    pub fn apply_upsert<Tz: TimeZone>(
         &self,
         input: &str,
         extracted: EventUpsertInfo<Tz>,
         date_of_update: DateTime<Tz>,
+        out_of_sync: Option<bool>,
     ) -> anyhow::Result<Self> {
         let mut todo = self.clone();
         if let Some(date_info) = extracted.date_info.0 {
@@ -324,6 +326,9 @@ impl VTodo {
         // Remove completed if task is not completed
         if !matches!(extracted.status, EventStatus::Done) && self.completed.is_some() {
             todo.completed = None
+        }
+        if let Some(out_of_sync) = out_of_sync {
+            todo.out_of_sync = out_of_sync
         }
         Ok(todo)
     }
@@ -390,6 +395,7 @@ pub struct NewVTodo {
     pub etag: Option<String>,
     pub synced_at: Option<chrono::DateTime<Utc>>,
     pub completed: Option<chrono::DateTime<Utc>>,
+    pub out_of_sync: bool,
 }
 
 impl_ical_parseable!(VTodo, icalendar::Todo, |f| f.as_todo());
@@ -586,6 +592,7 @@ impl FromResource for NewVTodo {
             rrule_str: None,
             starts_at,
             ends_at,
+            out_of_sync: false,
         };
 
         let rrule_str = new_todo.get_rrule_from_ical().map(|r| r.to_string());
