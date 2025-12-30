@@ -1,0 +1,234 @@
+   0.320892167s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint: stale: changed "/Users/nickydonna/projects/mimido/src-tauri/src/commands/components.rs"
+   0.320914667s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint:           (vs) "/Users/nickydonna/projects/mimido/src-tauri/target/debug/.fingerprint/mimido-690ae8cf079363de/dep-lib-mimido_lib"
+   0.320917625s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1767112051, nanos: 144104396 } < FileTime { seconds: 1767112074, nanos: 576670877 }
+   0.321447709s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint: fingerprint dirty for mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri)/Check { test: false }/TargetInner { ..: lib_target("mimido_lib", ["staticlib", "cdylib", "rlib"], "/Users/nickydonna/projects/mimido/src-tauri/src/lib.rs", Edition2024) }
+   0.321466459s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/Users/nickydonna/projects/mimido/src-tauri/target/debug/.fingerprint/mimido-690ae8cf079363de/dep-lib-mimido_lib", reference_mtime: FileTime { seconds: 1767112051, nanos: 144104396 }, stale: "/Users/nickydonna/projects/mimido/src-tauri/src/commands/components.rs", stale_mtime: FileTime { seconds: 1767112074, nanos: 576670877 } }))
+   0.403001042s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint: stale: changed "/Users/nickydonna/projects/mimido/src-tauri/src/commands/components.rs"
+   0.403009042s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint:           (vs) "/Users/nickydonna/projects/mimido/src-tauri/target/debug/.fingerprint/mimido-289041cb3cecdb9c/dep-test-lib-mimido_lib"
+   0.403010917s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1767112051, nanos: 144085189 } < FileTime { seconds: 1767112074, nanos: 576670877 }
+   0.403318500s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint: fingerprint dirty for mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri)/Check { test: true }/TargetInner { ..: lib_target("mimido_lib", ["staticlib", "cdylib", "rlib"], "/Users/nickydonna/projects/mimido/src-tauri/src/lib.rs", Edition2024) }
+   0.403325417s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido_lib"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/Users/nickydonna/projects/mimido/src-tauri/target/debug/.fingerprint/mimido-289041cb3cecdb9c/dep-test-lib-mimido_lib", reference_mtime: FileTime { seconds: 1767112051, nanos: 144085189 }, stale: "/Users/nickydonna/projects/mimido/src-tauri/src/commands/components.rs", stale_mtime: FileTime { seconds: 1767112074, nanos: 576670877 } }))
+   0.404819250s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido"}: cargo::core::compiler::fingerprint: fingerprint dirty for mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri)/Check { test: false }/TargetInner { name: "mimido", doc: true, ..: with_path("/Users/nickydonna/projects/mimido/src-tauri/src/main.rs", Edition2024) }
+   0.404823584s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "mimido_lib" })
+   0.405946875s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido"}: cargo::core::compiler::fingerprint: fingerprint dirty for mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri)/Check { test: true }/TargetInner { name: "mimido", doc: true, ..: with_path("/Users/nickydonna/projects/mimido/src-tauri/src/main.rs", Edition2024) }
+   0.405950584s  INFO prepare_target{force=false package_id=mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri) target="mimido"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { name: "mimido_lib" })
+    Checking mimido v0.1.0 (/Users/nickydonna/projects/mimido/src-tauri)
+
+
+thread 'rustc' (25205831) panicked at /rustc-dev/ded5c06cf21d2b93bffd5d884aa6e96934ee4234/compiler/rustc_query_system/src/query/plumbing.rs:739:9:
+thread 'rustc' (25205833) panicked at /rustc-dev/ded5c06cf21d2b93bffd5d884aa6e96934ee4234/compiler/rustc_query_system/src/query/plumbing.rs:739:9:
+Found unstable fingerprints for evaluate_obligation(ab5002474526c4ba-88787dccc8fffbe7): Ok(EvaluatedToOk)
+Found unstable fingerprints for evaluate_obligation(74548286108ca7fc-28382ba2ed9cc448): Ok(EvaluatedToOk)
+stack backtrace:
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+   1: core::panicking::panic_fmt
+   0: __rustc::rust_begin_unwind
+   2: rustc_query_system::query::plumbing::incremental_verify_ich_failed::<rustc_middle::ty::context::TyCtxt>
+   3: rustc_query_system::query::plumbing::incremental_verify_ich::<rustc_middle::ty::context::TyCtxt, rustc_middle::query::erase::Erased<[u8; 2]>>
+   1: core::panicking::panic_fmt
+   2: rustc_query_system::query::plumbing::incremental_verify_ich_failed::<rustc_middle::ty::context::TyCtxt>
+   3: rustc_query_system::query::plumbing::incremental_verify_ich::<rustc_middle::ty::context::TyCtxt, rustc_middle::query::erase::Erased<[u8; 2]>>
+   4: rustc_query_system::query::plumbing::try_execute_query::<rustc_query_impl::DynamicConfig<rustc_query_system::query::caches::DefaultCache<rustc_type_ir::canonical::CanonicalQueryInput<rustc_middle::ty::context::TyCtxt, rustc_middle::ty::ParamEnvAnd<rustc_middle::ty::predicate::Predicate>>, rustc_middle::query::erase::Erased<[u8; 2]>>, false, false, false>, rustc_query_impl::plumbing::QueryCtxt, true>
+   4: rustc_query_system::query::plumbing::try_execute_query::<rustc_query_impl::DynamicConfig<rustc_query_system::query::caches::DefaultCache<rustc_type_ir::canonical::CanonicalQueryInput<rustc_middle::ty::context::TyCtxt, rustc_middle::ty::ParamEnvAnd<rustc_middle::ty::predicate::Predicate>>, rustc_middle::query::erase::Erased<[u8; 2]>>, false, false, false>, rustc_query_impl::plumbing::QueryCtxt, true>
+   5: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation
+   6: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation_no_overflow
+   5: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation
+   6: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation_no_overflow
+   7: <rustc_trait_selection::traits::fulfill::FulfillProcessor>::process_trait_obligation
+   7: <rustc_trait_selection::traits::fulfill::FulfillProcessor>::process_trait_obligation
+   8: <rustc_trait_selection::traits::fulfill::FulfillProcessor as rustc_data_structures::obligation_forest::ObligationProcessor>::process_obligation
+   8: <rustc_trait_selection::traits::fulfill::FulfillProcessor as rustc_data_structures::obligation_forest::ObligationProcessor>::process_obligation
+   9: <rustc_data_structures::obligation_forest::ObligationForest<rustc_trait_selection::traits::fulfill::PendingPredicateObligation>>::process_obligations::<rustc_trait_selection::traits::fulfill::FulfillProcessor>
+   9: <rustc_data_structures::obligation_forest::ObligationForest<rustc_trait_selection::traits::fulfill::PendingPredicateObligation>>::process_obligations::<rustc_trait_selection::traits::fulfill::FulfillProcessor>
+  10: <rustc_trait_selection::traits::fulfill::FulfillmentContext<rustc_infer::traits::engine::ScrubbedTraitError> as rustc_infer::traits::engine::TraitEngine<rustc_infer::traits::engine::ScrubbedTraitError>>::try_evaluate_obligations
+  10: <rustc_trait_selection::traits::fulfill::FulfillmentContext<rustc_infer::traits::engine::ScrubbedTraitError> as rustc_infer::traits::engine::TraitEngine<rustc_infer::traits::engine::ScrubbedTraitError>>::try_evaluate_obligations
+  11: <rustc_trait_selection::traits::fulfill::FulfillmentContext<rustc_infer::traits::engine::ScrubbedTraitError> as rustc_infer::traits::engine::TraitEngine<rustc_infer::traits::engine::ScrubbedTraitError>>::evaluate_obligations_error_on_ambiguity
+  11: <rustc_trait_selection::traits::fulfill::FulfillmentContext<rustc_infer::traits::engine::ScrubbedTraitError> as rustc_infer::traits::engine::TraitEngine<rustc_infer::traits::engine::ScrubbedTraitError>>::evaluate_obligations_error_on_ambiguity
+  12: <rustc_trait_selection::traits::engine::ObligationCtxt>::make_canonicalized_query_response::<()>
+  12: <rustc_trait_selection::traits::engine::ObligationCtxt>::make_canonicalized_query_response::<()>
+  13: rustc_traits::type_op::type_op_prove_predicate
+  13: rustc_traits::type_op::type_op_prove_predicate
+      [... omitted 2 frames ...]
+  14: <rustc_middle::traits::query::type_op::ProvePredicate as rustc_trait_selection::traits::query::type_op::QueryTypeOp>::perform_query
+      [... omitted 2 frames ...]
+  14: <rustc_middle::traits::query::type_op::ProvePredicate as rustc_trait_selection::traits::query::type_op::QueryTypeOp>::perform_query
+  15: <rustc_borrowck::type_check::TypeChecker>::fully_perform_op::<(), rustc_middle::ty::ParamEnvAnd<rustc_middle::traits::query::type_op::ProvePredicate>>
+  15: <rustc_borrowck::type_check::TypeChecker>::fully_perform_op::<(), rustc_middle::ty::ParamEnvAnd<rustc_middle::traits::query::type_op::ProvePredicate>>
+  16: <rustc_borrowck::type_check::TypeChecker>::normalize_and_prove_instantiated_predicates
+  16: <rustc_borrowck::type_check::TypeChecker>::normalize_and_prove_instantiated_predicates
+  17: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_const_operand
+  17: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_const_operand
+  18: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_operand
+  19: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_terminator
+  20: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_body
+  18: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_operand
+  19: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_terminator
+  20: <rustc_borrowck::type_check::TypeChecker as rustc_middle::mir::visit::Visitor>::visit_body
+  21: rustc_borrowck::type_check::type_check
+  21: rustc_borrowck::type_check::type_check
+  22: <rustc_borrowck::root_cx::BorrowCheckRootCtxt>::do_mir_borrowck
+  22: <rustc_borrowck::root_cx::BorrowCheckRootCtxt>::do_mir_borrowck
+  23: rustc_borrowck::mir_borrowck
+  23: rustc_borrowck::mir_borrowck
+      [... omitted 1 frame ...]
+  24: rustc_hir_analysis::collect::type_of::opaque::find_opaque_ty_constraints_for_rpit
+      [... omitted 1 frame ...]
+  24: rustc_hir_analysis::collect::type_of::opaque::find_opaque_ty_constraints_for_rpit
+  25: rustc_hir_analysis::collect::type_of::type_of_opaque
+  25: rustc_hir_analysis::collect::type_of::type_of_opaque
+      [... omitted 1 frame ...]
+  26: <rustc_trait_selection::traits::select::SelectionContext>::confirm_auto_impl_candidate::{closure#0}
+      [... omitted 1 frame ...]
+  27: <rustc_trait_selection::traits::select::SelectionContext>::confirm_candidate
+  28: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_candidate::{closure#0}::{closure#0}
+  29: <rustc_infer::infer::InferCtxt>::probe::<core::result::Result<rustc_middle::traits::select::EvaluationResult, rustc_middle::traits::select::OverflowError>, <rustc_trait_selection::traits::select::SelectionContext>::evaluation_probe<<rustc_trait_selection::traits::select::SelectionContext>::evaluate_candidate::{closure#0}::{closure#0}>::{closure#0}>
+  26: <rustc_trait_selection::traits::select::SelectionContext>::confirm_auto_impl_candidate::{closure#0}
+  27: <rustc_trait_selection::traits::select::SelectionContext>::confirm_candidate
+  28: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_candidate::{closure#0}::{closure#0}
+  29: <rustc_infer::infer::InferCtxt>::probe::<core::result::Result<rustc_middle::traits::select::EvaluationResult, rustc_middle::traits::select::OverflowError>, <rustc_trait_selection::traits::select::SelectionContext>::evaluation_probe<<rustc_trait_selection::traits::select::SelectionContext>::evaluate_candidate::{closure#0}::{closure#0}>::{closure#0}>
+  30: <rustc_trait_selection::traits::select::SelectionContext>::in_task::<<rustc_trait_selection::traits::select::SelectionContext>::evaluate_trait_predicate_recursively::{closure#0}::{closure#1}, core::result::Result<rustc_middle::traits::select::EvaluationResult, rustc_middle::traits::select::OverflowError>>::{closure#0}
+  30: <rustc_trait_selection::traits::select::SelectionContext>::in_task::<<rustc_trait_selection::traits::select::SelectionContext>::evaluate_trait_predicate_recursively::{closure#0}::{closure#1}, core::result::Result<rustc_middle::traits::select::EvaluationResult, rustc_middle::traits::select::OverflowError>>::{closure#0}
+  31: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_trait_predicate_recursively
+  32: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_predicate_recursively::{closure#0}::{closure#0}
+  33: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_predicate_recursively
+  31: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_trait_predicate_recursively
+  34: <rustc_trait_selection::traits::select::SelectionContext>::evaluation_probe::<<rustc_trait_selection::traits::select::SelectionContext>::evaluate_root_obligation::{closure#0}>::{closure#0}
+  35: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_root_obligation
+  36: rustc_traits::evaluate_obligation::evaluate_obligation
+      [... omitted 2 frames ...]
+  37: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation
+  32: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_predicate_recursively::{closure#0}::{closure#0}
+  33: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_predicate_recursively
+  38: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation_no_overflow
+  39: <rustc_trait_selection::traits::fulfill::FulfillProcessor>::process_trait_obligation
+  34: <rustc_trait_selection::traits::select::SelectionContext>::evaluation_probe::<<rustc_trait_selection::traits::select::SelectionContext>::evaluate_root_obligation::{closure#0}>::{closure#0}
+  35: <rustc_trait_selection::traits::select::SelectionContext>::evaluate_root_obligation
+  40: <rustc_trait_selection::traits::fulfill::FulfillProcessor as rustc_data_structures::obligation_forest::ObligationProcessor>::process_obligation
+  41: <rustc_data_structures::obligation_forest::ObligationForest<rustc_trait_selection::traits::fulfill::PendingPredicateObligation>>::process_obligations::<rustc_trait_selection::traits::fulfill::FulfillProcessor>
+  36: rustc_traits::evaluate_obligation::evaluate_obligation
+      [... omitted 2 frames ...]
+  37: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation
+  38: <rustc_infer::infer::InferCtxt as rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt>::evaluate_obligation_no_overflow
+  39: <rustc_trait_selection::traits::fulfill::FulfillProcessor>::process_trait_obligation
+  42: <rustc_trait_selection::traits::fulfill::FulfillmentContext<rustc_trait_selection::traits::FulfillmentError> as rustc_infer::traits::engine::TraitEngine<rustc_trait_selection::traits::FulfillmentError>>::try_evaluate_obligations
+  40: <rustc_trait_selection::traits::fulfill::FulfillProcessor as rustc_data_structures::obligation_forest::ObligationProcessor>::process_obligation
+  43: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_argument_types
+  41: <rustc_data_structures::obligation_forest::ObligationForest<rustc_trait_selection::traits::fulfill::PendingPredicateObligation>>::process_obligations::<rustc_trait_selection::traits::fulfill::FulfillProcessor>
+  44: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  42: <rustc_trait_selection::traits::fulfill::FulfillmentContext<rustc_trait_selection::traits::FulfillmentError> as rustc_infer::traits::engine::TraitEngine<rustc_trait_selection::traits::FulfillmentError>>::try_evaluate_obligations
+  45: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  43: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_argument_types
+  44: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  46: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_argument_types
+  45: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  47: <rustc_hir_typeck::fn_ctxt::FnCtxt>::confirm_builtin_call
+  48: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  49: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  46: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_argument_types
+  50: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_has_type_or_error::<<rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_unsafe_binder_cast::{closure#2}>
+  51: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  47: <rustc_hir_typeck::fn_ctxt::FnCtxt>::confirm_builtin_call
+  48: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  52: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  49: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  50: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_has_type_or_error::<<rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_unsafe_binder_cast::{closure#2}>
+  53: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  51: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  54: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  52: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  55: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_return_or_body_tail
+  56: rustc_hir_typeck::check::check_fn
+  53: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  54: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  57: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  55: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_return_or_body_tail
+  58: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  56: rustc_hir_typeck::check::check_fn
+  57: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  58: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  59: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_argument_types
+  59: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_argument_types
+  60: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  60: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  61: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  62: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  61: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  63: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  62: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  64: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_return_or_body_tail
+  63: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  65: rustc_hir_typeck::check::check_fn
+  64: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_return_or_body_tail
+  66: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  65: rustc_hir_typeck::check::check_fn
+  67: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  66: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  68: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  67: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  69: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  70: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  71: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  68: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  69: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  72: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  70: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  73: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  71: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  72: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_kind
+  74: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  73: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+  75: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+  74: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_block
+  75: <rustc_hir_typeck::fn_ctxt::FnCtxt>::check_expr_with_expectation_and_args
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+error: the compiler unexpectedly panicked. this is a bug.
+
+note: we would appreciate a bug report: https://github.com/rust-lang/rust-clippy/issues/new?template=ice.yml
+
+note: rustc 1.92.0 (ded5c06cf 2025-12-08) running on aarch64-apple-darwin
+
+note: compiler flags: -C embed-bitcode=no -C debuginfo=2 -C split-debuginfo=unpacked -C incremental=[REDACTED]
+
+note: some of the compiler flags provided by cargo are hidden
+
+query stack during panic:
+error: the compiler unexpectedly panicked. this is a bug.
+
+note: we would appreciate a bug report: https://github.com/rust-lang/rust-clippy/issues/new?template=ice.yml
+
+note: rustc 1.92.0 (ded5c06cf 2025-12-08) running on aarch64-apple-darwin
+
+note: compiler flags: --crate-type staticlib --crate-type cdylib --crate-type rlib -C embed-bitcode=no -C debuginfo=2 -C split-debuginfo=unpacked -C incremental=[REDACTED]
+
+note: some of the compiler flags provided by cargo are hidden
+
+query stack during panic:
+#0 [evaluate_obligation] evaluating trait selection obligation `core::iter::adapters::map::Map<alloc::vec::into_iter::IntoIter<models::NewCalendar>, {async closure@src/commands/calendar.rs:253:9: 253:52}>: core::iter::traits::collect::IntoIterator`
+#0 [evaluate_obligation] evaluating trait selection obligation `core::iter::adapters::map::Map<alloc::vec::into_iter::IntoIter<models::NewCalendar>, {async closure@src/commands/calendar.rs:253:9: 253:52}>: core::iter::traits::collect::IntoIterator`
+#1 [type_op_prove_predicate] evaluating `type_op_prove_predicate` `ProvePredicate { predicate: Binder { value: TraitPredicate(<core::iter::adapters::map::Map<alloc::vec::into_iter::IntoIter<models::NewCalendar>, {async closure@src/commands/calendar.rs:253:9: 253:52}> as core::iter::traits::collect::IntoIterator>, polarity:Positive), bound_vars: [] } }`
+#1 [type_op_prove_predicate] evaluating `type_op_prove_predicate` `ProvePredicate { predicate: Binder { value: TraitPredicate(<core::iter::adapters::map::Map<alloc::vec::into_iter::IntoIter<models::NewCalendar>, {async closure@src/commands/calendar.rs:253:9: 253:52}> as core::iter::traits::collect::IntoIterator>, polarity:Positive), bound_vars: [] } }`
+#2 [mir_borrowck] borrow-checking `commands::calendar::fetch_calendars_from_caldav`
+#2 [mir_borrowck] borrow-checking `commands::calendar::fetch_calendars_from_caldav`
+#3 [type_of_opaque] computing type of opaque `commands::calendar::fetch_calendars_from_caldav::{opaque#0}`
+#3 [type_of_opaque] computing type of opaque `commands::calendar::fetch_calendars_from_caldav::{opaque#0}`
+#4 [evaluate_obligation] evaluating trait selection obligation `commands::calendar::fetch_calendars_from_caldav::{opaque#0}: core::marker::Send`  |  = note: this failure-note originates in the macro `commands::calendar::__cmd__fetch_calendars_from_caldav` which comes from the expansion of the macro `collect_commands` (in Nightly builds, run with -Z macro-backtrace for more info)
+#4 [evaluate_obligation] evaluating trait selection obligation `commands::calendar::fetch_calendars_from_caldav::{opaque#0}: core::marker::Send`  |  = note: this failure-note originates in the macro `commands::calendar::__cmd__fetch_calendars_from_caldav` which comes from the expansion of the macro `collect_commands` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+
+#5 [typeck] type-checking `run`
+#5 [typeck] type-checking `run`
+#6 [analysis] running analysis passes on this crate
+#6 [analysis] running analysis passes on this crate
+end of query stack
+end of query stack
+note: Clippy version: clippy 0.1.92 (ded5c06cf2 2025-12-08)
+note: Clippy version: clippy 0.1.92 (ded5c06cf2 2025-12-08)
+
+
+error: could not compile `mimido` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mimido` (lib) due to 1 previous error

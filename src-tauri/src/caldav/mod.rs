@@ -210,8 +210,14 @@ impl Caldav {
         Ok(v.pop())
     }
 
-    pub async fn delete_resource(&self, href: &Href, etag: &Etag) -> anyhow::Result<()> {
-        let request = Delete::new(&href.0).with_etag(etag);
+    pub async fn delete_resource(
+        &self,
+        href: impl Into<Href>,
+        etag: impl Into<Etag>,
+    ) -> anyhow::Result<()> {
+        let href = href.into();
+        let etag = etag.into();
+        let request = Delete::new(&href.0).with_etag(&etag);
         self.caldav_client.request(request).await?;
         Ok(())
     }

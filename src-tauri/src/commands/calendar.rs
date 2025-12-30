@@ -20,7 +20,6 @@ use chrono::Utc;
 use diesel::{dsl::update, prelude::*};
 use futures::future::join_all;
 use itertools::Itertools;
-use log::info;
 use tauri::async_runtime::spawn_blocking;
 
 #[tauri::command(rename_all = "snake_case")]
@@ -137,14 +136,11 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     let synced_at = Utc::now();
     for vcmp in not_sync_cmp {
         let uid = vcmp.get_uid();
-        info!("syncing vcmp {}", uid.clone());
-        // let vcmp: icalendar::CalendarComponent = vevent.clone().into();
         let cal = icalendar::Calendar::new().push(vcmp.clone()).done();
-        let (href, etag) = caldav
+        let (_, etag) = caldav
             .create_component(&cal_href, uid.clone(), &cal)
             .await?;
 
-        info!("sync vcmp {uid} {:?} - {:?}", href, etag);
         vcmp.set_synced_at(conn.clone(), etag, synced_at).await?;
     }
 
@@ -166,25 +162,20 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     } else {
         Vec::<VCmp>::new()
     };
-    info!("out_of_sync_cmp {:?}", out_of_sync_cmp);
     for vcmp in out_of_sync_cmp {
-        let uid = vcmp.get_uid();
         let Some(href) = vcmp.get_href() else {
             continue;
         };
         let Some(etag) = vcmp.get_etag() else {
             continue;
         };
-        info!("syncing vcmp {}", uid.clone());
         // let vcmp: icalendar::CalendarComponent = vevent.clone().into();
         let cal = icalendar::Calendar::new().push(vcmp.clone()).done();
         let etag = caldav
             .update_component(&Href(href), &Etag(etag), &cal)
             .await;
 
-        info!("e {etag:?}");
         let etag = etag?;
-        info!("sync vcmp {uid} {:?}", etag);
         vcmp.set_synced_at(conn.clone(), etag, synced_at).await?;
     }
 
@@ -204,7 +195,6 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
             })
             .map(async move |href| {
                 let conn = DbConn::new().await?;
-                info!("del res {href}");
                 // Try to delete both entries since we don't know which type it is
                 let vtodo_del = VTodo::try_delete_by_href(conn.clone(), href).await;
                 let vevent_del = VEvent::try_delete_by_href(conn, href).await;

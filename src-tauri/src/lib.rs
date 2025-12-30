@@ -36,15 +36,11 @@ pub fn establish_connection() -> SqliteConnection {
 }
 
 pub fn setup_db(connection_url: &str) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    log::info!("setup_db");
     let mut locked_url = CONNECTION_URL.lock().unwrap();
     *locked_url = connection_url.to_owned();
     drop(locked_url); // Release the lock before establishing the connection
-    log::info!("connecting to {connection_url}");
     let mut conn = establish_connection();
-    log::info!("connected");
     conn.run_pending_migrations(MIGRATIONS)?;
-    log::info!("migration ran correctly");
     Ok(())
 }
 

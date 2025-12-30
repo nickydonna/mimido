@@ -14,10 +14,15 @@
   import GlassGrouppedButton from "$lib/components/glass-button-group/GlassGrouppedButton.svelte";
   import TaskList from "$lib/components/task-list/TaskList.svelte";
   import GlassIcon from "$lib/components/glass-icon/GlassIcon.svelte";
+  // @ts-expect-error iconify
+  import RefreshLinear from "~icons/solar/refresh-linear";
+
   import Calendar from "./Calendar.svelte";
+  import { commands } from "../../bindings";
 
   let { data }: PageProps = $props();
-  let { date, events, todos, unscheduledTodos } = $derived(data);
+  let { date, events, todos, unscheduledTodos, defaultCalendar } =
+    $derived(data);
 
   const modalZIndex = 40;
 
@@ -29,6 +34,16 @@
   });
 
   let taskDrawerOpen = $state(true);
+  let refreshing = $state(false);
+
+  async function refresh() {
+    if (refreshing || defaultCalendar == null) {
+      return;
+    }
+    refreshing = true;
+    await commands.superSyncCalendar(defaultCalendar.id);
+    refreshing = false;
+  }
 </script>
 
 <div class="flex">
@@ -65,6 +80,9 @@
           <AngleRightOutline />
         </GlassGrouppedButton>
       </GlassButtonGroup>
+      <GlassIcon class="px-3" size="sm" onclick={refresh}>
+        <RefreshLinear class={{ "animate-spin": refreshing }} />
+      </GlassIcon>
       <GlassIcon
         class="px-3"
         size="sm"
@@ -88,7 +106,7 @@
   </div>
   {#if taskDrawerOpen}
     <div class={`flex-1 pt-32 px-4 relative border-l border-l-primary-900`}>
-      <div class="sticky top-24">
+      <div class="sticky top-24 pb-18">
         <TaskList tasks={unscheduledTodos ?? []} />
       </div>
     </div>

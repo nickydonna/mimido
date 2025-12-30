@@ -3,7 +3,6 @@ use libdav::{
     Depth, names,
     requests::{DavRequest, PreparedRequest},
 };
-use log::info;
 
 use crate::{
     caldav::util::{check_status, get_node_by_name, get_node_prop_by_name},
@@ -86,7 +85,6 @@ impl DavRequest for GetSyncReport<'_> {
         let sync_token: SyncToken = get_node_prop_by_name(doc.root_element(), names::SYNC_TOKEN)
             .expect("Sync token")
             .into();
-        info!("Sync Token found: {sync_token:?}");
         let responses = get_node_by_name(doc.root_element(), names::RESPONSE);
 
         let Some(responses) = responses else {
@@ -101,7 +99,6 @@ impl DavRequest for GetSyncReport<'_> {
             .filter_map(|res| {
                 let href = get_node_prop_by_name(res, names::HREF)?;
                 let status = get_node_prop_by_name(res, names::STATUS)?;
-                info!("a {href} - {status}");
 
                 if status.contains("404") {
                     Some(SyncResult::Deleted(Href(href)))

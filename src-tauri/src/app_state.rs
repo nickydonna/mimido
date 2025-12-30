@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use std::borrow::Cow;
 use tauri::async_runtime::RwLock;
 
 use diesel::{Connection, SqliteConnection};
@@ -9,7 +8,6 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 pub struct AppState {
     pub syncing: RwLock<()>,
-    pub db_conn_url: Cow<'static, str>,
 }
 
 impl AppState {
@@ -23,12 +21,6 @@ impl AppState {
         log::info!("migration ran correctly");
         Ok(Self {
             syncing: RwLock::new(()),
-            db_conn_url: connection_url.into(),
         })
-    }
-
-    pub fn get_connection(&self) -> Result<SqliteConnection, anyhow::Error> {
-        let conn = SqliteConnection::establish(&self.db_conn_url)?;
-        Ok(conn)
     }
 }

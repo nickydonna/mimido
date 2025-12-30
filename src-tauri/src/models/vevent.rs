@@ -251,7 +251,10 @@ impl VEvent {
 
             diesel::update(vevents_dsl::vevents)
                 .filter(vevents_dsl::id.eq(vevent_id))
-                .set(vevents_dsl::status.eq(status))
+                .set((
+                    vevents_dsl::status.eq(status),
+                    vevents_dsl::out_of_sync.eq(true),
+                ))
                 .execute(conn)
         })
         .await??;
@@ -264,7 +267,6 @@ impl VEvent {
         extracted: EventUpsertInfo<Tz>,
         out_of_sync: Option<bool>,
     ) -> anyhow::Result<Self> {
-        log::info!("from: '{}' -> '{}", self.summary, extracted.summary);
         let mut event = self.clone();
         let date_info = extracted.date_info.0.ok_or(anyhow!("Event need dates"))?;
         event.starts_at = date_info.start.to_utc();

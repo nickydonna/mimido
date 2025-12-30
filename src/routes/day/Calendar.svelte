@@ -147,7 +147,7 @@
     >
 
     {#if !currentTimeInView && !dragging}
-      <div class="fixed bottom-12 end-12 z-[100]">
+      <div class="fixed bottom-12 end-12 z-100">
         <GlassButton onclick={scrollCurrentIntoView}>Current Time</GlassButton>
       </div>
     {/if}
@@ -304,7 +304,6 @@
   .time-slot {
     grid-column: times;
     @apply text-center text-xs cursor-pointer select-none;
-    @apply px-3 py-1 mr-0.5 border-r border-slate-100/50;
   }
 
   .schedule {

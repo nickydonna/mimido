@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
+    caldav::Caldav,
     calendar_items::{
         DisplayUpsertInfo,
         event_status::EventStatus,
@@ -136,8 +137,16 @@ pub async fn delete_vcmp(vevent_id: i32) -> Result<(), CommandError> {
         .await?
         .ok_or(anyhow!("No cmp with id {vevent_id}"))?;
 
-    cmp.delete(conn).await?;
+    let (server, _) = Calendar::by_id_with_server(conn.clone(), cmp.get_calendar_id()).await?;
+    let caldav = Caldav::new(server).await?;
+    // Delete cmp if possible
+    if let Some(href) = cmp.get_href()
+        && let Some(etag) = cmp.get_etag()
+    {
+        caldav.delete_resource(href, etag).await?;
+    }
 
+    cmp.delete(conn).await?;
     Ok(())
 }
 

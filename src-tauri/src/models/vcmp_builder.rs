@@ -183,9 +183,9 @@ impl VCmpBuilder {
         if let Some(href) = self.href.clone() {
             Some(href)
         } else if let Some(cal_href) = self.calendar_url.clone()
-            && let Some(id) = self.id
+            && let Some(uid) = self.uid.clone()
         {
-            Some(format!("{cal_href}{id}.ics"))
+            Some(format!("{cal_href}{uid}.ics"))
         } else {
             None
         }
@@ -233,6 +233,7 @@ impl VCmpBuilder {
         let now = Utc::now();
         let last_modified = self.last_modified.unwrap_or(now);
 
+        log::info!("href {:?}", self.get_href());
         if is_task || has_no_dates {
             // Build NewVTodo
             Ok(NewVCmp::Todo(NewVTodo {

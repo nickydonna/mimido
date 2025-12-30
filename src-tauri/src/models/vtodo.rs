@@ -291,7 +291,11 @@ impl VTodo {
 
             diesel::update(vtodos_dsl::vtodos)
                 .filter(vtodos_dsl::id.eq(vtodo_id))
-                .set((vtodos_dsl::status.eq(status), completed_update))
+                .set((
+                    vtodos_dsl::status.eq(status),
+                    completed_update,
+                    vtodos_dsl::out_of_sync.eq(true),
+                ))
                 .execute(conn)
         })
         .await??;
