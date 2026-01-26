@@ -207,4 +207,20 @@ mod tests {
         assert!(recurrence.0.is_some());
         assert_eq!(info.tag, EventTags(Some("health".to_string())))
     }
+
+    #[test]
+    fn should_parse_simple_string() {
+        let date_of_input = chrono_tz::America::Buenos_Aires
+            .with_ymd_and_hms(2025, 3, 6, 10, 30, 0)
+            .unwrap();
+        let input = "tramp";
+        let ExtractedInput(info, _) = EventUpsertInfo::extract_from_input(date_of_input, input)
+            .expect("To parse string")
+            .into();
+
+        assert_eq!(info.summary, "tramp");
+        assert_eq!(info.status, EventStatus::Todo);
+        assert_eq!(info.event_type, EventType::Event);
+        assert!(info.date_info.0.is_none());
+    }
 }

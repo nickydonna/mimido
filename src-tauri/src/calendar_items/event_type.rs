@@ -59,7 +59,7 @@ impl From<EventType> for icalendar::Property {
     }
 }
 
-const EVENT_TYPE_RE: &str = r"(@|.)(?P<event_type>event|block|reminder|task|e|b|r|t)";
+const EVENT_TYPE_RE: &str = r"(@|\.)(?P<event_type>event|block|reminder|task|e|b|r|t)";
 
 impl<Tz: TimeZone> FromUserInput<Tz> for EventType {
     fn extract_from_input(
