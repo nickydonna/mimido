@@ -15,30 +15,30 @@
   "dependencies": {
     "@korkje/adt": "^0.5.2",
     "@tauri-apps/api": "^2.9.1",
-    "@tauri-apps/plugin-log": "~2.7.0",
-    "@tauri-apps/plugin-opener": "^2.5.2"
+    "@tauri-apps/plugin-log": "~2.8.0",
+    "@tauri-apps/plugin-opener": "^2.5.3"
   },
   "devDependencies": {
-    "@iconify-json/solar": "^1.2.2",
+    "@iconify-json/solar": "^1.2.5",
     "@iconify-json/uim": "^1.2.3",
     "@iconify-json/uit": "^1.2.3",
     "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.49.0",
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
-    "@tailwindcss/vite": "^4.1.17",
-    "@tauri-apps/cli": "^2.9.5",
+    "@sveltejs/kit": "^2.50.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tauri-apps/cli": "^2.9.6",
     "date-fns": "^4.1.0",
     "flowbite": "^4.0.1",
     "flowbite-svelte": "1.29.1",
-    "flowbite-svelte-icons": "^3.0.0",
-    "svelte": "^5.45.2",
-    "svelte-check": "^4.3.4",
+    "flowbite-svelte-icons": "^3.1.0",
+    "svelte": "^5.48.2",
+    "svelte-check": "^4.3.5",
     "svelte-headlessui": "^0.0.46",
     "svelte-transition": "^0.0.17",
-    "tailwindcss": "^4.1.17",
+    "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "unplugin-icons": "^22.5.0",
-    "vite": "^7.2.6"
+    "vite": "^7.3.1"
   },
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

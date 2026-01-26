@@ -307,6 +307,33 @@ impl Calendar {
         })
         .await?
     }
+
+    pub async fn create_or_update(new_cal: NewCalendar) -> anyhow::Result<Calendar> {
+        use crate::schema::calendars::dsl as calendars_dsl;
+
+        let calendar_record = Calendar::by_name(&new_cal.name).await?;
+        spawn_blocking(move || {
+            let conn = &mut establish_connection();
+            if let Some(calendar) = calendar_record {
+                diesel::update(calendars_dsl::calendars)
+                    .filter(calendars_dsl::id.eq(calendar.id))
+                    .set((
+                        calendars_dsl::etag.eq(&new_cal.etag),
+                        calendars_dsl::sync_token.eq(&new_cal.sync_token),
+                    ))
+                    .returning(Calendar::as_select())
+                    .get_result(conn)
+                    .map_err(anyhow::Error::new)
+            } else {
+                diesel::insert_into(calendars_dsl::calendars)
+                    .values(&new_cal)
+                    .returning(Calendar::as_select())
+                    .get_result(conn)
+                    .map_err(anyhow::Error::new)
+            }
+        })
+        .await?
+    }
 }
 
 #[derive(Queryable, Selectable, Insertable, AsChangeset, Debug)]

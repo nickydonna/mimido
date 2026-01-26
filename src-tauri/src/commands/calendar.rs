@@ -5,7 +5,6 @@ use crate::{
     },
     commands::errors::CommandError,
     db_conn::DbConn,
-    establish_connection,
     models::{
         Calendar, NewVCmp, VCmp,
         model_traits::{ById, CalendarAndSyncStatus, DeleteAllByCalendar, ListAll, SetSyncedAt},
@@ -238,8 +237,6 @@ pub async fn super_sync_calendar(calendar_id: i32) -> Result<(), CommandError> {
 #[tauri::command()]
 #[specta::specta]
 pub async fn fetch_calendars_from_caldav(server_id: i32) -> Result<Vec<Calendar>, CommandError> {
-    use crate::schema::calendars::dsl as calendars_dsl;
-
     let conn = DbConn::new().await?;
 
     let server = Server::by_id(conn, server_id)
@@ -249,32 +246,10 @@ pub async fn fetch_calendars_from_caldav(server_id: i32) -> Result<Vec<Calendar>
     let caldav = Caldav::new(server).await?;
     let found_calendars = caldav.list_caldav_calendars().await?;
 
-    let calendars = join_all(found_calendars.into_iter().map(
-        async |new_cal| -> anyhow::Result<Calendar> {
-            let conn = &mut establish_connection();
-            let calendar_record = Calendar::by_name(&new_cal.name).await?;
-            if let Some(calendar) = calendar_record {
-                diesel::update(calendars_dsl::calendars)
-                    .filter(calendars_dsl::id.eq(calendar.id))
-                    .set((
-                        calendars_dsl::etag.eq(&new_cal.etag),
-                        calendars_dsl::sync_token.eq(&new_cal.sync_token),
-                    ))
-                    .returning(Calendar::as_select())
-                    .get_result(conn)
-                    .map_err(anyhow::Error::new)
-            } else {
-                diesel::insert_into(calendars_dsl::calendars)
-                    .values(&new_cal)
-                    .returning(Calendar::as_select())
-                    .get_result(conn)
-                    .map_err(anyhow::Error::new)
-            }
-        },
-    ))
-    .await
-    .into_iter()
-    .flatten()
-    .collect::<Vec<Calendar>>();
+    let calendars = join_all(found_calendars.into_iter().map(Calendar::create_or_update))
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<Calendar>>();
     Ok(calendars)
 }
