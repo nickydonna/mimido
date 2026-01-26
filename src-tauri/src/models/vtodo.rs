@@ -247,6 +247,7 @@ impl VTodo {
 
         let todos = spawn_blocking(move || {
             let conn = &mut *conn.0.lock().unwrap();
+            let now = Utc::now() - TimeDelta::minutes(30);
 
             if include_done {
                 todo_dsl::vtodos
@@ -256,9 +257,13 @@ impl VTodo {
             } else {
                 todo_dsl::vtodos
                     .filter(
-                        todo_dsl::status
-                            .is_not(EventStatus::Done)
-                            .and(todo_dsl::starts_at.is_null()),
+                        todo_dsl::starts_at.is_null().and(
+                            todo_dsl::status
+                                .is_not(EventStatus::Done)
+                                .or(todo_dsl::status
+                                    .is(EventStatus::Done)
+                                    .and(todo_dsl::completed.gt(now))),
+                        ),
                     )
                     .select(VTodo::as_select())
                     .load(conn)

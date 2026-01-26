@@ -68,6 +68,7 @@
       {/snippet}
       {#snippet content()}
         {#each tasks as task}
+          {@const isDone = task.status === "Done"}
           <div
             class="flex p-2 m-1 border-b border-primary-500 last:border-none"
           >
@@ -75,13 +76,14 @@
               <GlassCheckbox
                 loading={loading[task.id]}
                 label={""}
-                checked={task.status === "Done"}
+                checked={isDone}
                 onChange={() => toggleDone(task)}
               ></GlassCheckbox>
             </div>
 
             <button
               class="flex-1"
+              class:line-through={isDone}
               onclick={() => (eventUpserter.state = EventUpsert.Updating(task))}
             >
               {task.summary}
