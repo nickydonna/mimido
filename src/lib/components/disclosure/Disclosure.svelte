@@ -4,23 +4,23 @@
 
   import { createDisclosure } from "svelte-headlessui";
   import type { Snippet } from "svelte";
+  import type { AriaAttributes } from "svelte/elements";
 
-  let {
-    label,
-    header,
-    content,
-    expanded = false,
-  }: {
+  interface Props extends AriaAttributes {
     label: string;
     expanded?: boolean;
     header: Snippet;
     content: Snippet;
-  } = $props();
+  }
 
-  const disclosure = createDisclosure({ label, expanded });
+  let { label, header, content, expanded = false, ...aria }: Props = $props();
+
+  let disclosure: ReturnType<typeof createDisclosure> = $derived.by(() =>
+    createDisclosure({ label, expanded }),
+  );
 </script>
 
-<div class="mb-2">
+<div class="mb-2" {...aria}>
   <button use:disclosure.button class="disclosure-button">
     <span>{@render header()}</span>
     <AngleUpIcon

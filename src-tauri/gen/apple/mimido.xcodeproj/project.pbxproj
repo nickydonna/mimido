@@ -30,12 +30,14 @@
 		1CA665819A8E1CD18CF27EC4 /* errors.rs */ = {isa = PBXFileReference; path = errors.rs; sourceTree = "<group>"; };
 		1F044741DF66EDCCCC3EC017 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		27E7C62B059E91E63C7A3C1D /* components.rs */ = {isa = PBXFileReference; path = components.rs; sourceTree = "<group>"; };
+		280464B53982737939A43CBE /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		2D8496AB258DDC840A9B168E /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		314FE1A126D31620BBFA86B5 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		320493232F2D4CB10B5DEA78 /* schema.patch */ = {isa = PBXFileReference; path = schema.patch; sourceTree = "<group>"; };
 		33B88873C6303969BD4D659D /* util.rs */ = {isa = PBXFileReference; path = util.rs; sourceTree = "<group>"; };
 		43F6AEDAC0D55A98F102AD5B /* date_parser.rs */ = {isa = PBXFileReference; path = date_parser.rs; sourceTree = "<group>"; };
 		4681195E7089D6D67EDE4CFC /* mimido_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = mimido_iOS.entitlements; sourceTree = "<group>"; };
+		4D535A660EF4FB2328542230 /* db_conn.rs */ = {isa = PBXFileReference; path = db_conn.rs; sourceTree = "<group>"; };
 		53155CE24FF6AB72E28745BA /* vevent.rs */ = {isa = PBXFileReference; path = vevent.rs; sourceTree = "<group>"; };
 		55379F6A2959F422FC89DB43 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6D5288C399498FE01BDAB7D9 /* rrule_parser.rs */ = {isa = PBXFileReference; path = rrule_parser.rs; sourceTree = "<group>"; };
@@ -50,13 +52,18 @@
 		9BECE1B3825C5A1D04760835 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		9F48EB305C3EB1C8AB1A0587 /* vtodo.rs */ = {isa = PBXFileReference; path = vtodo.rs; sourceTree = "<group>"; };
 		A2F1461F6F4EE0D4221971D5 /* input_traits.rs */ = {isa = PBXFileReference; path = input_traits.rs; sourceTree = "<group>"; };
+		A832B96B303C0F42196896B4 /* model_traits.rs */ = {isa = PBXFileReference; path = model_traits.rs; sourceTree = "<group>"; };
+		A8DBB8947FFC0A0B6F3DB162 /* server.rs */ = {isa = PBXFileReference; path = server.rs; sourceTree = "<group>"; };
 		AFDFDDF1108D7FF26263BAAF /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
-		B30BD2BEB2957981D71A6259 /* caldav.rs */ = {isa = PBXFileReference; path = caldav.rs; sourceTree = "<group>"; };
+		B21D703C55CBAB31A0729CAE /* util.rs */ = {isa = PBXFileReference; path = util.rs; sourceTree = "<group>"; };
+		B5240E9693E41BFC2F09C57A /* vcmp_builder.rs */ = {isa = PBXFileReference; path = vcmp_builder.rs; sourceTree = "<group>"; };
 		C33062CEEE6E73EB33F14108 /* extended_event.rs */ = {isa = PBXFileReference; path = extended_event.rs; sourceTree = "<group>"; };
 		C80922349ADA5BD8E6D068DE /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		C8263A7DB17A00F22D3288AA /* event_upsert.rs */ = {isa = PBXFileReference; path = event_upsert.rs; sourceTree = "<group>"; };
+		C889216FC483DACCDC300BF5 /* get_sync_report.rs */ = {isa = PBXFileReference; path = get_sync_report.rs; sourceTree = "<group>"; };
 		CEFC711F2C0585943DBA3626 /* component_props.rs */ = {isa = PBXFileReference; path = component_props.rs; sourceTree = "<group>"; };
 		D4B27D1D1010AB3A63727D90 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		D96B003C1E0A0FEF815C70F2 /* app_state.rs */ = {isa = PBXFileReference; path = app_state.rs; sourceTree = "<group>"; };
 		DE7693D0533B2BAE69D5BF29 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		E335D2FFC858AA61766B9784 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		F2460BBFE0A6E4BB125DC8BC /* extended_todo.rs */ = {isa = PBXFileReference; path = extended_todo.rs; sourceTree = "<group>"; };
@@ -103,6 +110,9 @@
 			isa = PBXGroup;
 			children = (
 				314FE1A126D31620BBFA86B5 /* mod.rs */,
+				A832B96B303C0F42196896B4 /* model_traits.rs */,
+				A8DBB8947FFC0A0B6F3DB162 /* server.rs */,
+				B5240E9693E41BFC2F09C57A /* vcmp_builder.rs */,
 				53155CE24FF6AB72E28745BA /* vevent.rs */,
 				9F48EB305C3EB1C8AB1A0587 /* vtodo.rs */,
 			);
@@ -158,12 +168,14 @@
 		7AE4FB5FBE1C93896A662B09 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				B30BD2BEB2957981D71A6259 /* caldav.rs */,
+				D96B003C1E0A0FEF815C70F2 /* app_state.rs */,
+				4D535A660EF4FB2328542230 /* db_conn.rs */,
 				7738AE691F8565E1E967C5A1 /* lib.rs */,
 				030912F086D513CCD440F91F /* main.rs */,
 				320493232F2D4CB10B5DEA78 /* schema.patch */,
 				7FB52E854860E306779244F2 /* schema.rs */,
 				33B88873C6303969BD4D659D /* util.rs */,
+				BC5DAAD8DD6DAE1C45CCED23 /* caldav */,
 				0F68797E630E20349CEED7A1 /* calendar_items */,
 				6360F87565095293895C0F4B /* commands */,
 				2E912415ED4FCE9EEFDCB472 /* models */,
@@ -194,6 +206,16 @@
 				C80922349ADA5BD8E6D068DE /* WebKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BC5DAAD8DD6DAE1C45CCED23 /* caldav */ = {
+			isa = PBXGroup;
+			children = (
+				C889216FC483DACCDC300BF5 /* get_sync_report.rs */,
+				280464B53982737939A43CBE /* mod.rs */,
+				B21D703C55CBAB31A0729CAE /* util.rs */,
+			);
+			path = caldav;
 			sourceTree = "<group>";
 		};
 		C0FF775F23F4D6251B06839A /* Sources */ = {
@@ -317,7 +339,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "pnpm tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -416,7 +438,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -505,7 +527,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

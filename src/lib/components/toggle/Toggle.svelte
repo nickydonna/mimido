@@ -13,7 +13,7 @@
     onchange?: (value: boolean) => void;
   } = $props();
 
-  const sw = createSwitch({ label, checked });
+  const sw = $derived.by(() => createSwitch({ label, checked }));
 
   // This seems too complex
   $effect(() => {
@@ -22,10 +22,12 @@
     }
   });
 
-  sw.subscribe((value) => {
-    if (value.checked !== checked && !disabled) {
-      onchange?.(value.checked);
-    }
+  $effect(() => {
+    sw.subscribe((value) => {
+      if (value.checked !== checked && !disabled) {
+        onchange?.(value.checked);
+      }
+    });
   });
 
   let buttonClass = $derived([

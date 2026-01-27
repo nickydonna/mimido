@@ -11,6 +11,10 @@
     eventUpserter,
   } from "../../../stores/eventUpserter.svelte";
   import type { UnscheduledTask } from "$lib/util";
+  import {
+    EventDragger,
+    eventDragger,
+  } from "../../../stores/eventDragger.svelte";
   const NO_CAT = "[No Category]";
 
   let { tasks }: { tasks: Array<UnscheduledTask> } = $props();
@@ -55,42 +59,61 @@
     loading[task.id] = false;
     await invalidateAll();
   }
+
+  function handleDrag(task: UnscheduledTask) {
+    eventDragger.state = EventDragger.Dragging(task);
+  }
+
+  function handleDragEnd(e: Event, task: UnscheduledTask) {
+    e.preventDefault();
+    eventDragger.state = EventDragger.None;
+  }
 </script>
 
-<DisclosureGroup>
-  {#each groupped as [title, tasks]}
-    <Disclosure label={title} expanded={true}>
-      {#snippet header()}
-        <div class="p-1.5">
-          {#if title !== NO_CAT}#{/if}
-          {title}
-        </div>
-      {/snippet}
-      {#snippet content()}
-        {#each tasks as task}
-          {@const isDone = task.status === "Done"}
-          <div
-            class="flex p-2 m-1 border-b border-primary-500 last:border-none"
-          >
-            <div class="mt-1">
-              <GlassCheckbox
-                loading={loading[task.id]}
-                label={""}
-                checked={isDone}
-                onChange={() => toggleDone(task)}
-              ></GlassCheckbox>
-            </div>
-
-            <button
-              class="flex-1"
-              class:line-through={isDone}
-              onclick={() => (eventUpserter.state = EventUpsert.Updating(task))}
-            >
-              {task.summary}
-            </button>
+<DisclosureGroup role="tree" aria-rowcount={tasks.length}>
+  {#each groupped as [title, tasks], j}
+    <div role="rowgroup">
+      <Disclosure label={title}>
+        {#snippet header()}
+          <div class="p-1.5">
+            {#if title !== NO_CAT}#{/if}
+            {title}
           </div>
-        {/each}
-      {/snippet}
-    </Disclosure>
+        {/snippet}
+        {#snippet content()}
+          <div role="row">
+            {#each tasks as task, i}
+              {@const isDone = task.status === "Done"}
+              <div
+                tabindex={j * 10 + i}
+                role="cell"
+                draggable="true"
+                ondragstart={() => handleDrag(task)}
+                ondragend={(e) => handleDragEnd(e, task)}
+                class="flex p-2 m-1 border-b border-primary-500 last:border-none"
+              >
+                <div class="mt-1">
+                  <GlassCheckbox
+                    loading={loading[task.id]}
+                    label={""}
+                    checked={isDone}
+                    onChange={() => toggleDone(task)}
+                  ></GlassCheckbox>
+                </div>
+
+                <button
+                  class="flex-1"
+                  class:line-through={isDone}
+                  onclick={() =>
+                    (eventUpserter.state = EventUpsert.Updating(task))}
+                >
+                  {task.summary}
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/snippet}
+      </Disclosure>
+    </div>
   {/each}
 </DisclosureGroup>

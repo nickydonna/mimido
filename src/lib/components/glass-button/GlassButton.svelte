@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { type SizeType } from "flowbite-svelte";
   import {
     type HTMLButtonAttributes,
     type HTMLAnchorAttributes,

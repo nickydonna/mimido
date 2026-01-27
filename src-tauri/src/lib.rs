@@ -8,7 +8,8 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 use std::error::Error;
 use std::fs::create_dir_all;
 use std::sync::Mutex;
-use tauri::{Listener, Manager, async_runtime, tray::TrayIconBuilder};
+use tauri::{Listener, Manager, async_runtime};
+// use tauri::{tray::TrayIconBuilder};
 use tauri_specta::{Builder, collect_commands};
 
 use crate::{app_state::AppState, commands::calendar::internal_super_sync_calendar};
@@ -91,7 +92,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
-            let _ = TrayIconBuilder::new().build(app)?;
+            // let _ = TrayIconBuilder::new().build(app)?;
             let app_path = app.path().app_config_dir().expect("No App path was found!");
             let db_file_name = "mimido.db";
             let conn_url = format!("sqlite://{}/{}", app_path.display(), db_file_name);

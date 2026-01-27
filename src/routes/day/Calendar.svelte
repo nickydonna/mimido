@@ -24,6 +24,7 @@
     EventUpsert,
     eventUpserter,
   } from "../../stores/eventUpserter.svelte";
+  import { eventDragger, isDragging } from "../../stores/eventDragger.svelte";
 
   let {
     date,
@@ -31,9 +32,9 @@
     todos,
   }: { date: Date; events: ScheduledTask[]; todos: ScheduledTask[] } = $props();
 
-  let dragging = $state<VEvent | undefined>(undefined);
+  let beenDragged = $derived.by(() => isDragging(eventDragger.state));
   let currentTimeInView = $state(false);
-  let hoverTime: Date | undefined = $state(undefined);
+  let dragTime: Date | undefined = $state(undefined);
   let current = $derived(startOfDay(date));
   let timeBlocks: Array<{ time: Date; check: (d: Date) => boolean }> =
     $derived.by(() => {
@@ -123,6 +124,10 @@
   function handleClickSlot(type: EventType, time: Date) {
     eventUpserter.state = EventUpsert.Creating(type, time);
   }
+
+  function handleDropOnTime(time: Date) {
+    console.log(time);
+  }
 </script>
 
 <div
@@ -146,7 +151,7 @@
       style="grid-column: reminder; grid-row: tracks;">Reminder</span
     >
 
-    {#if !currentTimeInView && !dragging}
+    {#if !currentTimeInView && !beenDragged}
       <div class="fixed bottom-12 end-12 z-100">
         <GlassButton onclick={scrollCurrentIntoView}>Current Time</GlassButton>
       </div>
@@ -195,7 +200,7 @@
       {@const minutes = getMinutes(time)}
 
       <h2
-        ondblclick={() => !dragging && handleTimeDoubleClick(time)}
+        ondblclick={() => !beenDragged && handleTimeDoubleClick(time)}
         class="time-slot text-center text-xs cursor-pointer select-none"
         class:opacity-40={minutes !== 0 && minutes !== 30}
         class:brightness-50={timeIndicator.nearestSlot >= time}
@@ -205,23 +210,23 @@
       </h2>
       <div
         aria-hidden="true"
-        class={`border-t border-dotted ${dragging != null ? "z-50 pointer-events-auto" : "z-[-1] pointer-events-none"}`}
+        class={`border-t border-dotted ${beenDragged ? "z-1000 pointer-events-auto" : "z-[-1] pointer-events-none"}`}
         class:border-gray-600={minutes === 0}
         class:border-gray-300={minutes === 30}
         class:border-gray-800={minutes !== 0 && minutes !== 30}
         style:grid-column="event /reminder"
         style:grid-row="time-{format('HHmm', time)}"
         ondragenter={() => {
-          hoverTime = time;
+          dragTime = time;
         }}
         ondrop={() => {
-          // handleDropOnTime(e, time);
+          handleDropOnTime(time);
         }}
         ondragover={() => false}
       ></div>
       {#each ["Event", "Task", "Reminder"] as type}
         <div
-          class="opacity-0 hover:opacity-100 rounded hover:ring-2 hover:ring-inset hover:ring-primary-300 flex items-center px-1 z-1"
+          class="opacity-0 hover:opacity-100 hover:rounded-2xl hover:bg-primary-600/10 flex items-center px-1 z-1"
           style:grid-column={type.toLowerCase()}
           style:grid-row="time-{format('HHmm', time)}"
         >
