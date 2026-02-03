@@ -1,6 +1,11 @@
+use std::str::FromStr;
+
 use crate::{
     calendar_items::{
-        component_props::{ComponentProps, get_string_property},
+        component_props::{
+            ComponentMultiProps, ComponentProps, get_string_multi_property, get_string_property,
+        },
+        date_from_calendar_to_utc,
         event_status::EventStatus,
         event_type::EventType,
         event_upsert::EventUpsertInfo,
@@ -18,8 +23,9 @@ use crate::{
 };
 use anyhow::anyhow;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono_tz::UTC;
 use diesel::{dsl::update, prelude::*};
-use icalendar::DatePerhapsTime;
+use icalendar::{CalendarDateTime, DatePerhapsTime};
 use libdav::FetchedResource;
 use rrule::{RRuleError, RRuleSet};
 
@@ -382,7 +388,7 @@ pub trait IcalParseableTrait<Cmp: icalendar::Component> {
         let start_str = get_start_string(&event)?;
 
         let r_date = get_string_property(&event, ComponentProps::RDate);
-        let ex_date = get_string_property(&event, ComponentProps::Exdate);
+        let ex_date = get_string_multi_property(&event, ComponentMultiProps::Exdate);
         let mut rule_set_string = format!(
             "{start_str}\
         RRULE:{rrule}"
@@ -396,15 +402,19 @@ pub trait IcalParseableTrait<Cmp: icalendar::Component> {
             );
         }
 
-        if let Some(ex_date) = ex_date {
-            rule_set_string = format!(
-                "
-        {rule_set_string}\n\
-        EXDATE:{ex_date}"
-            );
-        }
         let rrule: Result<RRuleSet, RRuleError> = rule_set_string.parse();
-        rrule.ok()
+        let mut rrule = rrule.ok()?;
+
+        if let Some(ex_date) = ex_date {
+            let parsed = ex_date
+                .iter()
+                .filter_map(|s| CalendarDateTime::from_str(s).ok())
+                .filter_map(|d| date_from_calendar_to_utc(d.into(), UTC))
+                .map(|d| d.with_timezone(&rrule::Tz::UTC))
+                .collect::<Vec<DateTime<rrule::Tz>>>();
+            rrule = rrule.set_exdates(parsed);
+        }
+        Some(rrule)
     }
 
     /// Parsed the recurrence of the event using the [`Event::ical_data`]
@@ -420,7 +430,9 @@ pub trait IcalParseableTrait<Cmp: icalendar::Component> {
     ) -> Option<DateTime<Tz>> {
         let rule_set = self.get_rrule()?;
 
+        println!("rule {:?}", rule_set);
         let r_rule = rule_set.after(date.with_timezone(&rrule::Tz::UTC));
+        println!("r {:?}", r_rule.clone().all(1));
         r_rule
             .clone()
             .all(1)

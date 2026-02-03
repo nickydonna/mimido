@@ -30,10 +30,14 @@ pub enum ComponentProps {
     RRule,
     #[strum(serialize = "RDATE")]
     RDate,
-    #[strum(serialize = "EXDATE")]
-    Exdate,
     #[strum(serialize = "DURATION")]
     Duration,
+}
+
+#[derive(Debug, PartialEq, strum_macros::AsRefStr)]
+pub enum ComponentMultiProps {
+    #[strum(serialize = "EXDATE")]
+    Exdate,
 }
 
 impl From<ComponentProps> for String {
@@ -49,6 +53,18 @@ pub fn get_property<Cmp: icalendar::Component, T: FromStr>(
     event
         .property_value(property.as_ref())
         .and_then(|s| T::from_str(s).ok())
+}
+
+pub fn get_multi_property<Cmp: icalendar::Component, T: FromStr>(
+    cmp: &Cmp,
+    property: ComponentMultiProps,
+) -> Option<Vec<T>> {
+    cmp.multi_properties().get(property.as_ref()).map(|props| {
+        props
+            .iter()
+            .filter_map(|p| T::from_str(p.value()).ok())
+            .collect::<Vec<T>>()
+    })
 }
 
 pub fn get_property_or_default<Cmp: icalendar::Component, T: FromStr>(
@@ -70,6 +86,13 @@ pub fn get_string_property<Cmp: icalendar::Component>(
     event
         .property_value(property.as_ref())
         .map(|e| e.to_string())
+}
+
+pub fn get_string_multi_property<Cmp: icalendar::Component>(
+    cmp: &Cmp,
+    property: ComponentMultiProps,
+) -> Option<Vec<String>> {
+    get_multi_property::<Cmp, String>(cmp, property)
 }
 
 pub fn get_int_property<Cmp: icalendar::Component>(event: &Cmp, property: ComponentProps) -> i32 {

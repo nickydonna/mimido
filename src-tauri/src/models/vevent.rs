@@ -629,7 +629,6 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        println!("{event:?}");
         let rrule_set = event.get_rrule().unwrap();
         assert_eq!(
             *rrule_set.get_dt_start(),
@@ -643,6 +642,38 @@ mod tests {
             start,
             chrono_tz::Tz::UTC
                 .with_ymd_and_hms(2025, 3, 17, 13, 0, 0)
+                .unwrap()
+        );
+
+        assert_eq!(
+            event.to_input(&date_of_input),
+            ".b %t Work at 20/05/24 13:00-16:00 every weekday #health"
+        );
+    }
+
+    #[test]
+    fn gets_the_value_with_exdate() {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("./fixtures/basic_with_exdate.ics");
+        let ics = fs::read_to_string(d).expect("To Load file");
+        let event = NewVEvent::from_ical_data(1, "/hello", ics.as_str(), "")
+            .unwrap()
+            .unwrap();
+
+        let rrule_set = event.get_rrule().unwrap();
+        assert_eq!(
+            *rrule_set.get_dt_start(),
+            Tz::UTC.with_ymd_and_hms(2024, 5, 20, 13, 0, 0).unwrap()
+        );
+        let date_of_input = chrono_tz::Tz::UTC
+            .with_ymd_and_hms(2025, 3, 15, 12, 0, 0)
+            .unwrap();
+        let (start, _) = event.get_start_end_for_date(&date_of_input);
+        assert_eq!(
+            start,
+            // Skips the 17 because of exdate
+            chrono_tz::Tz::UTC
+                .with_ymd_and_hms(2025, 3, 18, 13, 0, 0)
                 .unwrap()
         );
 

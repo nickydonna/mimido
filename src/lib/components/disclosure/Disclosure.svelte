@@ -15,9 +15,11 @@
 
   let { label, header, content, expanded = false, ...aria }: Props = $props();
 
-  let disclosure: ReturnType<typeof createDisclosure> = $derived.by(() =>
-    createDisclosure({ label, expanded }),
-  );
+  // svelte-ignore state_referenced_locally
+  let disclosure = createDisclosure({ label, expanded });
+  $effect(() => {
+    disclosure.set({ label, expanded });
+  });
 </script>
 
 <div class="mb-2" {...aria}>

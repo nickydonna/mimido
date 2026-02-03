@@ -114,7 +114,7 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     let cal_href = Href(calendar.url.clone());
     let caldav = Caldav::new(server).await?;
 
-    let not_sync_cmp = {
+    let not_synced_cmps = {
         let not_synced_vevent = VEvent::by_calendar_id_and_not_sync(conn.clone(), calendar_id)
             .await?
             .into_iter()
@@ -131,9 +131,10 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
             .into_iter()
             .concat()
     };
+    log::info!("not synced {:?}", not_synced_cmps);
 
     let synced_at = Utc::now();
-    for vcmp in not_sync_cmp {
+    for vcmp in not_synced_cmps {
         let uid = vcmp.get_uid();
         let cal = icalendar::Calendar::new().push(vcmp.clone()).done();
         let (_, etag) = caldav
@@ -161,6 +162,8 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     } else {
         Vec::<VCmp>::new()
     };
+
+    log::info!("out synced {:?}", out_of_sync_cmp);
     for vcmp in out_of_sync_cmp {
         let Some(href) = vcmp.get_href() else {
             continue;
@@ -184,6 +187,8 @@ pub async fn internal_super_sync_calendar(calendar_id: i32) -> Result<(), Comman
     } = caldav
         .get_sync_report(&cal_href, &sync_token.into())
         .await?;
+
+    log::info!("report {:#?}", report);
 
     let _ = join_all(
         report

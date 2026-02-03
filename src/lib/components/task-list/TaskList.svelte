@@ -65,7 +65,7 @@
   }
 
   function handleDragEnd(e: Event, task: UnscheduledTask) {
-    e.preventDefault();
+    // e.preventDefault();
     eventDragger.state = EventDragger.None;
   }
 </script>

@@ -128,6 +128,7 @@
   function handleDropOnTime(time: Date) {
     console.log(time);
   }
+  $inspect(dragTime);
 </script>
 
 <div
@@ -220,9 +221,13 @@
           dragTime = time;
         }}
         ondrop={() => {
+          console.log("asdf");
           handleDropOnTime(time);
         }}
-        ondragover={() => false}
+        ondragover={(e) => {
+          e.preventDefault();
+          console.log("asdf");
+        }}
       ></div>
       {#each ["Event", "Task", "Reminder"] as type}
         <div

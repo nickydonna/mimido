@@ -13,21 +13,16 @@
     onchange?: (value: boolean) => void;
   } = $props();
 
-  const sw = $derived.by(() => createSwitch({ label, checked }));
-
-  // This seems too complex
+  // svelte-ignore state_referenced_locally
+  const sw = createSwitch({ label, checked });
   $effect(() => {
-    if ($sw.checked !== checked && !disabled) {
-      $sw.checked = checked;
-    }
+    sw.set({ label, checked });
   });
 
-  $effect(() => {
-    sw.subscribe((value) => {
-      if (value.checked !== checked && !disabled) {
-        onchange?.(value.checked);
-      }
-    });
+  sw.subscribe((value) => {
+    if (value.checked !== checked && !disabled) {
+      onchange?.(value.checked);
+    }
   });
 
   let buttonClass = $derived([
